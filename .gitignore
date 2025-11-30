@@ -1,0 +1,28 @@
+# Node
+node_modules/
+**/node_modules/
+
+# pnpm store
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+
+# Logs
+logs/
+*.log
+
+# OS / Editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+build/
+
+# Test output
+playwright-report/
+test-results/
+coverage/

@@ -6,10 +6,11 @@ export default defineConfig({
   out: "./infra/drizzle/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    host: "localhost",
+    host: "localhost",      // Docker Compose で 5432:5432 を公開している
     port: 5432,
     user: "app",
     password: "app",
     database: "czz_dev",
+    ssl: false,             // ★ ここがポイント：ローカルでは SSL を明示的に OFF
   },
 });

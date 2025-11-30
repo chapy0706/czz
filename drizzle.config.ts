@@ -7,7 +7,7 @@ export default defineConfig({
   dialect: "postgresql",
   dbCredentials: {
     host: "localhost",      // Docker Compose で 5432:5432 を公開している
-    port: 5432,
+    port: 5433,
     user: "app",
     password: "app",
     database: "czz_dev",

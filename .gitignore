@@ -1,3 +1,7 @@
+# --- VSCode settings ---
+.vscode/*
+!.vscode/settings.json
+
 # Node
 node_modules/
 **/node_modules/
@@ -15,11 +19,7 @@ logs/
 
 # OS / Editor files
 .DS_Store
-.vscode/
 .idea/
-
-# …settings.json だけは Git に含める
-!.vscode/settings.json
 
 # Build artifacts
 dist/

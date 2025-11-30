@@ -1,0 +1,19 @@
+{
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/.pnpm-store": true,
+    "**/dist": true,
+    "**/out": true,
+    "**/coverage": true,
+    "**/playwright-report": true
+  },
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "biome.lint.enable": true,
+  "biome.format.enable": true,
+  "typescript.tsdk": "node_modules/typescript/lib"
+}

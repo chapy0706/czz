@@ -22,7 +22,8 @@ services:
     working_dir: /app
     command: pnpm dev:user
     volumes:
-      - ../..:/app
+      - ../..:/app              # コード共有
+      - czz-user-node-modules:/app/node_modules   # node_modules は専用ボリューム
     environment:
       NODE_ENV: development
       DATABASE_URL: postgres://app:app@db:5432/czz_dev
@@ -39,7 +40,8 @@ services:
     working_dir: /app
     command: pnpm dev:admin
     volumes:
-      - ../..:/app
+      - ../..:/app               # コード共有
+      - czz-admin-node-modules:/app/node_modules  # こちらも専用ボリューム
     environment:
       NODE_ENV: development
       DATABASE_URL: postgres://app:app@db:5432/czz_dev
@@ -50,3 +52,5 @@ services:
 
 volumes:
   czz-db-data:
+  czz-user-node-modules:
+  czz-admin-node-modules:

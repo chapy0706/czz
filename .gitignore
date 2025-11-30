@@ -18,6 +18,9 @@ logs/
 .vscode/
 .idea/
 
+# …settings.json だけは Git に含める
+!.vscode/settings.json
+
 # Build artifacts
 dist/
 build/

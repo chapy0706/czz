@@ -1,0 +1,30 @@
+{
+  "name": "czz",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev:user": "pnpm --filter user-app dev",
+    "dev:admin": "pnpm --filter admin-app dev",
+    "build:user": "pnpm --filter user-app build",
+    "build:admin": "pnpm --filter admin-app build",
+    "start:user": "pnpm --filter user-app start",
+    "start:admin": "pnpm --filter admin-app start",
+    "lint": "biome lint .",
+    "format": "biome format .",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:e2e": "playwright test",
+    "drizzle:generate": "drizzle-kit generate",
+    "drizzle:migrate": "drizzle-kit migrate"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@playwright/test": "^1.45.0",
+    "drizzle-kit": "^0.24.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "vitest": "^2.0.0"
+  }
+}

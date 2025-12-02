@@ -10,7 +10,7 @@ export interface Task {
   isPublished: boolean;
   createdAt: Date;
   updatedAt: Date;
-  // 必要なら createdBy, updatedBy などを追加しても良い
+  // 必要なら createdBy, updatedBy などを追加
 }
 
 export interface NewTask {

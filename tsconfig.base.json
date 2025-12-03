@@ -8,7 +8,9 @@
     "baseUrl": ".",
     "paths": {
       "@czz/domain/*": ["packages/domain/src/*"],
-      "@czz/types/*": ["packages/types/src/*"]
+      "@czz/types/*": ["packages/types/src/*"],
+      "@czz/dsl-core/*": ["packages/dsl-core/src/*"],
+      "@infra/*": ["infra/*"]
     }
   }
 }

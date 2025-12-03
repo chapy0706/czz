@@ -1,11 +1,13 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
       "@czz/domain/*": ["../../packages/domain/src/*"],
-      "@czz/types/*": ["../../packages/types/src/*"]
+      "@czz/types/*": ["../../packages/types/src/*"],
+      "@infra/*": ["../../infra/*"],
+      "@app/*": ["src/*"]
     },
     "lib": [
       "dom",

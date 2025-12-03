@@ -1,8 +1,8 @@
 // apps/user/src/repositories/drizzleUserRepository.ts
 
 import { db } from "@/lib/db";
+import { users } from "@infra/drizzle/schema";
 import { eq } from "drizzle-orm";
-import { users } from "../../../../infra/drizzle/schema";
 
 import type {
   AuthUserId,

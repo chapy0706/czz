@@ -1,8 +1,8 @@
 // apps/user/src/repositories/drizzleTaskRepository.ts
 
 import { db } from "@/lib/db";
+import { tasks } from "@infra/drizzle/schema";
 import { eq } from "drizzle-orm";
-import { tasks } from "../../../../infra/drizzle/schema";
 
 import type { NewTask, Task } from "@czz/domain/entities/task";
 import type { TaskRepository } from "@czz/domain/repositories/taskRepository";

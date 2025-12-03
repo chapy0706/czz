@@ -5,6 +5,10 @@
       "dom.iterable",
       "esnext"
     ],
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": ["src/*"],      // adminアプリ固有
+    },
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
@@ -29,6 +33,7 @@
     "**/*.tsx"
   ],
   "exclude": [
+    "../../tsconfig.base.json",
     "node_modules"
   ]
 }

@@ -1,4 +1,5 @@
 // packages/domain/src/entities/task.ts
+import type { UserId } from "./user";
 
 export type TaskId = string;
 
@@ -17,4 +18,8 @@ export interface NewTask {
   title: string;
   description: string;
   isPublished: boolean;
+  // DB に挿入時に必須なもの
+  dslProgram: unknown;    // TODO: DSL の型が固まったら専用型にする
+  testCases: unknown;     // TODO: TestCase 型にする
+  createdByUserId: UserId;
 }

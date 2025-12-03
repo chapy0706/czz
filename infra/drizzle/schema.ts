@@ -2,12 +2,12 @@
 
 import { relations } from "drizzle-orm";
 import {
-    jsonb,
-    pgTable,
-    smallint,
-    text,
-    timestamp,
-    uuid,
+  jsonb,
+  pgTable,
+  smallint,
+  text,
+  timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -18,6 +18,7 @@ import {
  * - display_name: 表示名
  * - role: 0 = player, 1 = admin
  * - created_at: 作成日時
+ * - updated_at: 更新日時
  */
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -25,6 +26,9 @@ export const users = pgTable("users", {
   displayName: text("display_name").notNull(),
   role: smallint("role").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });

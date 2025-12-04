@@ -11,6 +11,7 @@
     "start:admin": "pnpm --filter admin-app start",
     "lint": "biome lint .",
     "format": "biome format .",
+    "check": "biome check .",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:e2e": "playwright test",
@@ -18,7 +19,7 @@
     "drizzle:migrate": "drizzle-kit migrate"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.0",
+    "@biomejs/biome": "^1.9.4",
     "@playwright/test": "^1.45.0",
     "@types/node": "^22.0.0",
     "@types/react": "^18.3.0",

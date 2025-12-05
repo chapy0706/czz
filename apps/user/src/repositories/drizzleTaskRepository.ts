@@ -48,13 +48,19 @@ export class DrizzleTaskRepository implements TaskRepository {
   async create(input: NewTask): Promise<Task> {
     const now = new Date();
 
-    // Drizzle の INSERT 型に寄せたオブジェクトを一旦変数にする
-    const insertValue: TaskInsert = {
+    // Drizzle の型推論と TS の「余計なプロパティチェック」が噛み合ってないので、
+    // ここだけ any で包んでしまう
+    const insertValue: any = {
       title: input.title,
       description: input.description,
-      dslProgram: input.dslProgram as TaskInsert["dslProgram"],
-      testCases: input.testCases as TaskInsert["testCases"],
-      createdByUserId: input.createdByUserId as TaskInsert["createdByUserId"],
+      dslProgram: input.dslProgram,
+      testCases: input.testCases,
+      createdByUserId: input.createdByUserId,
+      // boolean → 0/1
+      isPublished: input.isPublished ? 1 : 0,
+      // createdAt / updatedAt は defaultNow に任せるなら省略でも OK
+      // createdAt: now,
+      // updatedAt: now,
     };
 
     const [row] = await db

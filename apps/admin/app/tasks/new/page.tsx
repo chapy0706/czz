@@ -64,7 +64,10 @@ export default function NewTaskPage() {
         return;
       }
 
-      const response = await fetch("/api/admin/tasks", {
+      const API_BASE =
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3100";
+
+      const response = await fetch(`${API_BASE}/api/admin/tasks`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

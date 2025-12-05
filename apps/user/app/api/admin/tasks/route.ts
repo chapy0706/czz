@@ -6,6 +6,15 @@ import { z } from "zod";
 import { DrizzleTaskRepository } from "@/repositories/drizzleTaskRepository";
 import { CreateTaskUseCase } from "@/usecases/createTask";
 
+const ADMIN_ORIGIN =
+  process.env.NEXT_PUBLIC_ADMIN_ORIGIN ?? "http://localhost:3001";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": ADMIN_ORIGIN,
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 // リクエストボディの Zod スキーマ
 const createTaskBodySchema = z.object({
   title: z.string().min(1).max(200),
@@ -18,6 +27,13 @@ const createTaskBodySchema = z.object({
   createdByUserId: z.string().uuid().optional(),
 });
 
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
+}
+
 export async function POST(request: Request) {
   try{
     const json = await request.json();
@@ -29,7 +45,10 @@ export async function POST(request: Request) {
           error: "invalid_request",
           details: parseResult.error.flatten(),
         },
-        { status: 400 }
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 

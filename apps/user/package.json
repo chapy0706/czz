@@ -7,27 +7,27 @@
     "start": "next start --port 3000"
   },
   "dependencies": {
+    "autoprefixer": "^10.4.20",
+    "drizzle-orm": "^0.33.0",
+    "lucide-react": "^0.462.0",
     "next": "14.2.5",
+    "next-themes": "^0.3.0",
+    "pg": "^8.12.0",
+    "postcss": "^8.4.40",
+    "postgres": "^3.4.4",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-
     "swr": "^2.2.0",
-    "zustand": "^4.5.0",
-
-    "drizzle-orm": "^0.33.0",
-    "pg": "^8.12.0",
-    "postgres": "^3.4.4",
-
-    "zod": "^3.23.0",
-
     "tailwindcss": "^3.4.7",
-    "postcss": "^8.4.40",
-    "autoprefixer": "^10.4.20"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.23.0",
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "tailwindcss": "^3.4.18",
     "typescript": "^5.5.0"
   }
 }

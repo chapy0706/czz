@@ -1,9 +1,13 @@
-// apps/user/app/page.tsx
+import { ModeToggle } from "@/components/providers/mode-toggle";
+
 export default function Page() {
   return (
-    <main>
-      <h1>czz - user app</h1>
-      <p>ここにゲーム画面が入ります。</p>
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4">
+      <h1 className="text-2xl font-semibold">czz ユーザー画面（仮）</h1>
+      <p className="text-sm text-muted-foreground">
+        ダークモードが効いているかの確認用ページです。
+      </p>
+      <ModeToggle />
     </main>
   );
 }

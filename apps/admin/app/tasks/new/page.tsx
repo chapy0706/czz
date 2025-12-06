@@ -3,6 +3,14 @@
 
 import { FormEvent, useState } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+
 type CreateTaskFormState = {
   title: string;
   description: string;
@@ -11,18 +19,24 @@ type CreateTaskFormState = {
   testCasesJson: string;
 };
 
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3100";
+
 export default function NewTaskPage() {
   const [form, setForm] = useState<CreateTaskFormState>({
     title: "",
     description: "",
     isPublished: false,
-    dslProgramJson: "{\n  \n}",
-    testCasesJson: "[\n  \n]",
+    dslProgramJson: '{\n  "version": 1,\n  "commands": []\n}',
+    testCasesJson: '[\n  {\n    "input": {},\n    "expected": {}\n  }\n]',
   });
 
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [dslJsonError, setDslJsonError] = useState<string | null>(null);
+  const [testCasesJsonError, setTestCasesJsonError] = useState<string | null>(null);
 
   const handleChange =
     (field: keyof CreateTaskFormState) =>
@@ -36,13 +50,41 @@ export default function NewTaskPage() {
         ...prev,
         [field]: value,
       }));
+
+      // JSON フィールド変更時はエラーをクリア
+      if (field === "dslProgramJson") setDslJsonError(null);
+      if (field === "testCasesJson") setTestCasesJsonError(null);
     };
+
+  const formatDslJson = () => {
+    try {
+      const parsed = JSON.parse(form.dslProgramJson);
+      const pretty = JSON.stringify(parsed, null, 2);
+      setForm((prev) => ({ ...prev, dslProgramJson: pretty }));
+      setDslJsonError(null);
+    } catch {
+      setDslJsonError("DSL Program の JSON が不正です。");
+    }
+  };
+
+  const formatTestCasesJson = () => {
+    try {
+      const parsed = JSON.parse(form.testCasesJson);
+      const pretty = JSON.stringify(parsed, null, 2);
+      setForm((prev) => ({ ...prev, testCasesJson: pretty }));
+      setTestCasesJsonError(null);
+    } catch {
+      setTestCasesJsonError("Test Cases の JSON が不正です。");
+    }
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setMessage(null);
     setError(null);
+    setDslJsonError(null);
+    setTestCasesJsonError(null);
 
     try {
       let dslProgram: unknown;
@@ -51,7 +93,7 @@ export default function NewTaskPage() {
       try {
         dslProgram = JSON.parse(form.dslProgramJson);
       } catch {
-        setError("DSL Program の JSON が不正です。");
+        setDslJsonError("DSL Program の JSON が不正です。");
         setSubmitting(false);
         return;
       }
@@ -59,13 +101,10 @@ export default function NewTaskPage() {
       try {
         testCases = JSON.parse(form.testCasesJson);
       } catch {
-        setError("Test Cases の JSON が不正です。");
+        setTestCasesJsonError("Test Cases の JSON が不正です。");
         setSubmitting(false);
         return;
       }
-
-      const API_BASE =
-      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3100";
 
       const response = await fetch(`${API_BASE}/api/admin/tasks`, {
         method: "POST",
@@ -78,7 +117,6 @@ export default function NewTaskPage() {
           isPublished: form.isPublished,
           dslProgram,
           testCases,
-          // createdByUserId は未指定 → UseCase 側でダミー ID が入る
         }),
       });
 
@@ -97,8 +135,8 @@ export default function NewTaskPage() {
       //   title: "",
       //   description: "",
       //   isPublished: false,
-      //   dslProgramJson: "{\n  \n}",
-      //   testCasesJson: "[\n  \n]",
+      //   dslProgramJson: '{\n  "version": 1,\n  "commands": []\n}',
+      //   testCasesJson: '[\n  {\n    "input": {},\n    "expected": {}\n  }\n]',
       // });
     } catch (err) {
       console.error(err);
@@ -109,91 +147,132 @@ export default function NewTaskPage() {
   };
 
   return (
-    <main className="mx-auto max-w-2xl p-6 space-y-6">
+    <main className="mx-auto max-w-3xl p-6 space-y-6">
       <h1 className="text-2xl font-bold">タスク作成</h1>
 
       {message && (
-        <p className="rounded border border-green-500 bg-green-50 px-3 py-2 text-sm">
-          {message}
-        </p>
+        <Alert className="border-green-500">
+          <AlertTitle>成功</AlertTitle>
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
       )}
 
       {error && (
-        <p className="rounded border border-red-500 bg-red-50 px-3 py-2 text-sm">
-          {error}
-        </p>
+        <Alert variant="destructive">
+          <AlertTitle>エラー</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium">
-            タイトル
-            <input
-              type="text"
-              className="mt-1 w-full rounded border px-2 py-1 text-sm"
+      <Card>
+        <CardHeader>
+          <CardTitle>基本情報</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1">
+            <Label htmlFor="title">タイトル</Label>
+            <Input
+              id="title"
               value={form.title}
               onChange={handleChange("title")}
+              placeholder="例: 配列を昇順に並び替えよう"
               required
             />
-          </label>
-        </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium">
-            説明
-            <textarea
-              className="mt-1 w-full rounded border px-2 py-1 text-sm"
-              rows={4}
+          <div className="space-y-1">
+            <Label htmlFor="description">説明</Label>
+            <Textarea
+              id="description"
               value={form.description}
               onChange={handleChange("description")}
+              rows={4}
+              placeholder="この課題のゴールや前提条件を記述します。"
               required
             />
-          </label>
-        </div>
+          </div>
 
-        <div>
-          <label className="inline-flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="isPublished">公開する</Label>
+              <p className="text-xs text-muted-foreground">
+                チェックを入れると、ユーザー側の一覧に表示されます。
+              </p>
+            </div>
+            <Switch
+              id="isPublished"
               checked={form.isPublished}
-              onChange={handleChange("isPublished")}
+              onCheckedChange={(checked) =>
+                setForm((prev) => ({ ...prev, isPublished: checked }))
+              }
             />
-            公開する
-          </label>
-        </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        <div>
-          <label className="block text-sm font-medium">
-            DSL Program (JSON)
-            <textarea
-              className="mt-1 w-full rounded border px-2 py-1 font-mono text-xs"
-              rows={6}
-              value={form.dslProgramJson}
-              onChange={handleChange("dslProgramJson")}
-            />
-          </label>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>DSL Program (JSON)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Textarea
+            value={form.dslProgramJson}
+            onChange={handleChange("dslProgramJson")}
+            rows={10}
+            className="font-mono text-xs"
+            spellCheck={false}
+          />
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={formatDslJson}
+            >
+              JSON を整形
+            </Button>
+          </div>
+          {dslJsonError && (
+            <p className="text-xs text-red-600">{dslJsonError}</p>
+          )}
+        </CardContent>
+      </Card>
 
-        <div>
-          <label className="block text-sm font-medium">
-            Test Cases (JSON)
-            <textarea
-              className="mt-1 w-full rounded border px-2 py-1 font-mono text-xs"
-              rows={6}
-              value={form.testCasesJson}
-              onChange={handleChange("testCasesJson")}
-            />
-          </label>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Test Cases (JSON)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Textarea
+            value={form.testCasesJson}
+            onChange={handleChange("testCasesJson")}
+            rows={10}
+            className="font-mono text-xs"
+            spellCheck={false}
+          />
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={formatTestCasesJson}
+            >
+              JSON を整形
+            </Button>
+          </div>
+          {testCasesJsonError && (
+            <p className="text-xs text-red-600">{testCasesJsonError}</p>
+          )}
+        </CardContent>
+      </Card>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {submitting ? "作成中..." : "作成する"}
-        </button>
-      </form>
+      <Card>
+        <CardFooter className="justify-end">
+          <Button type="submit" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "作成中..." : "作成する"}
+          </Button>
+        </CardFooter>
+      </Card>
     </main>
   );
 }

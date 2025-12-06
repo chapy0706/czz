@@ -7,20 +7,23 @@
     "start": "next start --port 3001"
   },
   "dependencies": {
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-switch": "^1.2.6",
+    "autoprefixer": "^10.4.20",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.33.0",
     "next": "14.2.5",
+    "pg": "^8.12.0",
+    "postcss": "^8.4.40",
+    "postgres": "^3.4.4",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "zustand": "^4.5.0",
-
-    "drizzle-orm": "^0.33.0",
-    "pg": "^8.12.0",
-    "postgres": "^3.4.4",
-
-    "zod": "^3.23.0",
-
+    "tailwind-merge": "^3.4.0",
     "tailwindcss": "^3.4.7",
-    "postcss": "^8.4.40",
-    "autoprefixer": "^10.4.20"
+    "zod": "^3.23.0",
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

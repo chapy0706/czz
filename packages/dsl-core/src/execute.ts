@@ -1,29 +1,59 @@
 // packages/dsl-core/src/execute.ts
-import type { DslInput, DslOutput, DslProgram } from "./types";
+import type { DslCommand, DslProgram } from "./schema";
 
+export type DslInput = number[];
+export type DslOutput = number[];
+
+// 安全のため、常に新しい配列を返す
 export function execute(program: DslProgram, input: DslInput): DslOutput {
-  return program.commands.reduce<DslOutput>((current, command) => {
-    switch (command.type) {
-      case "FILTER":
-        return current.filter((value) => {
-          if (command.predicate === "IS_EVEN") {
-            return value % 2 === 0;
-          }
-          if (command.predicate === "IS_ODD") {
-            return value % 2 !== 0;
-          }
-          // 予期しない predicate はとりあえず何もしない
-          return true;
-        });
+  let current: DslOutput = [...input];
 
-      case "SORT":
-        return [...current].sort((a, b) =>
-          command.direction === "ASC" ? a - b : b - a,
-        );
+  for (const command of program.commands) {
+    current = applyCommand(command, current);
+  }
 
-      default:
-        // 未知のコマンドは無視（将来はエラーにしても良い）
-        return current;
+  return current;
+}
+
+function applyCommand(command: DslCommand, input: DslInput): DslOutput {
+  switch (command.type) {
+    case "FILTER_EQUALS":
+      return input.filter((v) => v === command.value);
+
+    case "FILTER_NOT_EQUALS":
+      return input.filter((v) => v !== command.value);
+
+    case "FILTER_GT":
+      return input.filter((v) => v > command.value);
+
+    case "MAP_ADD":
+      return input.map((v) => v + command.value);
+
+    case "MAP_MULTIPLY":
+      return input.map((v) => v * command.value);
+
+    case "SORT_ASC":
+      return [...input].sort((a, b) => a - b);
+
+    case "SORT_DESC":
+      return [...input].sort((a, b) => b - a);
+
+    case "OUTPUT_FIRST":
+      // OUTPUT 系は「配列に戻す」仕様にしておくと扱いやすい
+      return input.length > 0 ? [input[0]] : [];
+
+    case "OUTPUT_LAST":
+      return input.length > 0 ? [input[input.length - 1]] : [];
+
+    case "OUTPUT_SUM": {
+      const sum = input.reduce((acc, v) => acc + v, 0);
+      return [sum];
     }
-  }, input);
+
+    default: {
+      // TypeScript 的には到達しないが、安全のため
+      const _exhaustiveCheck: never = command;
+      return input;
+    }
+  }
 }

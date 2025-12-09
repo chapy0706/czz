@@ -7,8 +7,10 @@
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
+      "@czz/domain": ["packages/domain/src/index.ts"],
       "@czz/domain/*": ["packages/domain/src/*"],
       "@czz/types/*": ["packages/types/src/*"],
+      "@czz/dsl-core": ["packages/dsl-core/src/index.ts"],
       "@czz/dsl-core/*": ["packages/dsl-core/src/*"],
       "@infra/*": ["infra/*"]
     }

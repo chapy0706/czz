@@ -1,5 +1,5 @@
 {
-  "name": "@czz/dsl-core",
+  "name": "@czz/domain",
   "version": "0.0.0",
   "private": true,
   "main": "src/index.ts",

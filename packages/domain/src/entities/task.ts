@@ -7,6 +7,11 @@ export interface Task {
   id: TaskId;
   title: string;
   description: string;
+  // 追加：評価に必要
+  dslProgram: unknown;  // TODO: dsl-core の型に寄せるなら UseCase で parse する
+  testCases: unknown;   // TODO: 同上
+  // 追加：ドメインとして自然（DBにもある）
+  createdByUserId: UserId;
   // 公開フラグ（DBでは 0/1 だが Domain では boolean で扱う）
   isPublished: boolean;
   createdAt: Date;

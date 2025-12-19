@@ -1,10 +1,20 @@
-// packages/domain/src/entities/result.ts
+import type { TaskId } from "./task";
+import type { UserId } from "./user";
+
+export type ResultId = string;
+
 export interface Result {
-  id: string;
-  taskId: string;
-  userId: string;
-  resultStatus: 0 | 1;
-  output: string;
+  id: ResultId;
+  taskId: TaskId;
+  userId: UserId;
+  submittedProgram: unknown;
+  resultStatus: boolean;
   createdAt: Date;
-  updatedAt: Date;
+}
+
+export interface NewResult {
+  taskId: TaskId;
+  userId: UserId;
+  submittedProgram: unknown;
+  resultStatus: boolean;
 }

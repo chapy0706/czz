@@ -6,6 +6,8 @@
     "strict": true,
     "jsx": "preserve",
     "baseUrl": ".",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "paths": {
       "@czz/domain": ["packages/domain/src/index.ts"],
       "@czz/domain/*": ["packages/domain/src/*"],

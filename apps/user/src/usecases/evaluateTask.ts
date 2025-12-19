@@ -8,29 +8,34 @@ type EvaluateTaskDeps = {
   resultRepository: ResultRepository;
 };
 
+type ExecuteParams = {
+  taskId: string;
+  userId: string;
+  submittedProgram: unknown; // API/フォームから来るJSON
+};
+
 export class EvaluateTaskUseCase {
   constructor(private readonly deps: EvaluateTaskDeps) {}
 
-  async execute(params: { taskId: string; userId: string }) {
-    const { taskId, userId } = params;
+  async execute(params: ExecuteParams) {
+    const { taskId, userId, submittedProgram: rawSubmitted } = params;
 
     const task = await this.deps.taskRepository.findById(taskId);
-    if (!task) {
-      throw new Error("Task not found");
-    }
+    if (!task) throw new Error("Task not found");
 
-    // DB 上は JSONB として保存されている想定
-    const program = dslProgramSchema.parse(task.dslProgram);
+    // DB 上は JSONB（unknown）なので UseCase で検証
     const testCases = dslTestCaseSchema.array().parse(task.testCases);
 
-    const result = runTestCases(program, testCases);
+    // ユーザーが提出した DSL を検証して実行
+    const submittedProgram = dslProgramSchema.parse(rawSubmitted);
+    const result = runTestCases(submittedProgram, testCases);
 
-    // 結果の保存用ペイロード（output は JSON 文字列でいい）
+    // DB schema（submittedProgram / resultStatus）に合わせて保存
     await this.deps.resultRepository.create({
       taskId,
       userId,
-      resultStatus: result.allPassed ? 1 : 0,
-      output: JSON.stringify(result),
+      submittedProgram,
+      resultStatus: result.allPassed, // boolean（0/1変換はrepoで）
     });
 
     return result;

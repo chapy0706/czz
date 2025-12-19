@@ -1,5 +1,5 @@
 // packages/domain/src/repositories/resultRepository.ts
-import type { Result } from "../entities/result";
+import type { NewResult, Result, ResultId } from "../entities/result";
 
 export interface CreateResultParams {
   taskId: string;
@@ -9,6 +9,6 @@ export interface CreateResultParams {
 }
 
 export interface ResultRepository {
-  create(params: CreateResultParams): Promise<Result>;
-  // 将来の拡張用に findById/findByTaskId とか追加してもOK
+  create(input: NewResult): Promise<Result>;
+  findById(id: ResultId): Promise<Result | null>; // いま要らなければ後回しでもOK
 }

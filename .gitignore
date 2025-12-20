@@ -31,3 +31,4 @@ test-results/
 coverage/
 apps/user/.env.local
 apps/admin/.env.local
+.env

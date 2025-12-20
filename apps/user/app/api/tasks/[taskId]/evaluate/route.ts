@@ -8,6 +8,11 @@ import { EvaluateTaskUseCase } from "@/usecases/evaluateTask";
 import { DrizzleResultRepository } from "@infra/drizzle/repositories/resultRepository";
 import { DrizzleTaskRepository } from "@infra/drizzle/repositories/taskRepository";
 
+const paramsSchema = z.object({ taskId: z.string().uuid() });
+const bodySchema = z.object({
+  userId: z.string().uuid(),
+  submittedProgram: z.unknown(),
+});
 const requestSchema = z.object({
   userId: z.string().min(1),
   submittedProgram: z.unknown(),
@@ -18,7 +23,7 @@ export async function POST(
   ctx: { params: { taskId: string } },
 ) {
   try {
-    const { taskId } = ctx.params;
+    const { taskId } = paramsSchema.parse(ctx.params);
 
     const body = await req.json();
     const parsed = requestSchema.parse(body);

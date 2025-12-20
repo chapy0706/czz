@@ -3,8 +3,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { DrizzleTaskRepository } from "@/repositories/drizzleTaskRepository";
 import { CreateTaskUseCase } from "@/usecases/createTask";
+import { DrizzleTaskRepository } from "@infra/drizzle/repositories/taskRepository";
 
 const ADMIN_ORIGIN =
   process.env.NEXT_PUBLIC_ADMIN_ORIGIN ?? "http://localhost:3001";

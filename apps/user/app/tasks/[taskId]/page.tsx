@@ -7,12 +7,18 @@ type ApiOk = { ok: true; result: unknown };
 type ApiNg = { ok: false; error: string; details?: unknown };
 type ApiResponse = ApiOk | ApiNg;
 
-function safeJsonParse(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
+type JsonParseResult = {
+  ok: boolean;
+  value: unknown | null;
+  error: string | null;
+};
+
+function safeJsonParse(text: string): JsonParseResult {
   try {
-    return { ok: true, value: JSON.parse(text) };
+    return { ok: true, value: JSON.parse(text), error: null };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Invalid JSON";
-    return { ok: false, error: msg };
+    return { ok: false, value: null, error: msg };
   }
 }
 
@@ -28,7 +34,10 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
   const [resStatus, setResStatus] = useState<number | null>(null);
   const [apiRes, setApiRes] = useState<ApiResponse | null>(null);
 
-  const parsedSubmitted = useMemo(() => safeJsonParse(submittedProgramJson), [submittedProgramJson]);
+  const parsedSubmitted = useMemo(
+    () => safeJsonParse(submittedProgramJson),
+    [submittedProgramJson],
+  );
 
   const run = async () => {
     if (!userId) return;
@@ -40,7 +49,7 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
     try {
       const body: Record<string, unknown> = {
         userId,
-        submittedProgram: parsedSubmitted.ok ? parsedSubmitted.value : null,
+        submittedProgram: parsedSubmitted.value, // JSON壊れてたら null
       };
 
       const res = await fetch(`/api/tasks/${taskId}/evaluate`, {
@@ -60,7 +69,7 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
     }
   };
 
-  const canRun = userId.length > 0 && parsedSubmitted.ok;
+  const canRun = userId.length > 0 && parsedSubmitted.error === null;
 
   return (
     <main className="mx-auto w-full max-w-4xl space-y-6 p-6">
@@ -99,7 +108,7 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
           onChange={(e) => setSubmittedProgramJson(e.target.value)}
         />
 
-        {!parsedSubmitted.ok && (
+        {parsedSubmitted.error !== null && (
           <p className="text-sm text-red-500">JSON が壊れてる: {parsedSubmitted.error}</p>
         )}
       </section>
@@ -124,9 +133,6 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
         <pre className="overflow-auto rounded border p-3 text-xs">
           {apiRes ? JSON.stringify(apiRes, null, 2) : "(no result)"}
         </pre>
-        <p className="text-xs text-muted-foreground">
-          400 の details が出たら、その内容に合わせて submittedProgram を調整すると 200 に近づく。
-        </p>
       </section>
     </main>
   );

@@ -162,7 +162,7 @@ export function PseudoTerminalRunner(props: { taskId: string; userId: string }) 
   }
 
   return (
-    <section className="flex h-full flex-col rounded-lg border bg-background">
+    <section data-testid="pseudo-terminal" className="flex h-full flex-col rounded-lg border bg-background">
       <header className="flex items-center justify-between gap-2 border-b px-3 py-2">
         <div className="font-mono text-sm">Pseudo Terminal</div>
         <div className="flex items-center gap-2">
@@ -198,6 +198,7 @@ export function PseudoTerminalRunner(props: { taskId: string; userId: string }) 
 
       <div className="border-t px-3 py-2">
         <textarea
+          data-testid="terminal-input"
           className="w-full resize-none rounded border bg-background px-2 py-2 font-mono text-sm"
           rows={1}
           placeholder='Paste submittedProgram JSON here. (":clear" to clear)'

@@ -14,7 +14,12 @@
     "check": "biome check .",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "test:e2e": "playwright test",
+    "e2e": "node ./scripts/run-e2e.mjs",
+    "e2e:ui": "E2E_BASE_URL=http://localhost:3100 pnpm -C e2e test:ui",
+    "e2e:test": "pnpm -C e2e test",
+    "e2e:attach": "E2E_ATTACH=1 node ./scripts/run-e2e.mjs",
+    "e2e:server": "pnpm -C apps/user dev -- -p 3100",
+    "e2e:install": "pnpm -C e2e exec playwright install --with-deps",
     "drizzle:generate": "drizzle-kit generate",
     "drizzle:migrate": "drizzle-kit migrate"
   },

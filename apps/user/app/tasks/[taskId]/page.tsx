@@ -1,7 +1,9 @@
 // apps/user/app/tasks/[taskId]/page.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
+import { getOrCreateGuestUserId } from "@/lib/terminal/guestUserId";
+import { useEffect, useMemo, useState } from "react";
 
 type ApiOk = { ok: true; result: unknown };
 type ApiNg = { ok: false; error: string; details?: unknown };
@@ -25,7 +27,12 @@ function safeJsonParse(text: string): JsonParseResult {
 export default function TaskDetailPage({ params }: { params: { taskId: string } }) {
   const taskId = params.taskId;
 
-  const [userId, setUserId] = useState("");
+  // SSR 初回レンダと hydration の差を作らないため、クライアントで確定させる
+    const [userId, setUserId] = useState<string | null>(null);
+    useEffect(() => {
+     setUserId(getOrCreateGuestUserId());
+    }, []);
+
   const [submittedProgramJson, setSubmittedProgramJson] = useState(
     JSON.stringify({ commands: [] }, null, 2),
   );
@@ -40,8 +47,6 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
   );
 
   const run = async () => {
-    if (!userId) return;
-
     setIsRunning(true);
     setApiRes(null);
     setResStatus(null);
@@ -69,7 +74,7 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
     }
   };
 
-  const canRun = userId.length > 0 && parsedSubmitted.error === null;
+  const canRun = parsedSubmitted.error === null;
 
   return (
     <main className="mx-auto w-full max-w-4xl space-y-6 p-6">
@@ -79,13 +84,17 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
       </header>
 
       <section className="space-y-2">
-        <label className="block text-sm font-medium">userId (UUID)</label>
-        <input
-          className="w-full rounded border px-3 py-2 text-sm"
-          placeholder="e.g. e5ca5f62-1926-4dfc-8c67-161e334b7ade"
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-        />
+        <h2 className="text-sm font-semibold">Terminal</h2>
+        {userId ? (
+         <PseudoTerminalRunner taskId={taskId} userId={userId} />
+        ) : (
+          <div className="rounded border p-3 text-sm text-muted-foreground">
+            Initializing...
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground break-all">
+          guest userId: {userId ?? "(loading)"}
+        </p>
       </section>
 
       <section className="space-y-2">

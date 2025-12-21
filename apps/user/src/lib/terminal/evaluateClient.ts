@@ -1,28 +1,6 @@
 // apps/user/src/lib/terminal/evaluateClient.ts
 
-export type EvaluateErrorKind = "ZOD" | "TEST" | "NETWORK" | "UNKNOWN";
-
-export type EvaluateError = {
-  kind: EvaluateErrorKind;
-  message: string;
-  details?: unknown;
-};
-
-export type EvaluateResponseOk = {
-  ok: true;
-  passed: number;
-  total: number;
-  output?: unknown;
-};
-
-export type EvaluateResponseErr = {
-  ok: false;
-  passed?: number;
-  total?: number;
-  error: EvaluateError;
-};
-
-export type EvaluateResponse = EvaluateResponseOk | EvaluateResponseErr;
+import { EvaluateResponseSchema, type EvaluateResponse } from "@/lib/terminal/evaluateContract";
 
 export async function evaluateTask(params: {
   taskId: string;
@@ -40,48 +18,14 @@ export async function evaluateTask(params: {
 
     const data = await res.json().catch(() => null);
 
-    if (!res.ok) {
-      // 失敗レスポンスは実装によって形が揺れやすいので、できるだけ拾う
-      const message =
-        (data?.error as string | undefined) ??
-        (data?.error?.message as string | undefined) ??
-        (data?.message as string | undefined) ??
-        `HTTP ${res.status}`;
+    // HTTPエラーでも、契約型に合わせて返す（API側が整っていればここでOKになる）
+    const parsed = EvaluateResponseSchema.safeParse(data);
+    if (parsed.success) return parsed.data;
 
-      return {
-        ok: false,
-        error: { kind: "UNKNOWN", message, details: data },
-      };
-    }
-
-    // 成功レスポンスの形式も揺れやすいので “あるものを使う”
-    // - { ok: true, passed, total, output }
-    // - { ok: true, result }
-    // の両対応を狙う
-    const passedRaw = data?.passed ?? data?.passCount;
-    const totalRaw = data?.total ?? data?.totalCount;
-    const passed =
-      typeof passedRaw === "number"
-        ? passedRaw
-        : passedRaw != null
-          ? Number(passedRaw)
-          : 1;
-    const total =
-      typeof totalRaw === "number"
-        ? totalRaw
-        : totalRaw != null
-          ? Number(totalRaw)
-          : 1;
-
-    const output =
-      (data?.output as unknown | undefined) ??
-      (data?.result as unknown | undefined);
-
+    const message = !res.ok ? `HTTP ${res.status}` : "Invalid API response shape";
     return {
-      ok: true,
-      passed,
-      total,
-      output,
+      ok: false,
+      error: { kind: "UNKNOWN", message, details: data },
     };
   } catch (e) {
     return {

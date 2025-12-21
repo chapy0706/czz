@@ -53,7 +53,6 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
 
     try {
       const body: Record<string, unknown> = {
-        userId,
         submittedProgram: parsedSubmitted.value, // JSON壊れてたら null
       };
 

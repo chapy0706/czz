@@ -10,7 +10,7 @@ type EvaluateTaskDeps = {
 
 type ExecuteParams = {
   taskId: string;
-  userId: string;
+  userId?: string; // ゲスト実行では未指定
   submittedProgram: unknown; // API/フォームから来るJSON
 };
 
@@ -30,14 +30,32 @@ export class EvaluateTaskUseCase {
     const submittedProgram = dslProgramSchema.parse(rawSubmitted);
     const result = runTestCases(submittedProgram, testCases);
 
-    // DB schema（submittedProgram / resultStatus）に合わせて保存
-    await this.deps.resultRepository.create({
-      taskId,
-      userId,
-      submittedProgram,
-      resultStatus: result.allPassed, // boolean（0/1変換はrepoで）
-    });
+    // userId がある場合のみ保存を試みる（ゲストは保存しない）
+    // userId が DB に存在しない場合の FK 違反は “保存しない扱い” に落とす
+    if (userId) {
+      try {
+        await this.deps.resultRepository.create({
+          taskId,
+          userId,
+          submittedProgram,
+          resultStatus: result.allPassed, // boolean（0/1変換はrepoで）
+        });
+      } catch (e) {
+        if (!isForeignKeyViolation(e)) throw e;
+        // 保存だけ失敗：評価結果は返す（ゲスト相当として扱う）
+      }
+    }
 
     return result;
   }
+}
+
+function isForeignKeyViolation(e: unknown): boolean {
+  // Postgres: foreign_key_violation = 23503
+  if (!e || typeof e !== "object") return false;
+  const anyErr = e as { code?: unknown; message?: unknown };
+  if (anyErr.code === "23503") return true;
+  if (typeof anyErr.message === "string" && anyErr.message.includes("violates foreign key constraint"))
+    return true;
+  return false;
 }

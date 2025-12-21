@@ -27,7 +27,7 @@ function summarizeZod(message: string): string {
   return `ZOD: ${message}`;
 }
 
-export function PseudoTerminalRunner(props: { taskId: string; userId: string }) {
+export function PseudoTerminalRunner(props: { taskId: string; userId?: string }) {
   const { taskId, userId } = props;
 
   const history = useTerminalHistoryStore((s) => s.history);
@@ -58,12 +58,6 @@ export function PseudoTerminalRunner(props: { taskId: string; userId: string }) 
   async function execute(raw: string) {
     const cmd = raw.trim();
     if (!cmd || running) return;
-
-    if (!userId) {
-      append("stderr", "ERR: userId is required (guest id is OK).");
-      append("meta", "exit 1");
-      return;
-    }
 
     pushHistory(cmd);
     setHistoryIndex(null);

@@ -12,14 +12,14 @@ export const EvaluateErrorSchema = z.object({
 export const EvaluateResponseOkSchema = z.object({
   ok: z.literal(true),
   passed: z.number().int().nonnegative(),
-  total: z.number().int().positive(),
+  total: z.number().int().nonnegative(),
   output: z.unknown().optional(),
 });
 
 export const EvaluateResponseErrSchema = z.object({
   ok: z.literal(false),
   passed: z.number().int().nonnegative().optional(),
-  total: z.number().int().positive().optional(),
+  total: z.number().int().nonnegative().optional(),
   error: EvaluateErrorSchema,
 });
 

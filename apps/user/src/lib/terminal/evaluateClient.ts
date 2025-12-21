@@ -4,16 +4,18 @@ import { EvaluateResponseSchema, type EvaluateResponse } from "@/lib/terminal/ev
 
 export async function evaluateTask(params: {
   taskId: string;
-  userId: string;
+  userId?: string;
   submittedProgram: unknown;
 }): Promise<EvaluateResponse> {
   const { taskId, userId, submittedProgram } = params;
 
   try {
+    const body: Record<string, unknown> = { submittedProgram };
+    if (userId) body.userId = userId;
     const res = await fetch(`/api/tasks/${taskId}/evaluate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, submittedProgram }),
+      body: JSON.stringify(body),
     });
 
     const data = await res.json().catch(() => null);

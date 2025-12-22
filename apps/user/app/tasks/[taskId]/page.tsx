@@ -1,6 +1,7 @@
 // apps/user/app/tasks/[taskId]/page.tsx
 "use client";
 
+import { CommandBuilder } from "@/lib/command-builder/CommandBuilder";
 import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
 import { getOrCreateGuestUserId } from "@/lib/terminal/guestUserId";
 import { useEffect, useMemo, useState } from "react";
@@ -81,6 +82,8 @@ export default function TaskDetailPage({ params }: { params: { taskId: string } 
         <h1 className="text-xl font-semibold">Task Detail</h1>
         <p className="text-sm text-muted-foreground break-all">taskId: {taskId}</p>
       </header>
+
+      <CommandBuilder taskId={taskId} />
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold">Terminal</h2>

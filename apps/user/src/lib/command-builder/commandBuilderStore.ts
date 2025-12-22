@@ -1,6 +1,7 @@
 // apps/user/src/lib/command-builder/commandBuilderStore.ts
 import { create } from "zustand";
 import type { CommandType } from "./commandCatalog";
+import { createDefaultCommandValue } from "./commandCatalog";
 
 export type CommandDraft = {
   id: string;
@@ -54,7 +55,7 @@ export const useCommandBuilderStore = create<CommandBuilderState>((set, get) => 
   select: (id) => set({ selectedId: id }),
 
   add: (type) => {
-    const item: CommandDraft = { id: uid(), value: { type } };
+    const item: CommandDraft = { id: uid(), value: createDefaultCommandValue(type) };
     set((s) => ({ commands: [...s.commands, item], selectedId: item.id }));
     get().saveToStorage();
   },

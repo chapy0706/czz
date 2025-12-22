@@ -69,7 +69,7 @@ export function CommandPalette(props: Props) {
                     <div className="font-mono text-sm">{x.type}</div>
                     <div className="text-xs text-muted-foreground">{x.unixHint}</div>
                   </div>
-                  {x.needsParams && (
+                  {!!x.params?.length && (
                     <span className="shrink-0 rounded border px-2 py-0.5 text-[11px] text-muted-foreground">
                       params
                     </span>

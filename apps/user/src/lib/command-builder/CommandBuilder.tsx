@@ -117,6 +117,24 @@ export function CommandBuilder(props: { taskId: string }) {
 
           <div>
             <div className="text-xs font-medium text-muted-foreground">Result</div>
+            {result && typeof result === "object" && "ok" in (result as any) ? (
+              (result as any).ok ? (
+                <div className="mt-2 rounded border px-3 py-2 text-sm" data-testid="cb-result-summary">
+                  OK {typeof (result as any).passed === "number" && typeof (result as any).total === "number"
+                    ? `(${(result as any).passed}/${(result as any).total})`
+                    : ""}
+                </div>
+              ) : (
+                <div className="mt-2 rounded border px-3 py-2 text-sm" data-testid="cb-result-summary">
+                  NG{" "}
+                  {((result as any).error?.kind || (result as any).error?.message) ? (
+                    <span className="text-muted-foreground">
+                      ({String((result as any).error?.kind ?? "UNKNOWN")}: {String((result as any).error?.message ?? "")})
+                    </span>
+                  ) : null}
+                </div>
+              )
+            ) : null}
             <pre className="mt-2 max-h-[240px] overflow-auto rounded border p-3 text-xs" data-testid="cb-result">
               {result ? JSON.stringify(result, null, 2) : "(no result)"}
             </pre>

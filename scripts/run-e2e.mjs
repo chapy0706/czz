@@ -63,6 +63,24 @@ async function main() {
     log(`attach mode: will NOT start dev server (expect already running)`);
   }
 
+  // すでにサーバが起きてるなら、自動で attach 扱いにする（EADDRINUSE回避）
+  const url = `${BASE_URL}${HEALTH_PATH}`;
+  const alreadyUp = await requestOk(url);
+
+  if (ATTACH || alreadyUp) {
+    log(
+      ATTACH
+        ? "attach mode: will NOT start dev server (expect already running)"
+        : `server already running: ${url} (skip starting dev server)`,
+    );
+  } else {
+    log(`starting dev server: apps/user on port ${PORT}`);
+    // apps/user 側の dev スクリプトが --port を持ってる前提ならこれでOK
+    dev = run("pnpm", ["-C", "apps/user", "dev"], {
+      env: { ...process.env, PORT: String(PORT) },
+    });
+  }
+  
   const onSignal = async (sig) => {
     log(`received ${sig}`);
     await shutdown();

@@ -1,11 +1,11 @@
-// apps/user/src/components/command-builder/CommandBuilder.tsx
+// apps/user/src/lib/components/command-builder/CommandBuilder.tsx
 "use client";
 
+import { CommandList } from "@/lib/command-builder/CommandList";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import * as React from "react";
 import { CommandEditorSheet } from "./CommandEditorSheet";
-import { CommandList } from "./CommandList";
 import { CommandPalette } from "./CommandPalette";
 
 export function CommandBuilder(props: { taskId: string }) {
@@ -35,6 +35,16 @@ export function CommandBuilder(props: { taskId: string }) {
   }, [taskId, initForTask]);
 
   const program = React.useMemo(() => serializeProgram(), [commands, serializeProgram]);
+
+  const confirmDelete = React.useCallback(
+    (id: string) => {
+      const ok = window.confirm("Delete this command?");
+      if (!ok) return;
+      if (selectedId === id) select(null);
+      remove(id);
+    },
+    [remove, select, selectedId],
+  );
 
   async function run() {
     setRunning(true);
@@ -74,13 +84,16 @@ export function CommandBuilder(props: { taskId: string }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-2">
           <div className="text-xs font-medium text-muted-foreground">Pipeline</div>
+
           <CommandList
             commands={commands}
             selectedId={selectedId}
             onSelect={(id) => select(id)}
-            onRemove={(id) => remove(id)}
+            onEdit={(id) => select(id)} // 選択＝EditorSheet表示
+            onRemove={(id) => confirmDelete(id)}
             onReorder={(from, to) => move(from, to)}
           />
+
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"
@@ -97,10 +110,7 @@ export function CommandBuilder(props: { taskId: string }) {
         <div className="space-y-3">
           <div>
             <div className="text-xs font-medium text-muted-foreground">Generated JSON</div>
-            <pre
-              className="mt-2 max-h-[240px] overflow-auto rounded border p-3 text-xs"
-              data-testid="cb-json"
-            >
+            <pre className="mt-2 max-h-[240px] overflow-auto rounded border p-3 text-xs" data-testid="cb-json">
               {JSON.stringify(program, null, 2)}
             </pre>
             <div className="mt-2 flex justify-end">
@@ -120,7 +130,8 @@ export function CommandBuilder(props: { taskId: string }) {
             {result && typeof result === "object" && "ok" in (result as any) ? (
               (result as any).ok ? (
                 <div className="mt-2 rounded border px-3 py-2 text-sm" data-testid="cb-result-summary">
-                  OK {typeof (result as any).passed === "number" && typeof (result as any).total === "number"
+                  OK{" "}
+                  {typeof (result as any).passed === "number" && typeof (result as any).total === "number"
                     ? `(${(result as any).passed}/${(result as any).total})`
                     : ""}
                 </div>
@@ -129,7 +140,8 @@ export function CommandBuilder(props: { taskId: string }) {
                   NG{" "}
                   {((result as any).error?.kind || (result as any).error?.message) ? (
                     <span className="text-muted-foreground">
-                      ({String((result as any).error?.kind ?? "UNKNOWN")}: {String((result as any).error?.message ?? "")})
+                      ({String((result as any).error?.kind ?? "UNKNOWN")}:{" "}
+                      {String((result as any).error?.message ?? "")})
                     </span>
                   ) : null}
                 </div>
@@ -142,11 +154,7 @@ export function CommandBuilder(props: { taskId: string }) {
         </div>
       </div>
 
-      <CommandEditorSheet
-        selected={selected}
-        onClose={() => select(null)}
-        onSave={(id, next) => updateCommandJson(id, next)}
-      />
+      <CommandEditorSheet selected={selected} onClose={() => select(null)} onSave={(id, next) => updateCommandJson(id, next)} />
     </section>
   );
 }

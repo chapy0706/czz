@@ -1,21 +1,27 @@
-// apps/user/src/lib/components/command-builder/CommandBuilder.tsx
+// apps/user/src/components/command-builder/CommandBuilder.tsx
 "use client";
 
-import { CommandList } from "@/lib/command-builder/CommandList";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import * as React from "react";
+
 import { CommandEditorSheet } from "./CommandEditorSheet";
+import { CommandList } from "./CommandList";
 import { CommandPalette } from "./CommandPalette";
+import { PipelinePanel } from "./PipelinePanel";
 
 export function CommandBuilder(props: { taskId: string }) {
   const { taskId } = props;
 
   const commands = useCommandBuilderStore((s) => s.commands);
   const selectedId = useCommandBuilderStore((s) => s.selectedId);
+  const editingId = useCommandBuilderStore((s) => s.editingId);
 
   const initForTask = useCommandBuilderStore((s) => s.initForTask);
   const select = useCommandBuilderStore((s) => s.select);
+  const openEditor = useCommandBuilderStore((s) => s.openEditor);
+  const closeEditor = useCommandBuilderStore((s) => s.closeEditor);
+
   const add = useCommandBuilderStore((s) => s.add);
   const remove = useCommandBuilderStore((s) => s.remove);
   const move = useCommandBuilderStore((s) => s.move);
@@ -23,9 +29,9 @@ export function CommandBuilder(props: { taskId: string }) {
   const serializeProgram = useCommandBuilderStore((s) => s.serializeProgram);
   const updateCommandJson = useCommandBuilderStore((s) => s.updateCommandJson);
 
-  const selected = React.useMemo(() => {
-    return commands.find((c) => c.id === selectedId) ?? null;
-  }, [commands, selectedId]);
+  const editing = React.useMemo(() => {
+    return editingId ? commands.find((c) => c.id === editingId) ?? null : null;
+  }, [commands, editingId]);
 
   const [running, setRunning] = React.useState(false);
   const [result, setResult] = React.useState<unknown>(null);
@@ -36,21 +42,46 @@ export function CommandBuilder(props: { taskId: string }) {
 
   const program = React.useMemo(() => serializeProgram(), [commands, serializeProgram]);
 
-  const confirmDelete = React.useCallback(
-    (id: string) => {
-      const ok = window.confirm("Delete this command?");
-      if (!ok) return;
-      if (selectedId === id) select(null);
-      remove(id);
-    },
-    [remove, select, selectedId],
-  );
+  // PipelinePanel state（前に出した実装のまま）
+  const selectedIndex = React.useMemo(() => {
+    if (!selectedId) return -1;
+    return commands.findIndex((c) => c.id === selectedId);
+  }, [commands, selectedId]);
+
+  const [revealIndex, setRevealIndex] = React.useState<number>(-1);
+
+  React.useEffect(() => {
+    if (selectedIndex < 0) {
+      setRevealIndex(-1);
+      return;
+    }
+    setRevealIndex(selectedIndex);
+  }, [selectedIndex]);
+
+  const stepPlus = React.useCallback(() => {
+    if (selectedIndex < 0) return;
+    setRevealIndex((cur) => Math.min(Math.max(cur, selectedIndex) + 1, commands.length - 1));
+  }, [selectedIndex, commands.length]);
+
+  const stepMinus = React.useCallback(() => {
+    if (selectedIndex < 0) return;
+    setRevealIndex((cur) => Math.max(cur - 1, selectedIndex));
+  }, [selectedIndex]);
+
+  const selectNext = React.useCallback(() => {
+    if (selectedIndex < 0) return;
+    const nextIndex = revealIndex + 1;
+    if (nextIndex < 0 || nextIndex >= commands.length) return;
+    const next = commands[nextIndex];
+    if (!next) return;
+    select(next.id);
+  }, [commands, revealIndex, select, selectedIndex]);
 
   async function run() {
     setRunning(true);
     setResult(null);
     try {
-      const res = await evaluateTask({ taskId, submittedProgram: program });
+      const res = await (evaluateTask as any)({ taskId, submittedProgram: program });
       setResult(res);
     } finally {
       setRunning(false);
@@ -89,8 +120,8 @@ export function CommandBuilder(props: { taskId: string }) {
             commands={commands}
             selectedId={selectedId}
             onSelect={(id) => select(id)}
-            onEdit={(id) => select(id)} // 選択＝EditorSheet表示
-            onRemove={(id) => confirmDelete(id)}
+            onEdit={(id) => openEditor(id)}
+            onRemove={(id) => remove(id)}
             onReorder={(from, to) => move(from, to)}
           />
 
@@ -108,45 +139,25 @@ export function CommandBuilder(props: { taskId: string }) {
         </div>
 
         <div className="space-y-3">
+          <PipelinePanel
+            commands={commands}
+            selectedId={selectedId}
+            selectedIndex={selectedIndex}
+            revealIndex={revealIndex}
+            onStepPlus={stepPlus}
+            onStepMinus={stepMinus}
+            onSelectNext={selectNext}
+          />
+
           <div>
             <div className="text-xs font-medium text-muted-foreground">Generated JSON</div>
             <pre className="mt-2 max-h-[240px] overflow-auto rounded border p-3 text-xs" data-testid="cb-json">
               {JSON.stringify(program, null, 2)}
             </pre>
-            <div className="mt-2 flex justify-end">
-              <button
-                type="button"
-                className="rounded border px-3 py-2 text-sm"
-                onClick={() => navigator.clipboard.writeText(JSON.stringify(program, null, 2))}
-                data-testid="cb-copy"
-              >
-                Copy
-              </button>
-            </div>
           </div>
 
           <div>
             <div className="text-xs font-medium text-muted-foreground">Result</div>
-            {result && typeof result === "object" && "ok" in (result as any) ? (
-              (result as any).ok ? (
-                <div className="mt-2 rounded border px-3 py-2 text-sm" data-testid="cb-result-summary">
-                  OK{" "}
-                  {typeof (result as any).passed === "number" && typeof (result as any).total === "number"
-                    ? `(${(result as any).passed}/${(result as any).total})`
-                    : ""}
-                </div>
-              ) : (
-                <div className="mt-2 rounded border px-3 py-2 text-sm" data-testid="cb-result-summary">
-                  NG{" "}
-                  {((result as any).error?.kind || (result as any).error?.message) ? (
-                    <span className="text-muted-foreground">
-                      ({String((result as any).error?.kind ?? "UNKNOWN")}:{" "}
-                      {String((result as any).error?.message ?? "")})
-                    </span>
-                  ) : null}
-                </div>
-              )
-            ) : null}
             <pre className="mt-2 max-h-[240px] overflow-auto rounded border p-3 text-xs" data-testid="cb-result">
               {result ? JSON.stringify(result, null, 2) : "(no result)"}
             </pre>
@@ -154,7 +165,11 @@ export function CommandBuilder(props: { taskId: string }) {
         </div>
       </div>
 
-      <CommandEditorSheet selected={selected} onClose={() => select(null)} onSave={(id, next) => updateCommandJson(id, next)} />
+      <CommandEditorSheet
+        selected={editing}
+        onClose={closeEditor}
+        onSave={(id, next) => updateCommandJson(id, next)}
+      />
     </section>
   );
 }

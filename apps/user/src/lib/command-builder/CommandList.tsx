@@ -1,18 +1,8 @@
-// apps/user/src/components/command-builder/CommandList.tsx
+// apps/user/src/lib/components/command-builder/CommandList.tsx
 "use client";
 
-import {
-  DndContext,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import * as React from "react";
 
@@ -23,9 +13,9 @@ type Props = {
   commands: CommandDraft[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onEdit: (id: string) => void;
   onRemove: (id: string) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
-  onEdit?: (id: string) => void; // あるなら使う（無ければ select に寄せる）
 };
 
 function SortableRow(props: {
@@ -37,8 +27,7 @@ function SortableRow(props: {
 }) {
   const { cmd, selected, onSelect, onEdit, onRemove } = props;
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: cmd.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cmd.id });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -54,21 +43,16 @@ function SortableRow(props: {
         onSelect={() => onSelect()}
         onEdit={() => onEdit()}
         onDelete={() => onRemove()}
-        dragHandleProps={{
-          ...attributes,
-          ...listeners,
-        }}
+        dragHandleProps={{ ...attributes, ...listeners }}
       />
     </div>
   );
 }
 
 export function CommandList(props: Props) {
-  const { commands, selectedId, onSelect, onRemove, onReorder, onEdit } = props;
+  const { commands, selectedId, onSelect, onEdit, onRemove, onReorder } = props;
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   return (
     <DndContext
@@ -86,10 +70,7 @@ export function CommandList(props: Props) {
         onReorder(fromIndex, toIndex);
       }}
     >
-      <SortableContext
-        items={commands.map((c) => c.id)}
-        strategy={verticalListSortingStrategy}
-      >
+      <SortableContext items={commands.map((c) => c.id)} strategy={verticalListSortingStrategy}>
         <div className="space-y-2" data-testid="cb-list">
           {commands.map((cmd) => (
             <SortableRow
@@ -97,15 +78,12 @@ export function CommandList(props: Props) {
               cmd={cmd}
               selected={cmd.id === selectedId}
               onSelect={() => onSelect(cmd.id)}
-              onEdit={() => (onEdit ? onEdit(cmd.id) : onSelect(cmd.id))}
+              onEdit={() => onEdit(cmd.id)}
               onRemove={() => onRemove(cmd.id)}
             />
           ))}
-
           {commands.length === 0 && (
-            <div className="rounded border px-3 py-6 text-sm text-muted-foreground">
-              No commands yet. Add one to start.
-            </div>
+            <div className="rounded border px-3 py-6 text-sm text-muted-foreground">No commands yet. Add one to start.</div>
           )}
         </div>
       </SortableContext>

@@ -11,7 +11,7 @@ export type CommandType =
   | "OUTPUT_LAST"
   | "OUTPUT_SUM";
 
-  export type ParamKind = "number" | "string";
+export type ParamKind = "number" | "string";
 
 export type CommandParamSpec = {
   key: string; // DSL の JSON key（まずは value を想定）
@@ -19,7 +19,7 @@ export type CommandParamSpec = {
   kind: ParamKind;
   required: boolean;
   defaultValue: number | string;
-  };
+};
 
 export type CommandCatalogItem = {
   type: CommandType;
@@ -28,45 +28,68 @@ export type CommandCatalogItem = {
   params?: CommandParamSpec[]; // Basic フォームで扱う params（なければ params なし）
 };
 
+// 共通の列抽出（ヘッダ除外）: COL=1固定、ヘッダあり
+const CSV_EXTRACT_COL1 = "tail -n +2 input.csv | cut -d, -f1";
+
 export const COMMAND_CATALOG: CommandCatalogItem[] = [
   {
     type: "FILTER_EQUALS",
     label: "FILTER_EQUALS",
-    unixHint: "grep (exact match)",
+    unixHint: `${CSV_EXTRACT_COL1} | awk -v v=VALUE '$1==v' > output.csv`,
     params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
   },
   {
     type: "FILTER_NOT_EQUALS",
     label: "FILTER_NOT_EQUALS",
-    unixHint: "grep -v (exclude)",
+    unixHint: `${CSV_EXTRACT_COL1} | awk -v v=VALUE '$1!=v' > output.csv`,
     params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
   },
   {
     type: "FILTER_GT",
     label: "FILTER_GT",
-    unixHint: "awk '$0 > x'",
+    unixHint: `${CSV_EXTRACT_COL1} | awk -v v=VALUE '$1>v' > output.csv`,
     params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
   },
 
   {
     type: "MAP_ADD",
     label: "MAP_ADD",
-    unixHint: "awk '{print $0  x}'",
+    unixHint: `${CSV_EXTRACT_COL1} | awk -v v=VALUE '{print $1+v}' > output.csv`,
     params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
   },
   {
     type: "MAP_MULTIPLY",
     label: "MAP_MULTIPLY",
-    unixHint: "awk '{print $0 * x}'",
+    unixHint: `${CSV_EXTRACT_COL1} | awk -v v=VALUE '{print $1*v}' > output.csv`,
     params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 1 }],
   },
 
-  { type: "SORT_ASC", label: "SORT_ASC", unixHint: "sort" },
-  { type: "SORT_DESC", label: "SORT_DESC", unixHint: "sort -r" },
+  {
+    type: "SORT_ASC",
+    label: "SORT_ASC",
+    unixHint: `${CSV_EXTRACT_COL1} | LC_ALL=C sort -n > output.csv`,
+  },
+  {
+    type: "SORT_DESC",
+    label: "SORT_DESC",
+    unixHint: `${CSV_EXTRACT_COL1} | LC_ALL=C sort -nr > output.csv`,
+  },
 
-  { type: "OUTPUT_FIRST", label: "OUTPUT_FIRST", unixHint: "head -n 1" },
-  { type: "OUTPUT_LAST", label: "OUTPUT_LAST", unixHint: "tail -n 1" },
-  { type: "OUTPUT_SUM", label: "OUTPUT_SUM", unixHint: "sum/awk '{s+=$1} END{print s}'" },
+  {
+    type: "OUTPUT_FIRST",
+    label: "OUTPUT_FIRST",
+    unixHint: `${CSV_EXTRACT_COL1} | head -n 1 > output.csv`,
+  },
+  {
+    type: "OUTPUT_LAST",
+    label: "OUTPUT_LAST",
+    unixHint: `${CSV_EXTRACT_COL1} | tail -n 1 > output.csv`,
+  },
+  {
+    type: "OUTPUT_SUM",
+    label: "OUTPUT_SUM",
+    unixHint: `${CSV_EXTRACT_COL1} | awk '{s+=$1} END{print s}' > output.csv`,
+  },
 ];
 
 export function getCatalogItem(type: CommandType): CommandCatalogItem | undefined {

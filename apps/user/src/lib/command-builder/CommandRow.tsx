@@ -2,6 +2,7 @@
 "use client";
 
 import type { CommandDraft } from "@/lib/command-builder/commandBuilderStore";
+import { getCatalogItem, type CommandType } from "@/lib/command-builder/commandCatalog";
 import { useSwipeActions } from "@/lib/command-builder/useSwipeActions";
 import * as React from "react";
 
@@ -15,6 +16,22 @@ type Props = {
   // dnd-kit 用（SortableRow から渡す）
   dragHandleProps?: React.HTMLAttributes<HTMLSpanElement>;
 };
+
+function isCommandType(value: string): value is CommandType {
+  // union を runtime で守る（表示だけに使うので軽く）
+  return (
+    value === "FILTER_EQUALS" ||
+    value === "FILTER_NOT_EQUALS" ||
+    value === "FILTER_GT" ||
+    value === "MAP_ADD" ||
+    value === "MAP_MULTIPLY" ||
+    value === "SORT_ASC" ||
+    value === "SORT_DESC" ||
+    value === "OUTPUT_FIRST" ||
+    value === "OUTPUT_LAST" ||
+    value === "OUTPUT_SUM"
+  );
+}
 
 export function CommandRow(props: Props) {
   const { command, isSelected, onSelect, onEdit, onDelete, dragHandleProps } = props;
@@ -52,10 +69,13 @@ export function CommandRow(props: Props) {
     }
   };
 
-  const type =
+  const typeRaw =
     typeof command.value === "object" && command.value && "type" in (command.value as any)
       ? String((command.value as any).type)
       : "UNKNOWN";
+
+  const type = typeRaw; // 表示用（data-testid に使う）
+  const catalog = isCommandType(typeRaw) ? getCatalogItem(typeRaw) : undefined;
 
   return (
     <div className="relative">
@@ -73,7 +93,7 @@ export function CommandRow(props: Props) {
         tabIndex={0}
         aria-selected={isSelected}
         className={[
-          "relative flex items-center justify-between gap-2 rounded border bg-background px-3 py-2",
+          "relative flex items-start justify-between gap-2 rounded border bg-background px-3 py-2",
           isSelected ? "ring-2 ring-offset-2" : "hover:bg-accent",
         ].join(" ")}
         style={style}
@@ -86,12 +106,28 @@ export function CommandRow(props: Props) {
         data-testid={`cb-item-${type}`}
         {...handlers}
       >
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="truncate font-mono text-sm">{type}</div>
           <div className="truncate text-xs text-muted-foreground">{JSON.stringify(command.value)}</div>
+
+          {/* 追加: UNIX 分解表示（stdin→stdout） */}
+          {catalog?.unixHint ? (
+            <div className="mt-2 space-y-1">
+              <div
+                className="inline-flex max-w-full items-center rounded border bg-background px-2 py-1 font-mono text-xs text-muted-foreground"
+                data-testid={`cb-unix-hint-${type}`}
+                title="UNIX view (stdin → stdout)"
+              >
+                <span className="truncate">{catalog.unixHint}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                UNIX view: <span className="font-mono">stdin → stdout</span>
+              </div>
+            </div>
+          ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             className="rounded border px-2 py-1 text-xs"

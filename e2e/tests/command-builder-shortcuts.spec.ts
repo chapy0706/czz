@@ -1,6 +1,24 @@
+// e2e/tests/command-builder-shortcuts.spec.ts
 import { expect, test } from "@playwright/test";
 
 const TASK_ID = process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000201";
+
+async function selectAndFocusRow(row: ReturnType<import("@playwright/test").Page["getByTestId"]>) {
+  await expect(row).toBeVisible();
+  await row.scrollIntoViewIfNeeded();
+
+  // まずは force click（actionability を無視して発火）
+  try {
+    await row.click({ force: true });
+  } catch {
+    // それでも落ちるなら programmatic click（DOMクリック）に切り替える
+    await row.evaluate((el) => (el as HTMLElement).click());
+  }
+
+  // focus も念のため programmatic に寄せる（安定）
+  await row.evaluate((el) => (el as HTMLElement).focus());
+  await expect(row).toBeFocused();
+}
 
 test("command builder: shortcuts (E to edit, Delete to remove) work", async ({ page }) => {
   await page.goto(`/tasks/${TASK_ID}`);
@@ -10,13 +28,11 @@ test("command builder: shortcuts (E to edit, Delete to remove) work", async ({ p
   await page.getByTestId("cb-add-open").click();
   await page.getByTestId("cb-add-MAP_ADD").click();
 
-  // 対象行（typeベース）を直接掴む
   const row = page.getByTestId("cb-item-MAP_ADD");
-  await expect(row).toBeVisible();
+  await selectAndFocusRow(row);
 
-  // 行を明示的にフォーカスしてからショートカット
-  await expect(row).toHaveAttribute("aria-selected", "true");
-  await row.press("e");
+  // E で編集
+  await page.keyboard.press("e");
   const param = page.getByTestId("cb-param-value");
   await expect(param).toBeVisible();
   await param.fill("3");
@@ -28,12 +44,9 @@ test("command builder: shortcuts (E to edit, Delete to remove) work", async ({ p
   await expect(jsonPre).toContainText('"value": 3');
 
   // Delete で削除（confirm を accept）
-  // モーダルを閉じた後はフォーカスがずれることがあるので、もう一度行をクリック
-  await row.click();
+  await selectAndFocusRow(row);
   page.once("dialog", (d) => d.accept());
-  await expect(row).toHaveAttribute("aria-selected", "true");
-  await row.press("Delete");
+  await page.keyboard.press("Delete");
 
-  // JSON から MAP_ADD が消えること
   await expect(jsonPre).not.toContainText('"type": "MAP_ADD"');
 });

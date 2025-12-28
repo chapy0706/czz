@@ -1,157 +1,191 @@
-// apps/user/src/lib/command-builder/commandCatalog.ts
-export type CommandType =
-  | "FILTER_EQUALS"
-  | "FILTER_NOT_EQUALS"
-  | "FILTER_GT"
-  | "MAP_ADD"
-  | "MAP_MULTIPLY"
-  | "SORT_ASC"
-  | "SORT_DESC"
-  | "OUTPUT_FIRST"
-  | "OUTPUT_LAST"
-  | "OUTPUT_SUM";
+// apps/user/src/lib/command-builder/CommandRow.tsx
+"use client";
 
-export type ParamKind = "number" | "string";
+import type { CommandDraft } from "@/lib/command-builder/commandBuilderStore";
+import { getCatalogItem, type CommandType } from "@/lib/command-builder/commandCatalog";
+import { useSwipeActions } from "@/lib/command-builder/useSwipeActions";
+import * as React from "react";
 
-export type CommandParamSpec = {
-  key: string; // DSL の JSON key（まずは value を想定）
-  label: string;
-  kind: ParamKind;
-  required: boolean;
-  defaultValue: number | string;
+type Props = {
+  command: CommandDraft;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+
+  // dnd-kit 用（SortableRow から渡す）
+  dragHandleProps?: React.HTMLAttributes<HTMLSpanElement>;
 };
 
-export type UnixStep = {
-  /**
-   * UI での説明用（短く）
-   * 例: "header skip", "col1", "filter", "redirect"
-   */
-  label: string;
-  /**
-   * シェル上で叩ける “1ステップ”
-   * 例: "tail -n +2 input.csv"
-   */
-  cmd: string;
-};
-
-export type CommandCatalogItem = {
-  type: CommandType;
-  label: string;
-
-  /**
-   * UI に表示する “実行可能” な例（テンプレ）。
-   * COL=1 固定、ヘッダあり前提。VALUE は UI が補間する想定。
-   */
-  unixHint: string;
-
-  /**
-   * 分解表示用（学習者に「パイプの部品」を見せる）
-   * unixHint とズレないように、同一ソースから作る。
-   */
-  unixSteps?: UnixStep[];
-
-  params?: CommandParamSpec[]; // Basic フォームで扱う params（なければ params なし）
-};
-
-// COL=1 固定、ヘッダあり前提の “前処理” を分解して定義
-const PREPROCESS_STEPS: UnixStep[] = [
-  { label: "skip header", cmd: "tail -n +2 input.csv" },
-  { label: "col1", cmd: "cut -d, -f1" },
-];
-
-const REDIRECT_STEP: UnixStep = { label: "redirect", cmd: "> output.csv" };
-
-function buildUnixHintFromSteps(steps: UnixStep[]): string {
-  // ">" は pipe に混ぜず最後に付ける（見た目が教材っぽくなる）
-  const redirectIdx = steps.findIndex((s) => s.cmd.trim().startsWith(">"));
-  const main = (redirectIdx >= 0 ? steps.slice(0, redirectIdx) : steps).map((s) => s.cmd).join(" | ");
-  const redirect = redirectIdx >= 0 ? ` ${steps[redirectIdx]?.cmd}` : "";
-  return `${main}${redirect}`;
+function isCommandType(value: string): value is CommandType {
+  return (
+    value === "FILTER_EQUALS" ||
+    value === "FILTER_NOT_EQUALS" ||
+    value === "FILTER_GT" ||
+    value === "MAP_ADD" ||
+    value === "MAP_MULTIPLY" ||
+    value === "SORT_ASC" ||
+    value === "SORT_DESC" ||
+    value === "OUTPUT_FIRST" ||
+    value === "OUTPUT_LAST" ||
+    value === "OUTPUT_SUM"
+  );
 }
 
-function stepsWithRedirect(coreCmd: string): UnixStep[] {
-  return [...PREPROCESS_STEPS, { label: "command", cmd: coreCmd }, REDIRECT_STEP];
-}
+export function CommandRow(props: Props) {
+  const { command, isSelected, onSelect, onEdit, onDelete, dragHandleProps } = props;
 
-export const COMMAND_CATALOG: CommandCatalogItem[] = [
-  {
-    type: "FILTER_EQUALS",
-    label: "FILTER_EQUALS",
-    unixSteps: stepsWithRedirect("awk -v v=VALUE '$1==v'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk -v v=VALUE '$1==v'")),
-    params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
-  },
-  {
-    type: "FILTER_NOT_EQUALS",
-    label: "FILTER_NOT_EQUALS",
-    unixSteps: stepsWithRedirect("awk -v v=VALUE '$1!=v'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk -v v=VALUE '$1!=v'")),
-    params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
-  },
-  {
-    type: "FILTER_GT",
-    label: "FILTER_GT",
-    unixSteps: stepsWithRedirect("awk -v v=VALUE '$1>v'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk -v v=VALUE '$1>v'")),
-    params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
-  },
+  const ignoreIfDndHandle = React.useCallback((t: EventTarget | null) => {
+    const el = t instanceof Element ? t : null;
+    return !!el?.closest?.('[data-dnd-handle="1"]');
+  }, []);
 
-  {
-    type: "MAP_ADD",
-    label: "MAP_ADD",
-    unixSteps: stepsWithRedirect("awk -v v=VALUE '{print $1+v}'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk -v v=VALUE '{print $1+v}'")),
-    params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
-  },
-  {
-    type: "MAP_MULTIPLY",
-    label: "MAP_MULTIPLY",
-    unixSteps: stepsWithRedirect("awk -v v=VALUE '{print $1*v}'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk -v v=VALUE '{print $1*v}'")),
-    params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 1 }],
-  },
+  const { dx, isSwiping, handlers } = useSwipeActions({
+    thresholdPx: 56,
+    onSwipeLeft: () => onDelete(command.id),
+    onSwipeRight: () => onEdit(command.id),
+    shouldIgnorePointerDown: ignoreIfDndHandle,
+  });
 
-  {
-    type: "SORT_ASC",
-    label: "SORT_ASC",
-    unixSteps: stepsWithRedirect("sort -n"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("sort -n")),
-  },
-  {
-    type: "SORT_DESC",
-    label: "SORT_DESC",
-    unixSteps: stepsWithRedirect("sort -nr"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("sort -nr")),
-  },
+  const style: React.CSSProperties = {
+    transform: `translateX(${dx}px)`,
+    transition: isSwiping ? "none" : "transform 120ms ease-out",
+    touchAction: "pan-y",
+  };
 
-  {
-    type: "OUTPUT_FIRST",
-    label: "OUTPUT_FIRST",
-    unixSteps: stepsWithRedirect("head -n 1"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("head -n 1")),
-  },
-  {
-    type: "OUTPUT_LAST",
-    label: "OUTPUT_LAST",
-    unixSteps: stepsWithRedirect("tail -n 1"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("tail -n 1")),
-  },
-  {
-    type: "OUTPUT_SUM",
-    label: "OUTPUT_SUM",
-    unixSteps: stepsWithRedirect("awk '{s+=$1} END{print s}'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk '{s+=$1} END{print s}'")),
-  },
-];
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!isSelected) return;
 
-export function getCatalogItem(type: CommandType): CommandCatalogItem | undefined {
-  return COMMAND_CATALOG.find((x) => x.type === type);
-}
+    if (e.key === "Enter" || e.key.toLowerCase() === "e") {
+      e.preventDefault();
+      onEdit(command.id);
+      return;
+    }
+    if (e.key === "Backspace" || e.key === "Delete") {
+      e.preventDefault();
+      onDelete(command.id);
+      return;
+    }
+  };
 
-export function createDefaultCommandValue(type: CommandType): unknown {
-  const item = getCatalogItem(type);
-  const base: Record<string, unknown> = { type };
-  const params = item?.params ?? [];
-  for (const p of params) base[p.key] = p.defaultValue;
-  return base;
+  const typeRaw =
+    typeof command.value === "object" && command.value && "type" in (command.value as any)
+      ? String((command.value as any).type)
+      : "UNKNOWN";
+
+  const type = typeRaw; // 表示用
+  const catalog = isCommandType(typeRaw) ? getCatalogItem(typeRaw) : undefined;
+
+  return (
+    <div className="relative">
+      {/* 背景（スワイプで見える） */}
+      <div className="absolute inset-0 flex items-center justify-between rounded border bg-muted px-3 text-xs text-muted-foreground">
+        {/* 右スワイプ(→)で左背景が見える = Edit を左に置く */}
+        <span>Edit</span>
+        {/* 左スワイプ(←)で右背景が見える = Delete を右に置く */}
+        <span>Delete</span>
+      </div>
+
+      {/* 前面 */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-selected={isSelected}
+        className={[
+          "relative flex items-start justify-between gap-2 rounded border bg-background px-3 py-2",
+          isSelected ? "ring-2 ring-offset-2" : "hover:bg-accent",
+        ].join(" ")}
+        style={style}
+        onClick={(e) => {
+          onSelect(command.id);
+          (e.currentTarget as HTMLDivElement).focus();
+        }}
+        onKeyDown={onKeyDown}
+        data-testid={`cb-item-${type}`}
+        {...handlers}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-mono text-sm">{type}</div>
+          <div className="truncate text-xs text-muted-foreground">{JSON.stringify(command.value)}</div>
+
+          {/* UNIX コピペ用（実行可能テンプレ） */}
+          {catalog?.unixHint ? (
+            <div className="mt-2 space-y-2">
+              <div
+                className="rounded border bg-background px-2 py-1 font-mono text-xs text-muted-foreground"
+                data-testid={`cb-unix-hint-${type}`}
+                title="Copy-paste template (LPIC style)"
+              >
+                <span className="block overflow-auto whitespace-nowrap">{catalog.unixHint}</span>
+              </div>
+
+              {/* 分解表示（ステップ） */}
+              {catalog.unixSteps && catalog.unixSteps.length > 0 ? (
+                <div className="space-y-1" data-testid={`cb-unix-steps-${type}`}>
+                  <div className="text-xs text-muted-foreground">
+                    Pipeline steps（COL=1 / headerあり）:
+                  </div>
+                  <ol className="space-y-1">
+                    {catalog.unixSteps.map((s, i) => (
+                      <li
+                        key={`${s.label}-${i}`}
+                        className="flex items-start gap-2"
+                        data-testid={`cb-unix-step-${type}-${i}`}
+                      >
+                        <span className="mt-[2px] inline-flex w-5 shrink-0 items-center justify-center rounded border px-1 font-mono text-[10px] text-muted-foreground">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-[11px] text-muted-foreground">{s.label}</div>
+                          <div className="font-mono text-xs text-muted-foreground">{s.cmd}</div>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            className="rounded border px-2 py-1 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(command.id);
+            }}
+            data-testid={`cb-edit-${command.id}`}
+            title="Edit (E/Enter)"
+          >
+            Edit
+          </button>
+
+          <button
+            type="button"
+            className="rounded border px-2 py-1 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(command.id);
+            }}
+            data-testid="cb-remove"
+            title="Delete (Del/Backspace)"
+          >
+            Remove
+          </button>
+
+          {/* dnd-kit のハンドル（ここだけドラッグ） */}
+          <span
+            className="ml-1 cursor-grab select-none rounded border px-2 py-1 font-mono text-xs text-muted-foreground"
+            data-dnd-handle="1"
+            title="Drag to reorder"
+            {...dragHandleProps}
+          >
+            ::
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }

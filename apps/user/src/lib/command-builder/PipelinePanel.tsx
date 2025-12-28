@@ -44,7 +44,7 @@ function renderUnixBlock(item: any, fallbackType: string) {
         : [`(no unix template for ${fallbackType})`];
 
   return (
-    <pre className="mt-2 overflow-auto rounded border bg-background p-3 text-xs" data-testid="pipe-preview">
+    <pre className="mt-2 max-h-28 overflow-auto rounded border bg-background p-3 text-xs" data-testid="pipe-preview">
       {lines.join("\n")}
     </pre>
   );
@@ -134,7 +134,10 @@ export function PipelinePanel(props: Props) {
         </div>
       ) : (
         <>
-          <div className="mt-4 space-y-3">
+          <div
+            className="mt-4 flex items-stretch gap-2 overflow-x-auto pb-2"
+            data-testid="pipe-strip"
+          >
             {revealed.map((cmd, i) => {
               const type = getType(cmd.value);
               const item = getCatalogItem(type as any);
@@ -142,40 +145,52 @@ export function PipelinePanel(props: Props) {
               const isAnchor = stepNo === selectedIndex;
 
               return (
-                <div
-                  key={cmd.id}
-                  className={[
-                    "rounded border p-3",
-                    "cursor-pointer select-none",
-                    isAnchor ? "ring-2 ring-offset-2" : "hover:bg-accent",
-                  ].join(" ")}
-                  data-testid={`pipe-step-${stepNo}`}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Select step ${stepNo}`}
-                  onClick={() => onSelectStep(stepNo)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onSelectStep(stepNo);
-                    }
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="font-mono text-sm">{type}</div>
-                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {JSON.stringify(cmd.value)}
+                <React.Fragment key={cmd.id}>
+                  {i > 0 ? (
+                    <div
+                      className="flex w-6 shrink-0 items-center justify-center text-muted-foreground"
+                      aria-hidden="true"
+                      data-testid={`pipe-bar-${stepNo}`}
+                    >
+                      |
+                    </div>
+                  ) : null}
+
+                  <div
+                    className={[
+                      "shrink-0 rounded border bg-background p-3",
+                      "cursor-pointer select-none",
+                      "w-[280px] sm:w-[320px]",
+                      isAnchor ? "ring-2 ring-offset-2" : "hover:bg-accent",
+                    ].join(" ")}
+                    data-testid={`pipe-step-${stepNo}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Select step ${stepNo}`}
+                    onClick={() => onSelectStep(stepNo)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelectStep(stepNo);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-mono text-sm">{type}</div>
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {JSON.stringify(cmd.value)}
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        step {stepNo - selectedIndex + 1}
+                        {isAnchor ? " (anchor)" : ""}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      step {stepNo - selectedIndex + 1}
-                      {isAnchor ? " (anchor)" : ""}
-                    </div>
-                  </div>
 
-                  {renderUnixBlock(item, type)}
-                </div>
+                    {renderUnixBlock(item, type)}
+                  </div>
+                </React.Fragment>
               );
             })}
           </div>

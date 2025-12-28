@@ -67,12 +67,12 @@ export const COMMAND_CATALOG: CommandCatalogItem[] = [
   {
     type: "SORT_ASC",
     label: "SORT_ASC",
-    unixHint: `${CSV_EXTRACT_COL1} | LC_ALL=C sort -n > output.csv`,
+    unixHint: `${CSV_EXTRACT_COL1} | sort -n > output.csv`,
   },
   {
     type: "SORT_DESC",
     label: "SORT_DESC",
-    unixHint: `${CSV_EXTRACT_COL1} | LC_ALL=C sort -nr > output.csv`,
+    unixHint: `${CSV_EXTRACT_COL1} | sort -nr > output.csv`,
   },
 
   {

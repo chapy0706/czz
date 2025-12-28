@@ -80,9 +80,12 @@ export function PipelinePanel(props: Props) {
    */
   const nextTargetIndex = React.useMemo(() => {
     if (selectedIndex < 0) return null;
-    if (revealIndex <= selectedIndex) return null;
-    if (revealIndex < 0 || revealIndex >= commands.length) return null;
-    return revealIndex;
+    // Next は「1つ先」。ただし reveal 済み（表示済み）であること。
+    const idx = selectedIndex + 1;
+    if (revealIndex <= selectedIndex) return null; // まだ +Step してない
+    if (idx > revealIndex) return null;            // まだその段は表示してない
+    if (idx < 0 || idx >= commands.length) return null;
+    return idx;
   }, [commands.length, selectedIndex, revealIndex]);
 
   const next = React.useMemo(() => {

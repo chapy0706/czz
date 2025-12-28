@@ -71,11 +71,10 @@ export function CommandBuilder(props: { taskId: string }) {
   const selectNext = React.useCallback(() => {
     if (selectedIndex < 0) return;
 
-    // “今 reveal している地点” へ進める（= 次のステップを見せたらそこへ進む）
-    const nextIndex = revealIndex;
-
-    // まだ 1 ステップも進めてない（revealIndex が選択地点と同じ）なら何もしない
-    if (nextIndex <= selectedIndex) return;
+     // Next は「1つ先」へ進む（ただし、表示済み(reveal済み)の範囲内だけ）
+    const nextIndex = selectedIndex + 1;
+    if (nextIndex > revealIndex) return;
+    if (nextIndex < 0 || nextIndex >= commands.length) return;
 
     const next = commands[nextIndex];
     if (!next) return;

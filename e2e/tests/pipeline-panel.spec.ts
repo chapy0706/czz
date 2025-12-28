@@ -45,6 +45,23 @@ test("pipeline panel: +Step/-Step reveals pipeline step-by-step and Next moves s
   await page.getByTestId("pipe-step-minus").click();
   await expect(page.getByTestId("pipe-step-1")).not.toBeVisible();
 
+  // GesturePad の下スワイプで +Step（1本だけ担保）
+  const pad = page.getByTestId("pipe-gesture");
+  await expect(pad).toBeVisible();
+  const box = await pad.boundingBox();
+  if (!box) throw new Error("pipe-gesture boundingBox is null");
+
+  const x = box.x + box.width / 2;
+  const y1 = box.y + 10;
+  const y2 = box.y + box.height - 10;
+
+  await page.mouse.move(x, y1);
+  await page.mouse.down();
+  await page.mouse.move(x, y2, { steps: 12 });
+  await page.mouse.up();
+
+  await expect(page.getByTestId("pipe-step-1")).toBeVisible();
+
   // もう一度 +Step
   await page.getByTestId("pipe-step-plus").click();
   await expect(page.getByTestId("pipe-step-1")).toBeVisible();

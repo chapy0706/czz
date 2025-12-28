@@ -21,6 +21,8 @@ type Props = {
   onSelectStep: (index: number) => void;
 };
 
+type ViewMode = "compact" | "detailed";
+
 function getType(value: unknown): string {
   if (!value || typeof value !== "object") return "UNKNOWN";
   const any = value as { type?: unknown };
@@ -61,6 +63,8 @@ export function PipelinePanel(props: Props) {
     onSelectNext,
     onSelectStep,
   } = props;
+
+  const [viewMode, setViewMode] = React.useState<ViewMode>("detailed");
 
   const canStepPlus = selectedIndex >= 0 && revealIndex < commands.length - 1;
   const canStepMinus = selectedIndex >= 0 && revealIndex > selectedIndex;
@@ -105,6 +109,36 @@ export function PipelinePanel(props: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex overflow-hidden rounded border text-xs" data-testid="pipe-view-toggle">
+            <button
+              type="button"
+              className={[
+                "px-2 py-1",
+                "disabled:opacity-50",
+                viewMode === "compact" ? "bg-accent" : "bg-background",
+              ].join(" ")}
+              onClick={() => setViewMode("compact")}
+              data-testid="pipe-view-compact"
+              aria-pressed={viewMode === "compact"}
+              title="短い表示"
+            >
+              短い
+            </button>
+            <button
+              type="button"
+              className={[
+                "px-2 py-1 border-l",
+                "disabled:opacity-50",
+                viewMode === "detailed" ? "bg-accent" : "bg-background",
+              ].join(" ")}
+              onClick={() => setViewMode("detailed")}
+              data-testid="pipe-view-detailed"
+              aria-pressed={viewMode === "detailed"}
+              title="詳細表示"
+            >
+              詳細
+            </button>
+          </div>
           <button
             type="button"
             className="rounded border px-2 py-1 text-xs disabled:opacity-50"
@@ -134,66 +168,89 @@ export function PipelinePanel(props: Props) {
         </div>
       ) : (
         <>
-          <div
-            className="mt-4 flex items-stretch gap-2 overflow-x-auto pb-2"
-            data-testid="pipe-strip"
-          >
-            {revealed.map((cmd, i) => {
-              const type = getType(cmd.value);
-              const item = getCatalogItem(type as any);
-              const stepNo = selectedIndex + i;
-              const isAnchor = stepNo === selectedIndex;
+          {viewMode === "compact" ? (
+            <div
+              className="mt-4 rounded border bg-muted/30 px-3 py-2 font-mono text-sm leading-6"
+              data-testid="pipe-compact-view"
+              aria-label="pipeline compact view"
+            >
+              {revealed.length === 0 ? (
+                <span className="text-muted-foreground">(no pipeline)</span>
+              ) : (
+                revealed.map((cmd, i) => {
+                  const type = getType(cmd.value);
+                  const isLast = i === revealed.length - 1;
+                  return (
+                    <span key={cmd.id}>
+                      <span className="whitespace-nowrap">{type}</span>
+                      {!isLast ? <span className="mx-2 text-muted-foreground">|</span> : null}
+                    </span>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            <div
+              className="mt-4 flex items-stretch gap-2 overflow-x-auto pb-2"
+              data-testid="pipe-strip"
+            >
+              {revealed.map((cmd, i) => {
+                const type = getType(cmd.value);
+                const item = getCatalogItem(type as any);
+                const stepNo = selectedIndex + i;
+                const isAnchor = stepNo === selectedIndex;
 
-              return (
-                <React.Fragment key={cmd.id}>
-                  {i > 0 ? (
+                return (
+                  <React.Fragment key={cmd.id}>
+                    {i > 0 ? (
+                      <div
+                        className="flex w-6 shrink-0 items-center justify-center text-muted-foreground"
+                        aria-hidden="true"
+                        data-testid={`pipe-bar-${stepNo}`}
+                      >
+                        |
+                      </div>
+                    ) : null}
+
                     <div
-                      className="flex w-6 shrink-0 items-center justify-center text-muted-foreground"
-                      aria-hidden="true"
-                      data-testid={`pipe-bar-${stepNo}`}
+                      className={[
+                        "shrink-0 rounded border bg-background p-3",
+                        "cursor-pointer select-none",
+                        "w-[280px] sm:w-[320px]",
+                        isAnchor ? "ring-2 ring-offset-2" : "hover:bg-accent",
+                      ].join(" ")}
+                      data-testid={`pipe-step-${stepNo}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Select step ${stepNo}`}
+                      onClick={() => onSelectStep(stepNo)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelectStep(stepNo);
+                        }
+                      }}
                     >
-                      |
-                    </div>
-                  ) : null}
-
-                  <div
-                    className={[
-                      "shrink-0 rounded border bg-background p-3",
-                      "cursor-pointer select-none",
-                      "w-[280px] sm:w-[320px]",
-                      isAnchor ? "ring-2 ring-offset-2" : "hover:bg-accent",
-                    ].join(" ")}
-                    data-testid={`pipe-step-${stepNo}`}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Select step ${stepNo}`}
-                    onClick={() => onSelectStep(stepNo)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onSelectStep(stepNo);
-                      }
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="font-mono text-sm">{type}</div>
-                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {JSON.stringify(cmd.value)}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-mono text-sm">{type}</div>
+                          <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {JSON.stringify(cmd.value)}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          step {stepNo - selectedIndex + 1}
+                          {isAnchor ? " (anchor)" : ""}
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        step {stepNo - selectedIndex + 1}
-                        {isAnchor ? " (anchor)" : ""}
-                      </div>
-                    </div>
 
-                    {renderUnixBlock(item, type)}
-                  </div>
-                </React.Fragment>
-              );
-            })}
-          </div>
+                      {renderUnixBlock(item, type)}
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
 
           <div className="mt-4">
             <GesturePad

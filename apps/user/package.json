@@ -7,6 +7,7 @@
     "start": "next start --port 3000"
   },
   "dependencies": {
+    "@czz/dsl-core": "workspace:*",
     "autoprefixer": "^10.4.20",
     "drizzle-orm": "^0.33.0",
     "lucide-react": "^0.462.0",
@@ -21,8 +22,7 @@
     "tailwindcss": "^3.4.7",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.0",
-    "zustand": "^4.5.0",
-    "@czz/dsl-core": "workspace:*"
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

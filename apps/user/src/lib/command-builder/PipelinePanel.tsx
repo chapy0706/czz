@@ -16,6 +16,9 @@ type Props = {
   onStepMinus: () => void;
 
   onSelectNext: () => void;
+
+  // NEW: 表示されている Step をタップして、その index を選択にする
+  onSelectStep: (index: number) => void;
 };
 
 function getType(value: unknown): string {
@@ -56,6 +59,7 @@ export function PipelinePanel(props: Props) {
     onStepPlus,
     onStepMinus,
     onSelectNext,
+    onSelectStep,
   } = props;
 
   const canStepPlus = selectedIndex >= 0 && revealIndex < commands.length - 1;
@@ -68,12 +72,23 @@ export function PipelinePanel(props: Props) {
     return commands.slice(from, to + 1);
   }, [commands, selectedIndex, revealIndex]);
 
-  const next = React.useMemo(() => {
+  /**
+   * “Next” は「いま +Step で表示された次の段（= revealIndex）」へ選択を移す。
+   * 表示も実行も同じターゲットになるようにする。
+   *
+   * - revealIndex === selectedIndex の間は “次が無い” 扱い（まだ +Step してない）
+   */
+  const nextTargetIndex = React.useMemo(() => {
     if (selectedIndex < 0) return null;
-    const idx = revealIndex + 1;
-    if (idx < 0 || idx >= commands.length) return null;
-    return commands[idx] ?? null;
-  }, [commands, selectedIndex, revealIndex]);
+    if (revealIndex <= selectedIndex) return null;
+    if (revealIndex < 0 || revealIndex >= commands.length) return null;
+    return revealIndex;
+  }, [commands.length, selectedIndex, revealIndex]);
+
+  const next = React.useMemo(() => {
+    if (nextTargetIndex == null) return null;
+    return commands[nextTargetIndex] ?? null;
+  }, [commands, nextTargetIndex]);
 
   return (
     <aside className="rounded-lg border bg-card p-4" data-testid="pipe-panel">
@@ -121,9 +136,28 @@ export function PipelinePanel(props: Props) {
               const type = getType(cmd.value);
               const item = getCatalogItem(type as any);
               const stepNo = selectedIndex + i;
+              const isAnchor = stepNo === selectedIndex;
 
               return (
-                <div key={cmd.id} className="rounded border p-3" data-testid={`pipe-step-${stepNo}`}>
+                <div
+                  key={cmd.id}
+                  className={[
+                    "rounded border p-3",
+                    "cursor-pointer select-none",
+                    isAnchor ? "ring-2 ring-offset-2" : "hover:bg-accent",
+                  ].join(" ")}
+                  data-testid={`pipe-step-${stepNo}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Select step ${stepNo}`}
+                  onClick={() => onSelectStep(stepNo)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSelectStep(stepNo);
+                    }
+                  }}
+                >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-mono text-sm">{type}</div>
@@ -131,7 +165,10 @@ export function PipelinePanel(props: Props) {
                         {JSON.stringify(cmd.value)}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">step {stepNo - selectedIndex + 1}</div>
+                    <div className="text-xs text-muted-foreground">
+                      step {stepNo - selectedIndex + 1}
+                      {isAnchor ? " (anchor)" : ""}
+                    </div>
                   </div>
 
                   {renderUnixBlock(item, type)}
@@ -150,7 +187,7 @@ export function PipelinePanel(props: Props) {
           </div>
 
           <div className="mt-4 rounded border p-3">
-            <div className="text-xs font-medium text-muted-foreground">Next Command</div>
+            <div className="text-xs font-medium text-muted-foreground">Next Step</div>
 
             {next ? (
               <button
@@ -164,7 +201,7 @@ export function PipelinePanel(props: Props) {
                   {JSON.stringify(next.value)}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  タップで次のコマンドに進む（選択も移動）
+                  タップで「いま表示されている次の段」に進む（選択も移動）
                 </div>
               </button>
             ) : (

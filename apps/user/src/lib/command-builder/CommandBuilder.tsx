@@ -83,6 +83,15 @@ export function CommandBuilder(props: { taskId: string }) {
     select(next.id);
   }, [commands, revealIndex, select, selectedIndex]);
 
+  const onSelectStep = React.useCallback(
+    (index: number) => {
+      const cmd = commands[index];
+      if (!cmd) return;
+      select(cmd.id);
+    },
+    [commands, select],
+  );
+
   async function run() {
     setRunning(true);
     setResult(null);
@@ -153,6 +162,7 @@ export function CommandBuilder(props: { taskId: string }) {
             onStepPlus={stepPlus}
             onStepMinus={stepMinus}
             onSelectNext={selectNext}
+            onSelectStep={onSelectStep}
           />
 
           <div>

@@ -33,19 +33,33 @@ test("pipeline panel: +Step/-Step reveals pipeline step-by-step and Next moves s
   await expect(firstRow).toBeVisible();
   await firstRow.evaluate((el: HTMLElement) => el.click());
 
+  // 初期表示：step0 だけ
   await expect(page.getByTestId("pipe-step-0")).toBeVisible();
   await expect(page.getByTestId("pipe-step-1")).not.toBeVisible();
 
+  // +Step で step1 が出る
   await page.getByTestId("pipe-step-plus").click();
   await expect(page.getByTestId("pipe-step-1")).toBeVisible();
 
+  // -Step で step1 が消える（※ 選択が MAP_ADD のままのときに検証する）
   await page.getByTestId("pipe-step-minus").click();
   await expect(page.getByTestId("pipe-step-1")).not.toBeVisible();
 
+  // もう一度 +Step
   await page.getByTestId("pipe-step-plus").click();
-  await page.getByTestId("pipe-next").click();
+  await expect(page.getByTestId("pipe-step-1")).toBeVisible();
 
-  const secondRow = page.getByTestId("cb-item-SORT_ASC");
-  await expect(secondRow).toBeVisible();
-  await expect(secondRow).toHaveAttribute("aria-selected", "true");
+  // Next で “いま表示されている次の段” に選択が移る（SORT_ASC）
+  await page.getByTestId("pipe-next").click();
+  const sortRow = page.getByTestId("cb-item-SORT_ASC");
+  await expect(sortRow).toBeVisible();
+  await expect(sortRow).toHaveAttribute("aria-selected", "true");
+
+  // Step タップでの選択移動も確認（MAP_ADD に戻してから）
+  await firstRow.evaluate((el: HTMLElement) => el.click());
+  await page.getByTestId("pipe-step-plus").click();
+  await expect(page.getByTestId("pipe-step-1")).toBeVisible();
+
+  await page.getByTestId("pipe-step-1").evaluate((el: HTMLElement) => el.click());
+  await expect(sortRow).toHaveAttribute("aria-selected", "true");
 });

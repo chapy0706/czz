@@ -1,4 +1,4 @@
-// apps/user/src/lib/components/command-builder/GesturePad.tsx
+// apps/user/src/lib/command-builder/GesturePad.tsx
 "use client";
 
 import * as React from "react";
@@ -13,69 +13,69 @@ type Props = {
 export function GesturePad(props: Props) {
   const { onStepPlus, onStepMinus, canStepPlus, canStepMinus } = props;
 
-  const startYRef = React.useRef<number | null>(null);
-  const THRESHOLD = 32; // 24-40px あたりが無難
+  const startRef = React.useRef<{ x: number; y: number } | null>(null);
+  const firedRef = React.useRef(false);
+
+  const THRESHOLD = 42;
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary) return;
+    firedRef.current = false;
+    startRef.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const s = startRef.current;
+    if (!s) return;
+    if (firedRef.current) return;
+
+    const dx = e.clientX - s.x;
+    const dy = e.clientY - s.y;
+
+    // 縦が優勢で閾値超えたら発火
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) >= THRESHOLD) {
+      firedRef.current = true;
+
+      if (dy > 0) {
+        // 下スワイプ = +Step
+        if (canStepPlus) onStepPlus();
+      } else {
+        // 上スワイプ = -Step
+        if (canStepMinus) onStepMinus();
+      }
+
+      startRef.current = null;
+    }
+  };
+
+  const onPointerUpOrCancel = () => {
+    startRef.current = null;
+    firedRef.current = false;
+  };
 
   return (
-    <div className="rounded border bg-muted p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-xs text-muted-foreground">
-          Gesture Pad（縦スワイプで Step を増減）
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="rounded border bg-background px-2 py-1 text-xs disabled:opacity-50"
-            onClick={onStepMinus}
-            disabled={!canStepMinus}
-            title="- Step"
-          >
-            - Step
-          </button>
-          <button
-            type="button"
-            className="rounded border bg-background px-2 py-1 text-xs disabled:opacity-50"
-            onClick={onStepPlus}
-            disabled={!canStepPlus}
-            title="+ Step"
-          >
-            + Step
-          </button>
-        </div>
+    <div
+      className="rounded border bg-background px-3 py-3"
+      data-testid="pipe-gesture"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUpOrCancel}
+      onPointerCancel={onPointerUpOrCancel}
+      style={{
+        touchAction: "pan-x", // 縦ジェスチャをこちらで解釈（Row の横スワイプと干渉しにくい）
+        userSelect: "none",
+      }}
+      role="group"
+      aria-label="Gesture pad"
+    >
+      <div className="text-xs font-medium text-muted-foreground">Gesture</div>
+      <div className="mt-1 text-sm">
+        <div>↓ swipe: +Step</div>
+        <div>↑ swipe: -Step</div>
       </div>
-
-      <div
-        className="mt-2 rounded border bg-background px-3 py-6 text-center text-sm text-muted-foreground"
-        data-testid="pipe-gesture"
-        style={{
-          // スワイプ専用領域：スクロールとの衝突を減らす
-          touchAction: "none",
-          userSelect: "none",
-        }}
-        onPointerDown={(e) => {
-          startYRef.current = e.clientY;
-          (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-        }}
-        onPointerUp={(e) => {
-          const startY = startYRef.current;
-          startYRef.current = null;
-          if (startY == null) return;
-
-          const dy = e.clientY - startY;
-
-          // 上スワイプ（dy<0）で step++
-          if (dy < -THRESHOLD) {
-            if (canStepPlus) onStepPlus();
-            return;
-          }
-          // 下スワイプ（dy>0）で step--
-          if (dy > THRESHOLD) {
-            if (canStepMinus) onStepMinus();
-            return;
-          }
-        }}
-      >
-        ↑ swipe up: +Step / ↓ swipe down: -Step
+      <div className="mt-2 text-xs text-muted-foreground">
+        {canStepPlus ? "" : "(+Step disabled) "}
+        {canStepMinus ? "" : "(-Step disabled)"}
       </div>
     </div>
   );

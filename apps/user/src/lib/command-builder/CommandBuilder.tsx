@@ -2,6 +2,7 @@
 "use client";
 
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
+import { ResultPanel } from "@/lib/terminal/ResultPanel";
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import * as React from "react";
 
@@ -9,6 +10,67 @@ import { CommandEditorSheet } from "./CommandEditorSheet";
 import { CommandList } from "./CommandList";
 import { CommandPalette } from "./CommandPalette";
 import { PipelinePanel } from "./PipelinePanel";
+
+type UiResultStatus = "success" | "failure";
+
+type UiResult = {
+  status: UiResultStatus;
+  outputText: string;
+  hint?: { title?: string; detail: string };
+};
+
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function toUiResult(res: any): UiResult {
+  const total = typeof res?.total === "number" ? res.total : undefined;
+  const passed = typeof res?.passed === "number" ? res.passed : undefined;
+
+  const hasError = res && typeof res === "object" && "error" in res;
+  const failedByScore = typeof total === "number" && typeof passed === "number" && passed < total;
+
+  if (hasError || failedByScore) {
+    const score =
+      typeof passed === "number" && typeof total === "number" ? `FAIL (${passed}/${total})` : "FAIL";
+
+    const errObj = res?.error;
+    const errText =
+      errObj?.message
+        ? `ERR: ${String(errObj.message)}`
+        : hasError
+          ? "ERR: evaluation failed"
+          : "ERR: not passed";
+
+    const output =
+      res?.output ?? res?.stdout ?? res?.runOutput ?? res?.data?.output ?? undefined;
+
+    const outBlock = output ? `\n\n--- output ---\n${safeStringify(output)}` : "";
+
+    return {
+      status: "failure",
+      outputText: `${score}\n${errText}${outBlock}`,
+      hint: {
+        title: errObj?.kind === "ZOD" ? "Validation" : "Error",
+        detail: errText,
+      },
+    };
+  }
+
+  const score =
+    typeof passed === "number" && typeof total === "number" ? `PASS (${passed}/${total})` : "PASS";
+
+  const output =
+    res?.output ?? res?.stdout ?? res?.runOutput ?? res?.data?.output ?? undefined;
+
+  const outBlock = output ? `\n\n--- output ---\n${safeStringify(output)}` : "";
+
+  return { status: "success", outputText: `${score}${outBlock}` };
+}
 
 export function CommandBuilder(props: { taskId: string }) {
   const { taskId } = props;
@@ -42,7 +104,7 @@ export function CommandBuilder(props: { taskId: string }) {
 
   const program = React.useMemo(() => serializeProgram(), [commands, serializeProgram]);
 
-  // PipelinePanel state（前に出した実装のまま）
+  // PipelinePanel state
   const selectedIndex = React.useMemo(() => {
     if (!selectedId) return -1;
     return commands.findIndex((c) => c.id === selectedId);
@@ -71,7 +133,7 @@ export function CommandBuilder(props: { taskId: string }) {
   const selectNext = React.useCallback(() => {
     if (selectedIndex < 0) return;
 
-     // Next は「1つ先」へ進む（ただし、表示済み(reveal済み)の範囲内だけ）
+    // Next は「1つ先」へ進む（ただし、表示済み(reveal済み)の範囲内だけ）
     const nextIndex = selectedIndex + 1;
     if (nextIndex > revealIndex) return;
     if (nextIndex < 0 || nextIndex >= commands.length) return;
@@ -88,8 +150,13 @@ export function CommandBuilder(props: { taskId: string }) {
       if (!cmd) return;
       select(cmd.id);
     },
-    [commands, select],
+    [commands, select]
   );
+
+  const uiResult = React.useMemo(() => {
+    if (!result) return null;
+    return toUiResult(result as any);
+  }, [result]);
 
   async function run() {
     setRunning(true);
@@ -171,11 +238,31 @@ export function CommandBuilder(props: { taskId: string }) {
             </pre>
           </div>
 
-          <div>
+          <div data-testid="cb-result">
             <div className="text-xs font-medium text-muted-foreground">Result</div>
-            <pre className="mt-2 max-h-[240px] overflow-auto rounded border p-3 text-xs" data-testid="cb-result">
-              {result ? JSON.stringify(result, null, 2) : "(no result)"}
-            </pre>
+
+            {uiResult ? (
+              <ResultPanel
+                status={uiResult.status}
+                outputText={uiResult.outputText}
+                hint={uiResult.hint}
+                onRetry={running ? undefined : run}
+              />
+            ) : (
+              <pre className="mt-2 max-h-[240px] overflow-auto rounded border p-3 text-xs">
+                (no result)
+              </pre>
+            )}
+
+            {/* デバッグ用：生JSON（必要なければ後で消してOK） */}
+            {result ? (
+              <details className="mt-2 rounded border bg-muted/20 p-2">
+                <summary className="cursor-pointer text-xs text-muted-foreground">raw result (debug)</summary>
+                <pre className="mt-2 max-h-[240px] overflow-auto rounded border bg-background p-3 text-xs">
+                  {safeStringify(result)}
+                </pre>
+              </details>
+            ) : null}
           </div>
         </div>
       </div>

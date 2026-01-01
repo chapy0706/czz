@@ -170,30 +170,84 @@ export function PipelinePanel(props: Props) {
         <>
           {viewMode === "compact" ? (
             <div
-              className="mt-4 rounded border bg-muted/30 px-3 py-2 font-mono text-sm leading-6"
+              className="mt-4 rounded border bg-muted/30 px-3 py-2"
               data-testid="pipe-compact-view"
               aria-label="pipeline compact view"
             >
-              {revealed.length === 0 ? (
-                <span className="text-muted-foreground">(no pipeline)</span>
-              ) : (
-                revealed.map((cmd, i) => {
-                  const type = getType(cmd.value);
-                  const isLast = i === revealed.length - 1;
-                  return (
-                    <span key={cmd.id}>
-                      <span className="whitespace-nowrap">{type}</span>
-                      {!isLast ? <span className="mx-2 text-muted-foreground">|</span> : null}
-                    </span>
-                  );
-                })
-              )}
+              {/* 1行パイプ表示：折り返さず、横スクロール */}
+              <div className="overflow-x-auto">
+                <div className="whitespace-nowrap font-mono text-sm leading-7">
+                  {/* input.csv（固定の世界観） */}
+                  <span
+                    className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground"
+                    title="input.csv (headerあり)"
+                  >
+                    input.csv
+                  </span>
+
+                  {revealed.length === 0 ? (
+                    <span className="ml-2 text-muted-foreground">(no pipeline)</span>
+                  ) : (
+                    revealed.map((cmd, i) => {
+                      const type = getType(cmd.value);
+                      const item = getCatalogItem(type as any);
+
+                      // 表示用コマンド文字列：unixHint優先、無ければ type
+                      const raw =
+                        typeof item?.unixHint === "string" && item.unixHint.trim().length > 0
+                          ? item.unixHint.trim().split("\n")[0] // 1行目だけ（長い場合が多い）
+                          : type;
+
+                      // 見た目だけ短縮（全文は title に保持）
+                      const MAX = 56;
+                      const text = raw.length > MAX ? `${raw.slice(0, MAX - 1)}…` : raw;
+
+                      const stepNo = selectedIndex + i;
+                      const isAnchor = stepNo === selectedIndex;
+
+                      return (
+                        <React.Fragment key={cmd.id}>
+                          <span className="mx-2 text-muted-foreground" aria-hidden="true">
+                            |
+                          </span>
+
+                          <button
+                            type="button"
+                            className={[
+                              "inline-flex items-center rounded border px-2 py-1 text-left",
+                              "hover:bg-accent",
+                              isAnchor ? "ring-2 ring-offset-2" : "bg-background",
+                            ].join(" ")}
+                            onClick={() => onSelectStep(stepNo)}
+                            data-testid={`pipe-compact-step-${stepNo}`}
+                            title={raw}
+                          >
+                            <span className="text-sm">{text}</span>
+                          </button>
+                        </React.Fragment>
+                      );
+                    })
+                  )}
+
+                  {/* output.csv（固定の世界観） */}
+                  <span className="mx-2 text-muted-foreground" aria-hidden="true">
+                    &gt;
+                  </span>
+                  <span
+                    className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground"
+                    title="output.csv (上書き)"
+                  >
+                    output.csv
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-2 text-xs text-muted-foreground">
+                ヒント: コマンドをタップすると、その段（step）を選択できる。
+              </div>
             </div>
           ) : (
-            <div
-              className="mt-4 flex items-stretch gap-2 overflow-x-auto pb-2"
-              data-testid="pipe-strip"
-            >
+            <div className="mt-4 flex items-stretch gap-2 overflow-x-auto pb-2" data-testid="pipe-strip">
               {revealed.map((cmd, i) => {
                 const type = getType(cmd.value);
                 const item = getCatalogItem(type as any);
@@ -234,9 +288,7 @@ export function PipelinePanel(props: Props) {
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <div className="font-mono text-sm">{type}</div>
-                          <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {JSON.stringify(cmd.value)}
-                          </div>
+                          <div className="mt-0.5 truncate text-xs text-muted-foreground">{JSON.stringify(cmd.value)}</div>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           step {stepNo - selectedIndex + 1}

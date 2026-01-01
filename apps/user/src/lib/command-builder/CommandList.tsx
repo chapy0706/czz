@@ -3,72 +3,65 @@
 
 import { CommandRow } from "./CommandRow";
 
-type Layout = "vertical" | "horizontal";
+type Command = { id: string; value: any };
 
-export type CommandListItem = {
-  id: string;
-  value: any;
-};
-
-export function CommandList(props: {
-  commands: CommandListItem[];
+type Props = {
+  layout?: "horizontal" | "vertical";
+  commands: Command[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
   onReorder: (from: number, to: number) => void;
-  layout?: Layout;
-}) {
+};
+
+export function CommandList(props: Props) {
   const {
+    layout = "vertical",
     commands,
     selectedId,
     onSelect,
     onEdit,
     onRemove,
     onReorder,
-    layout = "vertical",
   } = props;
 
   if (commands.length === 0) {
-    return (
-      <div className="rounded border bg-muted/20 p-4 text-sm text-muted-foreground">
-        まだコマンドがない。右上の追加から入れる。
-      </div>
-    );
+    return <div className="text-sm text-muted-foreground">まだコマンドがないよ</div>;
   }
 
+  // 横並び：見切れ対策で “横スクロール” を採用
   if (layout === "horizontal") {
     return (
-      <div
-        className="flex w-full min-w-0 gap-2 overflow-x-auto rounded border bg-background p-2"
-        data-testid="cmd-list-horizontal"
-      >
-        {commands.map((cmd, idx) => (
-          <div key={cmd.id} className="shrink-0">
+      <div className="w-full overflow-x-auto" data-testid="runner-commands-scroll">
+        <div className="flex min-w-max items-stretch gap-2 pr-2">
+          {commands.map((cmd, i) => (
             <CommandRow
+              key={cmd.id}
               command={cmd}
-              index={idx}
-              isSelected={selectedId === cmd.id}
+              index={i}
+              isSelected={cmd.id === selectedId}
               onSelect={() => onSelect(cmd.id)}
               onEdit={() => onEdit(cmd.id)}
               onRemove={() => onRemove(cmd.id)}
               onReorder={onReorder}
               variant="chip"
             />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     );
   }
 
+  // 縦並び
   return (
-    <div className="space-y-2" data-testid="cmd-list-vertical">
-      {commands.map((cmd, idx) => (
+    <div className="grid gap-2" data-testid="runner-commands-list">
+      {commands.map((cmd, i) => (
         <CommandRow
           key={cmd.id}
           command={cmd}
-          index={idx}
-          isSelected={selectedId === cmd.id}
+          index={i}
+          isSelected={cmd.id === selectedId}
           onSelect={() => onSelect(cmd.id)}
           onEdit={() => onEdit(cmd.id)}
           onRemove={() => onRemove(cmd.id)}

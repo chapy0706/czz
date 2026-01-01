@@ -35,29 +35,47 @@ export function CommandRow(props: {
 
   const base =
     variant === "chip"
-      ? "flex items-center gap-2 rounded border px-3 py-2 text-sm"
-      : "flex items-center justify-between gap-2 rounded border px-3 py-2";
+      ? "relative flex items-center gap-2 rounded border px-3 py-2 text-sm"
+      : "relative flex items-center justify-between gap-2 rounded border px-3 py-2";
 
-  const active = isSelected ? "bg-muted/30" : "bg-background";
+  const selected =
+    "bg-muted/30 ring-2 ring-muted-foreground/20 border-muted-foreground/30";
+  const normal = "bg-background";
 
   return (
     <div
-      className={`${base} ${active}`}
+      className={`${base} ${isSelected ? selected : normal}`}
       onClick={onSelect}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      // 既存E2E互換
+      // E2E互換（ここが重要）
       data-testid-index={`cmd-row-${index}`}
       data-testid={`cb-item-${type}`}
     >
+      {/* 選択状態が一目で分かる左アクセント */}
+      <div
+        className={`absolute left-0 top-0 h-full w-1 rounded-l ${
+          isSelected ? "bg-foreground/40" : "bg-transparent"
+        }`}
+        aria-hidden="true"
+      />
+
       <div className="min-w-0">
-        <div className="font-mono text-sm">{type}</div>
+        <div className="flex items-center gap-2">
+          <div className="font-mono text-sm">{type}</div>
+          {isSelected ? (
+            <span className="rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              SELECTED
+            </span>
+          ) : null}
+        </div>
+
         {variant === "row" ? (
           <div className="text-xs text-muted-foreground">Swipe: → edit / ← delete</div>
         ) : null}
       </div>
 
-      {/* ★ chip でも Edit/Del を出す（E2Eの安定性のため） */}
+      {/* chip でも Edit/Del を出す：UXはスワイプ、E2E/確実操作はボタン */}
       <div className="flex items-center gap-2">
         <button
           type="button"

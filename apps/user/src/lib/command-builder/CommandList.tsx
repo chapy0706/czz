@@ -1,95 +1,81 @@
-// apps/user/src/lib/components/command-builder/CommandList.tsx
+// apps/user/src/lib/command-builder/CommandList.tsx
 "use client";
 
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import * as React from "react";
+import { CommandRow } from "./CommandRow";
 
-import type { CommandDraft } from "@/lib/command-builder/commandBuilderStore";
-import { CommandRow } from "@/lib/command-builder/CommandRow";
+type Layout = "vertical" | "horizontal";
 
-type Props = {
-  commands: CommandDraft[];
+export type CommandListItem = {
+  id: string;
+  value: any;
+};
+
+export function CommandList(props: {
+  commands: CommandListItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
-  onReorder: (fromIndex: number, toIndex: number) => void;
-};
-
-function SortableRow(props: {
-  cmd: CommandDraft;
-  index: number;
-  selected: boolean;
-  onSelect: () => void;
-  onEdit: () => void;
-  onRemove: () => void;
+  onReorder: (from: number, to: number) => void;
+  layout?: Layout;
 }) {
-  const { cmd, index, selected, onSelect, onEdit, onRemove } = props;
+  const {
+    commands,
+    selectedId,
+    onSelect,
+    onEdit,
+    onRemove,
+    onReorder,
+    layout = "vertical",
+  } = props;
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cmd.id });
+  if (commands.length === 0) {
+    return (
+      <div className="rounded border bg-muted/20 p-4 text-sm text-muted-foreground">
+        まだコマンドがない。右上の追加から入れる。
+      </div>
+    );
+  }
 
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.7 : 1,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style}>
-      <CommandRow
-        command={cmd}
-        index={index}
-        isSelected={selected}
-        onSelect={() => onSelect()}
-        onEdit={() => onEdit()}
-        onDelete={() => onRemove()}
-        dragHandleProps={{ ...attributes, ...listeners }}
-      />
-    </div>
-  );
-}
-
-export function CommandList(props: Props) {
-  const { commands, selectedId, onSelect, onEdit, onRemove, onReorder } = props;
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-
-  return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={(e) => {
-        const { active, over } = e;
-        if (!over) return;
-        if (active.id === over.id) return;
-
-        const fromIndex = commands.findIndex((c) => c.id === active.id);
-        const toIndex = commands.findIndex((c) => c.id === over.id);
-        if (fromIndex < 0 || toIndex < 0) return;
-
-        onReorder(fromIndex, toIndex);
-      }}
-    >
-      <SortableContext items={commands.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2" data-testid="cb-list">
-          {commands.map((cmd, index) => (
-            <SortableRow
-              key={cmd.id}
-              cmd={cmd}
-              index={index}
-              selected={cmd.id === selectedId}
+  if (layout === "horizontal") {
+    return (
+      <div
+        className="flex w-full min-w-0 gap-2 overflow-x-auto rounded border bg-background p-2"
+        data-testid="cmd-list-horizontal"
+      >
+        {commands.map((cmd, idx) => (
+          <div key={cmd.id} className="shrink-0">
+            <CommandRow
+              command={cmd}
+              index={idx}
+              isSelected={selectedId === cmd.id}
               onSelect={() => onSelect(cmd.id)}
               onEdit={() => onEdit(cmd.id)}
               onRemove={() => onRemove(cmd.id)}
+              onReorder={onReorder}
+              variant="chip"
             />
-          ))}
-          {commands.length === 0 && (
-            <div className="rounded border px-3 py-6 text-sm text-muted-foreground">No commands yet. Add one to start.</div>
-          )}
-        </div>
-      </SortableContext>
-    </DndContext>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2" data-testid="cmd-list-vertical">
+      {commands.map((cmd, idx) => (
+        <CommandRow
+          key={cmd.id}
+          command={cmd}
+          index={idx}
+          isSelected={selectedId === cmd.id}
+          onSelect={() => onSelect(cmd.id)}
+          onEdit={() => onEdit(cmd.id)}
+          onRemove={() => onRemove(cmd.id)}
+          onReorder={onReorder}
+          variant="row"
+        />
+      ))}
+    </div>
   );
 }

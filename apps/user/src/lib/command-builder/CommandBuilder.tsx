@@ -1,9 +1,9 @@
-// apps/user/src/components/command-builder/CommandBuilder.tsx
+// apps/user/src/lib/command-builder/CommandBuilder.tsx
 "use client";
 
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
-import { ResultPanel } from "@/lib/terminal/ResultPanel";
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
+import { ResultPanel } from "@/lib/terminal/ResultPanel";
 import * as React from "react";
 
 import { CommandEditorSheet } from "./CommandEditorSheet";
@@ -12,7 +12,6 @@ import { CommandPalette } from "./CommandPalette";
 import { PipelinePanel } from "./PipelinePanel";
 
 type UiResultStatus = "success" | "failure";
-
 type UiResult = {
   status: UiResultStatus;
   outputText: string;
@@ -39,34 +38,26 @@ function toUiResult(res: any): UiResult {
       typeof passed === "number" && typeof total === "number" ? `FAIL (${passed}/${total})` : "FAIL";
 
     const errObj = res?.error;
-    const errText =
-      errObj?.message
-        ? `ERR: ${String(errObj.message)}`
-        : hasError
-          ? "ERR: evaluation failed"
-          : "ERR: not passed";
+    const errText = errObj?.message
+      ? `ERR: ${String(errObj.message)}`
+      : hasError
+        ? "ERR: evaluation failed"
+        : "ERR: not passed";
 
-    const output =
-      res?.output ?? res?.stdout ?? res?.runOutput ?? res?.data?.output ?? undefined;
-
+    const output = res?.output ?? res?.stdout ?? res?.runOutput ?? res?.data?.output ?? undefined;
     const outBlock = output ? `\n\n--- output ---\n${safeStringify(output)}` : "";
 
     return {
       status: "failure",
       outputText: `${score}\n${errText}${outBlock}`,
-      hint: {
-        title: errObj?.kind === "ZOD" ? "Validation" : "Error",
-        detail: errText,
-      },
+      hint: { title: errObj?.kind === "ZOD" ? "Validation" : "Error", detail: errText },
     };
   }
 
   const score =
     typeof passed === "number" && typeof total === "number" ? `PASS (${passed}/${total})` : "PASS";
 
-  const output =
-    res?.output ?? res?.stdout ?? res?.runOutput ?? res?.data?.output ?? undefined;
-
+  const output = res?.output ?? res?.stdout ?? res?.runOutput ?? res?.data?.output ?? undefined;
   const outBlock = output ? `\n\n--- output ---\n${safeStringify(output)}` : "";
 
   return { status: "success", outputText: `${score}${outBlock}` };
@@ -132,15 +123,11 @@ export function CommandBuilder(props: { taskId: string }) {
 
   const selectNext = React.useCallback(() => {
     if (selectedIndex < 0) return;
-
-    // Next は「1つ先」へ進む（ただし、表示済み(reveal済み)の範囲内だけ）
     const nextIndex = selectedIndex + 1;
     if (nextIndex > revealIndex) return;
     if (nextIndex < 0 || nextIndex >= commands.length) return;
-
     const next = commands[nextIndex];
     if (!next) return;
-
     select(next.id);
   }, [commands, revealIndex, select, selectedIndex]);
 
@@ -170,43 +157,25 @@ export function CommandBuilder(props: { taskId: string }) {
   }
 
   return (
-    <section className="space-y-4" data-testid="command-builder">
-      <header className="flex items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="text-sm font-semibold">Command Builder</div>
-          <div className="text-xs text-muted-foreground">
-            Build <span className="font-mono">{"{ commands: [...] }"}</span> without typing JSON.
+    <section className="space-y-4" data-testid="command-builder" aria-label="pipeline workspace">
+      <div className="w-full rounded-lg border bg-card p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold">Runner</div>
+            <div className="mt-1 text-xs text-muted-foreground">コマンドを並べて実行する。</div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <CommandPalette onAdd={(type) => add(type)} />
-          <button
-            type="button"
-            className="rounded border px-3 py-2 text-sm"
-            onClick={clear}
-            disabled={running}
-            data-testid="cb-clear"
-          >
-            Clear
-          </button>
-        </div>
-      </header>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">Pipeline</div>
-
-          <CommandList
-            commands={commands}
-            selectedId={selectedId}
-            onSelect={(id) => select(id)}
-            onEdit={(id) => openEditor(id)}
-            onRemove={(id) => remove(id)}
-            onReorder={(from, to) => move(from, to)}
-          />
-
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            <CommandPalette onAdd={(type) => add(type)} />
+            <button
+              type="button"
+              className="rounded border px-3 py-2 text-sm disabled:opacity-50"
+              onClick={clear}
+              disabled={running}
+              data-testid="cb-clear"
+            >
+              Clear
+            </button>
             <button
               type="button"
               className="rounded border px-4 py-2 text-sm disabled:opacity-50"
@@ -219,51 +188,72 @@ export function CommandBuilder(props: { taskId: string }) {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <PipelinePanel
+        {/* Commands（横並び）。Selected枠は撤去し、行操作＋Sheetで完結させる */}
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-medium text-muted-foreground">Commands</div>
+
+          <CommandList
+            layout="horizontal"
             commands={commands}
             selectedId={selectedId}
-            selectedIndex={selectedIndex}
-            revealIndex={revealIndex}
-            onStepPlus={stepPlus}
-            onStepMinus={stepMinus}
-            onSelectNext={selectNext}
-            onSelectStep={onSelectStep}
+            onSelect={(id) => select(id)}
+            onEdit={(id) => openEditor(id)}
+            onRemove={(id) => remove(id)}
+            onReorder={(from, to) => move(from, to)}
           />
 
-          <div>
-            <div className="text-xs font-medium text-muted-foreground">Generated JSON</div>
-            <pre className="mt-2 max-h-[240px] overflow-auto rounded border p-3 text-xs" data-testid="cb-json">
-              {JSON.stringify(program, null, 2)}
-            </pre>
+          {/* 選択がないときの空状態（Selectedの代替） */}
+          {commands.length > 0 && !selectedId ? (
+            <div
+              className="mt-2 rounded border bg-muted/20 p-3 text-sm text-muted-foreground"
+              data-testid="command-selected-empty"
+            >
+              まだ何も選択していない。コマンドをクリックして編集する。
+            </div>
+          ) : null}
+        </div>
+
+        {/* 下段：PipelinePanel 全幅。デフォルトは compact（PipelinePanel側で対応） */}
+        {selectedId ? (
+          <div className="mt-4" data-testid="pipe-panel">
+            <PipelinePanel
+              commands={commands}
+              selectedId={selectedId}
+              selectedIndex={selectedIndex}
+              revealIndex={revealIndex}
+              onStepPlus={stepPlus}
+              onStepMinus={stepMinus}
+              onSelectNext={selectNext}
+              onSelectStep={onSelectStep}
+            />
           </div>
+        ) : null}
 
-          <div data-testid="cb-result">
-            <div className="text-xs font-medium text-muted-foreground">Result</div>
+        {/* Result */}
+        <div className="mt-4" data-testid="cb-result">
+          <div className="text-xs font-medium text-muted-foreground">Result</div>
 
-            {uiResult ? (
-              <ResultPanel
-                status={uiResult.status}
-                outputText={uiResult.outputText}
-                hint={uiResult.hint}
-                onRetry={running ? undefined : run}
-              />
-            ) : (
-              <pre className="mt-2 max-h-[240px] overflow-auto rounded border p-3 text-xs">
-                (no result)
+          {uiResult ? (
+            <ResultPanel
+              status={uiResult.status}
+              outputText={uiResult.outputText}
+              hint={uiResult.hint}
+              onRetry={running ? undefined : run}
+            />
+          ) : (
+            <div className="mt-2 rounded border bg-muted/20 p-3 text-sm text-muted-foreground">
+              まだ実行していない。
+            </div>
+          )}
+
+          {result ? (
+            <details className="mt-2 rounded border bg-muted/20 p-2">
+              <summary className="cursor-pointer text-xs text-muted-foreground">raw result (debug)</summary>
+              <pre className="mt-2 max-h-[240px] overflow-auto rounded border bg-background p-3 text-xs">
+                {safeStringify(result)}
               </pre>
-            )}
-
-            {/* デバッグ用：生JSON（必要なければ後で消してOK） */}
-            {result ? (
-              <details className="mt-2 rounded border bg-muted/20 p-2">
-                <summary className="cursor-pointer text-xs text-muted-foreground">raw result (debug)</summary>
-                <pre className="mt-2 max-h-[240px] overflow-auto rounded border bg-background p-3 text-xs">
-                  {safeStringify(result)}
-                </pre>
-              </details>
-            ) : null}
-          </div>
+            </details>
+          ) : null}
         </div>
       </div>
 

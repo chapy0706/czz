@@ -59,7 +59,7 @@ export function PipelinePanel(props: Props) {
     onSelectStep,
   } = props;
 
-  // ★ デフォルトを compact に変更
+  // default: compact
   const [viewMode, setViewMode] = React.useState<ViewMode>("compact");
 
   const canStepPlus = selectedIndex >= 0 && revealIndex < commands.length - 1;
@@ -90,10 +90,8 @@ export function PipelinePanel(props: Props) {
     <aside className="rounded-lg border bg-card p-4" data-testid="pipe-panel">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
-          <div className="text-sm font-semibold">Pipeline</div>
-          <div className="text-xs text-muted-foreground">
-            input.csv → output.csv
-          </div>
+          <div className="text-sm font-semibold">Runner</div>
+          <div className="text-xs text-muted-foreground">input.csv → output.csv</div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -109,7 +107,7 @@ export function PipelinePanel(props: Props) {
             </button>
             <button
               type="button"
-              className={`px-2 py-1 border-l ${viewMode === "detailed" ? "bg-accent" : "bg-background"}`}
+              className={`border-l px-2 py-1 ${viewMode === "detailed" ? "bg-accent" : "bg-background"}`}
               onClick={() => setViewMode("detailed")}
               data-testid="pipe-view-detailed"
               aria-pressed={viewMode === "detailed"}
@@ -117,24 +115,6 @@ export function PipelinePanel(props: Props) {
               詳細
             </button>
           </div>
-          <button
-            type="button"
-            className="rounded border px-2 py-1 text-xs disabled:opacity-50"
-            onClick={onStepMinus}
-            disabled={!canStepMinus}
-            data-testid="pipe-step-minus"
-          >
-            - Step
-          </button>
-          <button
-            type="button"
-            className="rounded border px-2 py-1 text-xs disabled:opacity-50"
-            onClick={onStepPlus}
-            disabled={!canStepPlus}
-            data-testid="pipe-step-plus"
-          >
-            + Step
-          </button>
         </div>
       </div>
 
@@ -143,10 +123,7 @@ export function PipelinePanel(props: Props) {
           コマンドを選択すると、ここにパイプラインが表示される。
         </div>
       ) : viewMode === "compact" ? (
-        <div
-          className="mt-4 rounded border bg-muted/30 px-3 py-2"
-          data-testid="pipe-compact-view"
-        >
+        <div className="mt-4 rounded border bg-muted/30 px-3 py-2" data-testid="pipe-compact-view">
           <div className="overflow-x-auto whitespace-nowrap font-mono text-sm">
             <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
               input.csv
@@ -204,7 +181,8 @@ export function PipelinePanel(props: Props) {
         </div>
       )}
 
-      <div className="mt-4">
+      {/* Step操作は GesturePad に一本化 */}
+      <div className="mt-4" data-testid="runner-gesturepad">
         <GesturePad
           onStepPlus={onStepPlus}
           onStepMinus={onStepMinus}

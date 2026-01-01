@@ -20,12 +20,13 @@ type Props = {
 
 function SortableRow(props: {
   cmd: CommandDraft;
+  index: number;
   selected: boolean;
   onSelect: () => void;
   onEdit: () => void;
   onRemove: () => void;
 }) {
-  const { cmd, selected, onSelect, onEdit, onRemove } = props;
+  const { cmd, index, selected, onSelect, onEdit, onRemove } = props;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cmd.id });
 
@@ -39,6 +40,7 @@ function SortableRow(props: {
     <div ref={setNodeRef} style={style}>
       <CommandRow
         command={cmd}
+        index={index}
         isSelected={selected}
         onSelect={() => onSelect()}
         onEdit={() => onEdit()}
@@ -72,10 +74,11 @@ export function CommandList(props: Props) {
     >
       <SortableContext items={commands.map((c) => c.id)} strategy={verticalListSortingStrategy}>
         <div className="space-y-2" data-testid="cb-list">
-          {commands.map((cmd) => (
+          {commands.map((cmd, index) => (
             <SortableRow
               key={cmd.id}
               cmd={cmd}
+              index={index}
               selected={cmd.id === selectedId}
               onSelect={() => onSelect(cmd.id)}
               onEdit={() => onEdit(cmd.id)}

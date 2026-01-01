@@ -15,6 +15,9 @@ type Props = {
 
   // dnd-kit 用（SortableRow から渡す）
   dragHandleProps?: React.HTMLAttributes<HTMLSpanElement>;
+
+  // NEW: E2E 用 index（任意）
+  index?: number;
 };
 
 function isCommandType(value: string): value is CommandType {
@@ -33,7 +36,7 @@ function isCommandType(value: string): value is CommandType {
 }
 
 export function CommandRow(props: Props) {
-  const { command, isSelected, onSelect, onEdit, onDelete, dragHandleProps } = props;
+  const { command, isSelected, onSelect, onEdit, onDelete, dragHandleProps, index } = props;
 
   const ignoreIfDndHandle = React.useCallback((t: EventTarget | null) => {
     const el = t instanceof Element ? t : null;
@@ -102,6 +105,8 @@ export function CommandRow(props: Props) {
         }}
         onKeyDown={onKeyDown}
         data-testid={`cb-item-${type}`}
+        // NEW: 既存 testid を壊さず、E2E で安定して掴むための index testid を追加
+        {...(index != null ? { "data-testid-index": `cmd-row-${index}` } : {})}
         {...handlers}
       >
         <div className="min-w-0 flex-1">

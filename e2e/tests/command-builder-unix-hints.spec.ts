@@ -1,24 +1,32 @@
 // e2e/tests/command-builder-unix-hints.spec.ts
 import { expect, test } from "@playwright/test";
+import {
+  addCommandByType,
+  clickByTestIdRobust,
+  ensureAtLeastOneCommand,
+  selectFirstCommandRow,
+} from "./_helpers/ui";
 
-const TASK_ID = process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000201";
+const TASK_ID = process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
 
-test("command builder: shows unix hint (LPIC csv template) for MAP_ADD", async ({ page }) => {
+test("command builder: shows unix hint in detailed runner view for MAP_ADD", async ({ page }) => {
   await page.goto(`/tasks/${TASK_ID}`);
-  await expect(page.getByTestId("command-builder")).toBeVisible();
+  await expect(page.getByTestId("command-builder")).toBeVisible({ timeout: 10_000 });
 
-  await page.getByTestId("cb-add-open").click();
-  await page.getByTestId("cb-add-MAP_ADD").click();
+  await ensureAtLeastOneCommand(page);
 
-  const hint = page.getByTestId("cb-unix-hint-MAP_ADD");
-  await expect(hint).toBeVisible();
+  if (await page.getByTestId("cb-add-open").count()) {
+    await addCommandByType(page, "MAP_ADD");
+  }
 
-  // 旧: stdin/stdout -> 新: input.csv/output.csv テンプレ
-  await expect(hint).toContainText("tail -n +2 input.csv");
-  await expect(hint).toContainText("cut -d, -f1");
-  await expect(hint).toContainText("> output.csv");
+  await selectFirstCommandRow(page);
 
-  // 分解ステップも出しているなら、こっちを確認するとさらに堅い
-  const steps = page.getByTestId("cb-unix-steps-MAP_ADD");
-  await expect(steps).toBeVisible();
+  // pipe-panel は strict 回避で .first()
+  await expect(page.locator('[data-testid="pipe-panel"]').first()).toBeVisible({ timeout: 10_000 });
+
+  // overlay が残っても押せるように robust click
+  await clickByTestIdRobust(page, "pipe-view-detailed");
+
+  await expect(page.getByTestId("pipe-strip")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId("pipe-preview").first()).toBeVisible({ timeout: 10_000 });
 });

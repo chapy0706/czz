@@ -1,38 +1,37 @@
 // e2e/tests/pipeline-view-mode.spec.ts
 import { expect, test } from "@playwright/test";
+import {
+  addCommandByType,
+  clickByTestIdRobust,
+  ensureAtLeastOneCommand,
+  selectFirstCommandRow,
+} from "./_helpers/ui";
 
-const TASK_ID = process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000201";
+const TASK_ID = process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
 
 test.describe("Pipeline view mode", () => {
   test("toggles compact/detailed views with a selected command", async ({ page }) => {
     await page.goto(`/tasks/${TASK_ID}`);
-    await expect(page.getByTestId("command-builder")).toBeVisible();
+    await expect(page.getByTestId("command-builder")).toBeVisible({ timeout: 10_000 });
 
-    // コマンドを追加（前提を自前で作る）
-    await page.getByTestId("cb-add-open").click();
-    await page.getByTestId("cb-add-MAP_ADD").click();
+    await ensureAtLeastOneCommand(page);
+    if (await page.getByTestId("cb-add-open").count()) {
+      await addCommandByType(page, "MAP_ADD");
+    }
 
-    // PipelinePanel が見える
-    await expect(page.getByTestId("pipe-panel")).toBeVisible();
+    await selectFirstCommandRow(page);
 
-    // Toggle が見える（A-6）
-    await expect(page.getByTestId("pipe-view-toggle")).toBeVisible();
+    await expect(page.locator('[data-testid="pipe-panel"]').first()).toBeVisible({ timeout: 10_000 });
 
-    // 追加したコマンドを type で確実に選択（index依存を排除）
-    const mapAddRow = page.getByTestId("cb-item-MAP_ADD");
-    await expect(mapAddRow).toBeVisible();
-    await mapAddRow.click();
+    // default compact
+    await expect(page.getByTestId("pipe-compact-view")).toBeVisible({ timeout: 10_000 });
 
-    // 詳細表示：strip が出る
-    await page.getByTestId("pipe-view-detailed").click();
-    await expect(page.getByTestId("pipe-strip")).toBeVisible();
+    // detailed
+    await clickByTestIdRobust(page, "pipe-view-detailed");
+    await expect(page.getByTestId("pipe-strip")).toBeVisible({ timeout: 10_000 });
 
-    // 短い表示：compact view が出る
-    await page.getByTestId("pipe-view-compact").click();
-    await expect(page.getByTestId("pipe-compact-view")).toBeVisible();
-
-    // 戻せる
-    await page.getByTestId("pipe-view-detailed").click();
-    await expect(page.getByTestId("pipe-strip")).toBeVisible();
+    // back
+    await clickByTestIdRobust(page, "pipe-view-compact");
+    await expect(page.getByTestId("pipe-compact-view")).toBeVisible({ timeout: 10_000 });
   });
 });

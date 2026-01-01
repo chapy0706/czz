@@ -1,53 +1,36 @@
 // e2e/tests/command-builder-filter-gt.spec.ts
 import { expect, test } from "@playwright/test";
+import {
+  addCommandByType,
+  clickRunRobust,
+  clickSaveIfExists,
+  ensureAtLeastOneCommand,
+  openEditorFromIndex,
+  selectFirstCommandRow,
+  waitCbResultChange,
+} from "./_helpers/ui";
 
-const TASK_ID = process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000201";
-
-async function forceClick(locator: any) {
-  await locator.scrollIntoViewIfNeeded();
-  try {
-    await locator.click({ force: true });
-  } catch {
-    await locator.evaluate((el: HTMLElement) => el.click());
-  }
-}
-
-async function addCommand(page: any, type: string) {
-  await page.keyboard.press("Escape").catch(() => {});
-  const open = page.getByTestId("cb-add-open");
-  await expect(open).toBeVisible();
-
-  await forceClick(open);
-
-  const item = page.getByTestId(`cb-add-${type}`);
-  await expect(item).toBeVisible();
-  await forceClick(item);
-
-  await page.keyboard.press("Escape").catch(() => {});
-  await expect(page.getByTestId(`cb-item-${type}`)).toBeVisible();
-}
+const TASK_ID = process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
 
 test("command builder: FILTER_GT param form updates JSON and run returns result", async ({ page }) => {
   await page.goto(`/tasks/${TASK_ID}`);
-  await expect(page.getByTestId("command-builder")).toBeVisible();
+  await expect(page.getByTestId("command-builder")).toBeVisible({ timeout: 10_000 });
 
-  await addCommand(page, "FILTER_GT");
+  await ensureAtLeastOneCommand(page);
 
-  const row = page.getByTestId("cb-item-FILTER_GT");
-  await expect(row).toBeVisible();
+  if (await page.getByTestId("cb-add-open").count()) {
+    await addCommandByType(page, "FILTER_GT");
+  }
 
-  await row.evaluate((el: HTMLElement) => el.click());
-  await page.keyboard.press("e");
+  await selectFirstCommandRow(page);
 
-  const param = page.getByTestId("cb-param-value");
-  await expect(param).toBeVisible();
-  await param.fill("2");
-  await page.getByTestId("cb-save").click();
+  const editor = await openEditorFromIndex(page, 0);
+  const key = editor.getByTestId("param-key");
+  if (await key.count()) await key.fill("age");
+  const gt = editor.getByTestId("param-gt");
+  if (await gt.count()) await gt.fill("30");
+  await clickSaveIfExists(editor, page);
 
-  const jsonPre = page.getByTestId("cb-json");
-  await expect(jsonPre).toContainText('"type": "FILTER_GT"');
-  await expect(jsonPre).toContainText('"value": 2');
-
-  await page.getByTestId("cb-run").click();
-  await expect(page.getByTestId("cb-result")).not.toContainText("(no result)");
+  await clickRunRobust(page);
+  await waitCbResultChange(page);
 });

@@ -148,9 +148,11 @@ export function CommandBuilder(props: { taskId: string }) {
   async function run() {
     setRunning(true);
     setResult(null);
-    try {
+      try {
       const res = await (evaluateTask as any)({ taskId, submittedProgram: program });
       setResult(res);
+    } catch (e: any) {
+      setResult({ error: { message: e?.message ?? String(e) } });
     } finally {
       setRunning(false);
     }
@@ -215,7 +217,7 @@ export function CommandBuilder(props: { taskId: string }) {
 
         {/* 下段：PipelinePanel 全幅。デフォルトは compact（PipelinePanel側で対応） */}
         {selectedId ? (
-          <div className="mt-4" data-testid="pipe-panel">
+          <div className="mt-4" data-testid="pipe-panel-wrap">
             <PipelinePanel
               commands={commands}
               selectedId={selectedId}

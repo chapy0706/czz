@@ -17,7 +17,7 @@ export function CommandRow(props: {
 
   const type = String(command.value?.type ?? "UNKNOWN");
 
-  // Swipe（簡易版）：左右にドラッグしたら Edit/Delete
+  // Swipe（UX用）：左右にドラッグしたら Edit/Delete
   const startXRef = React.useRef<number | null>(null);
 
   function onPointerDown(e: React.PointerEvent) {
@@ -29,7 +29,6 @@ export function CommandRow(props: {
     const dx = e.clientX - startXRef.current;
     startXRef.current = null;
 
-    // しきい値：誤爆防止
     if (dx > 60) onEdit();
     if (dx < -60) onRemove();
   }
@@ -47,7 +46,9 @@ export function CommandRow(props: {
       onClick={onSelect}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
+      // 既存E2E互換
       data-testid-index={`cmd-row-${index}`}
+      data-testid={`cb-item-${type}`}
     >
       <div className="min-w-0">
         <div className="font-mono text-sm">{type}</div>
@@ -56,33 +57,36 @@ export function CommandRow(props: {
         ) : null}
       </div>
 
-      {/* chip ではボタンを出さず、操作はスワイプ＋クリックに寄せる */}
-      {variant === "row" ? (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="rounded border px-2 py-1 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            data-testid={`cmd-edit-${index}`}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className="rounded border px-2 py-1 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            data-testid={`cmd-del-${index}`}
-          >
-            Del
-          </button>
-        </div>
-      ) : null}
+      {/* ★ chip でも Edit/Del を出す（E2Eの安定性のため） */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="rounded border px-2 py-1 text-xs hover:bg-accent"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          data-testid={`cmd-edit-${index}`}
+          aria-label="edit command"
+          title="Edit"
+        >
+          Edit
+        </button>
+
+        <button
+          type="button"
+          className="rounded border px-2 py-1 text-xs hover:bg-accent"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          data-testid={`cmd-del-${index}`}
+          aria-label="delete command"
+          title="Delete"
+        >
+          Del
+        </button>
+      </div>
     </div>
   );
 }

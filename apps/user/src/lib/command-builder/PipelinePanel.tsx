@@ -1,7 +1,7 @@
-// apps/user/src/lib/components/command-builder/PipelinePanel.tsx
+// apps/user/src/lib/command-builder/PipelinePanel.tsx
 "use client";
 
-import type { CommandDraft } from "@/lib/command-builder/commandBuilderStore";
+import { useCommandBuilderStore, type CommandDraft } from "@/lib/command-builder/commandBuilderStore";
 import { getCatalogItem } from "@/lib/command-builder/commandCatalog";
 import { GesturePad } from "@/lib/command-builder/GesturePad";
 import * as React from "react";
@@ -27,7 +27,16 @@ function getType(value: unknown): string {
 }
 
 function renderUnixBlock(item: any, fallbackType: string) {
-  const steps: string[] | undefined = Array.isArray(item?.unixSteps) ? item.unixSteps : undefined;
+  const rawSteps: unknown[] | undefined = Array.isArray(item?.unixSteps) ? item.unixSteps : undefined;
+
+  const steps: string[] | undefined = rawSteps
+    ? rawSteps.map((s: any) => {
+        if (typeof s === "string") return s;
+        if (s && typeof s === "object" && typeof s.cmd === "string") return s.cmd;
+        return String(s);
+      })
+    : undefined;
+
   const hint: string | undefined = typeof item?.unixHint === "string" ? item.unixHint : undefined;
 
   const lines =
@@ -59,11 +68,32 @@ export function PipelinePanel(props: Props) {
     onSelectStep,
   } = props;
 
-  // default: compact
+  const moveCommand = useCommandBuilderStore((s) => s.move);
+
   const [viewMode, setViewMode] = React.useState<ViewMode>("compact");
 
   const canStepPlus = selectedIndex >= 0 && revealIndex < commands.length - 1;
   const canStepMinus = selectedIndex >= 0 && revealIndex > selectedIndex;
+
+  const selectedCommandIndex = React.useMemo(() => {
+    if (selectedId == null) return -1;
+    return commands.findIndex((c) => c.id === selectedId);
+  }, [commands, selectedId]);
+
+  const canMoveLeft = selectedCommandIndex > 0;
+  const canMoveRight = selectedCommandIndex >= 0 && selectedCommandIndex < commands.length - 1;
+
+  const handleMoveSelected = React.useCallback(
+    (delta: -1 | 1) => {
+      if (selectedCommandIndex < 0) return;
+      const to = selectedCommandIndex + delta;
+      if (to < 0 || to >= commands.length) return;
+
+      moveCommand(selectedCommandIndex, to);
+      onSelectStep(to);
+    },
+    [commands.length, moveCommand, onSelectStep, selectedCommandIndex],
+  );
 
   const revealed = React.useMemo(() => {
     if (selectedIndex < 0) return [];
@@ -107,7 +137,9 @@ export function PipelinePanel(props: Props) {
             </button>
             <button
               type="button"
-              className={`border-l px-2 py-1 ${viewMode === "detailed" ? "bg-accent" : "bg-background"}`}
+              className={`border-l px-2 py-1 ${
+                viewMode === "detailed" ? "bg-accent" : "bg-background"
+              }`}
               onClick={() => setViewMode("detailed")}
               data-testid="pipe-view-detailed"
               aria-pressed={viewMode === "detailed"}
@@ -118,9 +150,9 @@ export function PipelinePanel(props: Props) {
         </div>
       </div>
 
-      {selectedId == null || selectedIndex < 0 ? (
+      {commands.length === 0 ? (
         <div className="mt-4 rounded border px-3 py-6 text-sm text-muted-foreground">
-          コマンドを選択すると、ここにパイプラインが表示される。
+          まだコマンドがないよ。追加して Runner を組み立てよう。
         </div>
       ) : viewMode === "compact" ? (
         <div className="mt-4 rounded border bg-muted/30 px-3 py-2" data-testid="pipe-compact-view">
@@ -129,27 +161,61 @@ export function PipelinePanel(props: Props) {
               input.csv
             </span>
 
-            {revealed.map((cmd, i) => {
+            {commands.map((cmd, i) => {
               const type = getType(cmd.value);
               const item = getCatalogItem(type as any);
+
               const raw =
                 typeof item?.unixHint === "string" && item.unixHint.trim().length > 0
                   ? item.unixHint.trim().split("\n")[0]
                   : type;
 
-              const stepNo = selectedIndex + i;
+              const isSelected = selectedId != null && cmd.id === selectedId;
 
               return (
                 <React.Fragment key={cmd.id}>
                   <span className="mx-2 text-muted-foreground">|</span>
-                  <button
-                    type="button"
-                    className="rounded border bg-background px-2 py-1 hover:bg-accent"
-                    onClick={() => onSelectStep(stepNo)}
-                    title={raw}
-                  >
-                    {raw}
-                  </button>
+
+                  <span className="inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      className={`rounded border px-2 py-1 hover:bg-accent ${
+                        isSelected ? "bg-accent/60" : "bg-background"
+                      }`}
+                      onClick={() => onSelectStep(i)}
+                      title={raw}
+                      data-testid="pipe-step"
+                    >
+                      {raw}
+                    </button>
+
+                    {isSelected ? (
+                      <>
+                        <button
+                          type="button"
+                          className="rounded border bg-background px-1.5 py-1 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+                          onClick={() => handleMoveSelected(-1)}
+                          disabled={!canMoveLeft}
+                          title="左へ移動"
+                          aria-label="move left"
+                          data-testid="pipe-move-left"
+                        >
+                          ←
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded border bg-background px-1.5 py-1 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+                          onClick={() => handleMoveSelected(1)}
+                          disabled={!canMoveRight}
+                          title="右へ移動"
+                          aria-label="move right"
+                          data-testid="pipe-move-right"
+                        >
+                          →
+                        </button>
+                      </>
+                    ) : null}
+                  </span>
                 </React.Fragment>
               );
             })}
@@ -159,53 +225,68 @@ export function PipelinePanel(props: Props) {
               output.csv
             </span>
           </div>
+
+          {selectedCommandIndex >= 0 ? (
+            <div className="mt-2 text-xs text-muted-foreground">
+              選択中のコマンドは ← / → で並べ替えできる
+            </div>
+          ) : null}
         </div>
       ) : (
-        <div className="mt-4 flex gap-2 overflow-x-auto" data-testid="pipe-strip">
-          {revealed.map((cmd, i) => {
-            const type = getType(cmd.value);
-            const item = getCatalogItem(type as any);
-            const stepNo = selectedIndex + i;
+        <div className="mt-4 space-y-3">
+          {selectedIndex < 0 ? (
+            <div className="rounded border px-3 py-6 text-sm text-muted-foreground">
+              詳細を見るにはコマンドを選択してね。
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2 overflow-x-auto" data-testid="pipe-strip">
+                {revealed.map((cmd, j) => {
+                  const type = getType(cmd.value);
+                  const item = getCatalogItem(type as any);
+                  const stepNo = selectedIndex + j;
 
-            return (
-              <div
-                key={cmd.id}
-                className="w-[300px] shrink-0 rounded border bg-background p-3 hover:bg-accent"
-                onClick={() => onSelectStep(stepNo)}
-              >
-                <div className="font-mono text-sm">{type}</div>
-                {renderUnixBlock(item, type)}
+                  return (
+                    <div
+                      key={cmd.id}
+                      className="w-[300px] shrink-0 rounded border bg-background p-3 hover:bg-accent"
+                      onClick={() => onSelectStep(stepNo)}
+                    >
+                      <div className="font-mono text-sm">{type}</div>
+                      {renderUnixBlock(item, type)}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+
+              <div data-testid="runner-gesturepad">
+                <GesturePad
+                  onStepPlus={onStepPlus}
+                  onStepMinus={onStepMinus}
+                  canStepPlus={canStepPlus}
+                  canStepMinus={canStepMinus}
+                />
+              </div>
+
+              <div className="rounded border p-3">
+                <div className="text-xs font-medium text-muted-foreground">Next Step</div>
+                {next ? (
+                  <button
+                    type="button"
+                    className="mt-2 w-full rounded border bg-background px-3 py-2 text-left hover:bg-accent"
+                    onClick={onSelectNext}
+                    data-testid="pipe-next"
+                  >
+                    <div className="font-mono">{getType(next.value)}</div>
+                  </button>
+                ) : (
+                  <div className="mt-2 text-sm text-muted-foreground">(no next)</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
-
-      {/* Step操作は GesturePad に一本化 */}
-      <div className="mt-4" data-testid="runner-gesturepad">
-        <GesturePad
-          onStepPlus={onStepPlus}
-          onStepMinus={onStepMinus}
-          canStepPlus={canStepPlus}
-          canStepMinus={canStepMinus}
-        />
-      </div>
-
-      <div className="mt-4 rounded border p-3">
-        <div className="text-xs font-medium text-muted-foreground">Next Step</div>
-        {next ? (
-          <button
-            type="button"
-            className="mt-2 w-full rounded border bg-background px-3 py-2 text-left hover:bg-accent"
-            onClick={onSelectNext}
-            data-testid="pipe-next"
-          >
-            <div className="font-mono">{getType(next.value)}</div>
-          </button>
-        ) : (
-          <div className="mt-2 text-sm text-muted-foreground">(no next)</div>
-        )}
-      </div>
     </aside>
   );
 }

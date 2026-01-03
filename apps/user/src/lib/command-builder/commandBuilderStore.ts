@@ -58,12 +58,35 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
 
   remove: (id) => {
     set((s) => {
-      const next = s.commands.filter((c) => c.id !== id);
+      const removedIndex = s.commands.findIndex((c) => c.id === id);
+      if (removedIndex < 0) return s;
 
-      const selectedId = s.selectedId === id ? null : s.selectedId;
-      const editingId = s.editingId === id ? null : s.editingId;
+      const nextCommands = s.commands.filter((c) => c.id !== id);
+      const nextEditingId = s.editingId === id ? null : s.editingId;
 
-      return { commands: next, selectedId, editingId };
+      // 削除後の選択を “迷子” にしない:
+      // - 削除対象が選択中なら、同じ位置（末尾ならひとつ前）を選ぶ
+      // - 選択中でないなら、基本は維持（念のため存在チェック）
+      let nextSelectedId = s.selectedId;
+
+      if (s.selectedId === id) {
+        if (nextCommands.length === 0) {
+          nextSelectedId = null;
+        } else {
+          const nextIndex = Math.min(removedIndex, nextCommands.length - 1);
+          nextSelectedId = nextCommands[nextIndex].id;
+        }
+      } else if (nextSelectedId != null) {
+        const stillExists = nextCommands.some((c) => c.id === nextSelectedId);
+        if (!stillExists) {
+          nextSelectedId =
+            nextCommands.length > 0
+              ? nextCommands[Math.min(removedIndex, nextCommands.length - 1)].id
+              : null;
+        }
+      }
+
+      return { commands: nextCommands, selectedId: nextSelectedId, editingId: nextEditingId };
     });
   },
 

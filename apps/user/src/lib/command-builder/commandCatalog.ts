@@ -24,12 +24,12 @@ export type CommandParamSpec = {
 export type UnixStep = {
   /**
    * UI での説明用（短く）
-   * 例: "header skip", "col1", "filter", "redirect"
+   * 例: "header skip", "col1", "filter"
    */
   label: string;
   /**
    * シェル上で叩ける “1ステップ”
-   * 例: "tail -n +2 input.csv"
+   * 例: "tail -n +2"
    */
   cmd: string;
 };
@@ -39,10 +39,17 @@ export type CommandCatalogItem = {
   label: string;
 
   /**
-   * UI に表示する “実行可能” な例（テンプレ）。
-   * COL=1 固定、ヘッダあり前提。VALUE は UI が補間する想定。
+   * UI に表示する “変換部分だけ” の例（テンプレ）。
+   * Runner 側で入出力（cat input.csv / > output.csv）を固定表示するため、
+   * このテンプレにはファイル I/O を含めない。
    */
   unixHint: string;
+
+  /**
+   * “短い表示” 用（可能なら 1 コマンドに圧縮）。
+   * 例: "sort -n" / "awk -v v=VALUE '$1>v'"
+   */
+  unixShort?: string;
 
   /**
    * 分解表示用（学習者に「パイプの部品」を見せる）
@@ -53,95 +60,105 @@ export type CommandCatalogItem = {
   params?: CommandParamSpec[]; // Basic フォームで扱う params（なければ params なし）
 };
 
+/**
+ * Runner 専用の “開始/終了” ステップ（DSL 的には意味が薄いが、視覚的に両端を固定できる）
+ */
+export const RUNNER_INPUT_STEP: UnixStep = { label: "input", cmd: "cat input.csv" };
+export const RUNNER_OUTPUT_STEP: UnixStep = { label: "output", cmd: "> output.csv" };
+
 // COL=1 固定、ヘッダあり前提の “前処理” を分解して定義
+// ここもファイル名は含めない（入力は Runner が担当）
 const PREPROCESS_STEPS: UnixStep[] = [
-  { label: "skip header", cmd: "tail -n +2 input.csv" },
+  { label: "skip header", cmd: "tail -n +2" },
   { label: "col1", cmd: "cut -d, -f1" },
 ];
 
-const REDIRECT_STEP: UnixStep = { label: "redirect", cmd: "> output.csv" };
-
 function buildUnixHintFromSteps(steps: UnixStep[]): string {
-  // ">" は pipe に混ぜず最後に付ける（見た目が教材っぽくなる）
-  const redirectIdx = steps.findIndex((s) => s.cmd.trim().startsWith(">"));
-  const main = (redirectIdx >= 0 ? steps.slice(0, redirectIdx) : steps).map((s) => s.cmd).join(" | ");
-  const redirect = redirectIdx >= 0 ? ` ${steps[redirectIdx]?.cmd}` : "";
-  return `${main}${redirect}`;
+  return steps.map((s) => s.cmd).join(" | ");
 }
 
-function stepsWithRedirect(coreCmd: string): UnixStep[] {
-  return [...PREPROCESS_STEPS, { label: "command", cmd: coreCmd }, REDIRECT_STEP];
+function stepsWithPreprocess(coreCmd: string): UnixStep[] {
+  return [...PREPROCESS_STEPS, { label: "command", cmd: coreCmd }];
+}
+
+function buildItem(args: {
+  type: CommandType;
+  label: string;
+  coreCmd: string;
+  params?: CommandParamSpec[];
+}): CommandCatalogItem {
+  const unixSteps = stepsWithPreprocess(args.coreCmd);
+  const unixHint = buildUnixHintFromSteps(unixSteps);
+
+  return {
+    type: args.type,
+    label: args.label,
+    unixSteps,
+    unixHint,
+    unixShort: args.coreCmd,
+    params: args.params,
+  };
 }
 
 export const COMMAND_CATALOG: CommandCatalogItem[] = [
-  {
+  buildItem({
     type: "FILTER_EQUALS",
     label: "FILTER_EQUALS",
-    unixSteps: stepsWithRedirect("awk -v v=VALUE '$1==v'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk -v v=VALUE '$1==v'")),
+    coreCmd: "awk -v v=VALUE '$1==v'",
     params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
-  },
-  {
+  }),
+  buildItem({
     type: "FILTER_NOT_EQUALS",
     label: "FILTER_NOT_EQUALS",
-    unixSteps: stepsWithRedirect("awk -v v=VALUE '$1!=v'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk -v v=VALUE '$1!=v'")),
+    coreCmd: "awk -v v=VALUE '$1!=v'",
     params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
-  },
-  {
+  }),
+  buildItem({
     type: "FILTER_GT",
     label: "FILTER_GT",
-    unixSteps: stepsWithRedirect("awk -v v=VALUE '$1>v'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk -v v=VALUE '$1>v'")),
+    coreCmd: "awk -v v=VALUE '$1>v'",
     params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
-  },
+  }),
 
-  {
+  buildItem({
     type: "MAP_ADD",
     label: "MAP_ADD",
-    unixSteps: stepsWithRedirect("awk -v v=VALUE '{print $1+v}'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk -v v=VALUE '{print $1+v}'")),
+    coreCmd: "awk -v v=VALUE '{print $1+v}'",
     params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 0 }],
-  },
-  {
+  }),
+  buildItem({
     type: "MAP_MULTIPLY",
     label: "MAP_MULTIPLY",
-    unixSteps: stepsWithRedirect("awk -v v=VALUE '{print $1*v}'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk -v v=VALUE '{print $1*v}'")),
+    coreCmd: "awk -v v=VALUE '{print $1*v}'",
     params: [{ key: "value", label: "value", kind: "number", required: true, defaultValue: 1 }],
-  },
+  }),
 
-  {
+  buildItem({
     type: "SORT_ASC",
     label: "SORT_ASC",
-    unixSteps: stepsWithRedirect("sort -n"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("sort -n")),
-  },
-  {
+    coreCmd: "sort -n",
+  }),
+  buildItem({
     type: "SORT_DESC",
     label: "SORT_DESC",
-    unixSteps: stepsWithRedirect("sort -nr"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("sort -nr")),
-  },
+    coreCmd: "sort -nr",
+  }),
 
-  {
+  buildItem({
     type: "OUTPUT_FIRST",
     label: "OUTPUT_FIRST",
-    unixSteps: stepsWithRedirect("head -n 1"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("head -n 1")),
-  },
-  {
+    coreCmd: "head -n 1",
+  }),
+  buildItem({
     type: "OUTPUT_LAST",
     label: "OUTPUT_LAST",
-    unixSteps: stepsWithRedirect("tail -n 1"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("tail -n 1")),
-  },
-  {
+    coreCmd: "tail -n 1",
+  }),
+  buildItem({
     type: "OUTPUT_SUM",
     label: "OUTPUT_SUM",
-    unixSteps: stepsWithRedirect("awk '{s+=$1} END{print s}'"),
-    unixHint: buildUnixHintFromSteps(stepsWithRedirect("awk '{s+=$1} END{print s}'")),
-  },
+    coreCmd: "awk '{s+=$1} END{print s}'",
+  }),
 ];
 
 export function getCatalogItem(type: CommandType): CommandCatalogItem | undefined {

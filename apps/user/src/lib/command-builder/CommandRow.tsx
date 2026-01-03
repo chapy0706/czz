@@ -38,8 +38,8 @@ export function CommandRow(props: {
       ? "relative flex items-center gap-2 rounded border px-3 py-2 text-sm"
       : "relative flex items-center justify-between gap-2 rounded border px-3 py-2";
 
-  const selected =
-    "bg-muted/30 ring-2 ring-muted-foreground/20 border-muted-foreground/30";
+  // 選択中：背景を明るく（= 目立つが文字は増やさない）
+  const selected = "bg-accent/60 ring-2 ring-foreground/10 border-foreground/10";
   const normal = "bg-background";
 
   return (
@@ -48,14 +48,14 @@ export function CommandRow(props: {
       onClick={onSelect}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      // E2E互換（ここが重要）
+      // E2E互換（重要）
       data-testid-index={`cmd-row-${index}`}
       data-testid={`cb-item-${type}`}
     >
-      {/* 選択状態が一目で分かる左アクセント */}
+      {/* 左アクセント（選択時のみ） */}
       <div
         className={`absolute left-0 top-0 h-full w-1 rounded-l ${
-          isSelected ? "bg-foreground/40" : "bg-transparent"
+          isSelected ? "bg-foreground/30" : "bg-transparent"
         }`}
         aria-hidden="true"
       />
@@ -63,11 +63,6 @@ export function CommandRow(props: {
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <div className="font-mono text-sm">{type}</div>
-          {isSelected ? (
-            <span className="rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground">
-              SELECTED
-            </span>
-          ) : null}
         </div>
 
         {variant === "row" ? (
@@ -75,7 +70,7 @@ export function CommandRow(props: {
         ) : null}
       </div>
 
-      {/* chip でも Edit/Del を出す：UXはスワイプ、E2E/確実操作はボタン */}
+      {/* UXはスワイプ、E2E/確実操作はボタン */}
       <div className="flex items-center gap-2">
         <button
           type="button"

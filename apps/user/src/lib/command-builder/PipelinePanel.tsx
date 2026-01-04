@@ -2,7 +2,12 @@
 "use client";
 
 import { useCommandBuilderStore, type CommandDraft } from "@/lib/command-builder/commandBuilderStore";
-import { getCatalogItem } from "@/lib/command-builder/commandCatalog";
+import {
+  RUNNER_INPUT_STEP,
+  RUNNER_OUTPUT_STEP,
+  RUNNER_PREPROCESS_STEPS,
+  getCatalogItem,
+} from "@/lib/command-builder/commandCatalog";
 import { GesturePad } from "@/lib/command-builder/GesturePad";
 import * as React from "react";
 
@@ -26,35 +31,90 @@ function getType(value: unknown): string {
   return typeof any.type === "string" ? any.type : "UNKNOWN";
 }
 
-function renderUnixBlock(item: any, fallbackType: string) {
-  const rawSteps: unknown[] | undefined = Array.isArray(item?.unixSteps) ? item.unixSteps : undefined;
-
-  const steps: string[] | undefined = rawSteps
-    ? rawSteps.map((s: any) => {
-        if (typeof s === "string") return s;
-        if (s && typeof s === "object" && typeof s.cmd === "string") return s.cmd;
-        return String(s);
-      })
-    : undefined;
-
-  const hint: string | undefined = typeof item?.unixHint === "string" ? item.unixHint : undefined;
-
-  const lines =
-    steps && steps.length > 0
-      ? steps
-      : hint
-        ? hint.split("\n").filter((x) => x.trim().length > 0)
-        : [`(no unix template for ${fallbackType})`];
-
-  return (
-    <pre
-      className="mt-2 max-h-28 overflow-auto rounded border bg-background p-3 text-xs"
-      data-testid="pipe-preview"
-    >
-      {lines.join("\n")}
-    </pre>
-  );
+function getParamValue(value: unknown, key: string): unknown {
+  if (!value || typeof value !== "object") return undefined;
+  const any = value as Record<string, unknown>;
+  return any[key];
 }
+
+function toShellLiteral(x: unknown): string {
+  if (typeof x === "number") return Number.isFinite(x) ? String(x) : "0";
+  if (typeof x === "string") return JSON.stringify(x);
+  if (typeof x === "boolean") return x ? "1" : "0";
+  return "0";
+}
+
+function substituteTemplate(template: string, cmdValue: unknown): string {
+  const v = getParamValue(cmdValue, "value");
+  if (template.includes("VALUE")) return template.replaceAll("VALUE", toShellLiteral(v));
+  return template;
+}
+
+function compactChipLabel(type: string, cmdValue: unknown): string {
+  const v = getParamValue(cmdValue, "value");
+  const vn = typeof v === "number" ? v : v == null ? undefined : Number(v);
+
+  switch (type) {
+    case "FILTER_EQUALS":
+      return `awk '$1==${vn ?? "v"}'`;
+    case "FILTER_NOT_EQUALS":
+      return `awk '$1!=${vn ?? "v"}'`;
+    case "FILTER_GT":
+      return `awk '$1>${vn ?? "v"}'`;
+    case "MAP_ADD":
+      return `awk '{+${vn ?? "v"}}'`;
+    case "MAP_MULTIPLY":
+      return `awk '{*${vn ?? "v"}}'`;
+    case "SORT_ASC":
+      return "sort -n";
+    case "SORT_DESC":
+      return "sort -nr";
+    case "OUTPUT_FIRST":
+      return "head -n 1";
+    case "OUTPUT_LAST":
+      return "tail -n 1";
+    case "OUTPUT_SUM":
+      return "sum";
+    default:
+      return type;
+  }
+}
+
+function buildFullPipelinePreview(commands: CommandDraft[]): string {
+  const core = commands.map((cmd) => {
+    const type = getType(cmd.value);
+    const item = getCatalogItem(type as any);
+    const tpl =
+      typeof item?.unixHint === "string" && item.unixHint.trim().length > 0 ? item.unixHint.trim() : type;
+    return substituteTemplate(tpl, cmd.value);
+  });
+
+  const pieces = [
+    RUNNER_INPUT_STEP.cmd,
+    ...RUNNER_PREPROCESS_STEPS.map((s) => s.cmd),
+    ...core,
+    RUNNER_OUTPUT_STEP.cmd,
+  ];
+
+  const last = pieces[pieces.length - 1] ?? "";
+  const main = pieces.slice(0, -1).join(" | ");
+  return `${main} ${last}`;
+}
+
+type DragState = {
+  pointerId: number;
+  pointerType: string;
+  fromIndex: number;
+
+  startX: number;
+  startY: number;
+
+  armed: boolean;
+  longPressTimer: number | null;
+
+  lastScrollLeft: number;
+  lastMoveAt: number;
+};
 
 export function PipelinePanel(props: Props) {
   const {
@@ -69,31 +129,174 @@ export function PipelinePanel(props: Props) {
   } = props;
 
   const moveCommand = useCommandBuilderStore((s) => s.move);
-
   const [viewMode, setViewMode] = React.useState<ViewMode>("compact");
 
   const canStepPlus = selectedIndex >= 0 && revealIndex < commands.length - 1;
   const canStepMinus = selectedIndex >= 0 && revealIndex > selectedIndex;
 
-  const selectedCommandIndex = React.useMemo(() => {
-    if (selectedId == null) return -1;
-    return commands.findIndex((c) => c.id === selectedId);
-  }, [commands, selectedId]);
+  const stripRef = React.useRef<HTMLDivElement | null>(null);
+  const dragRef = React.useRef<DragState | null>(null);
 
-  const canMoveLeft = selectedCommandIndex > 0;
-  const canMoveRight = selectedCommandIndex >= 0 && selectedCommandIndex < commands.length - 1;
-
-  const handleMoveSelected = React.useCallback(
-    (delta: -1 | 1) => {
-      if (selectedCommandIndex < 0) return;
-      const to = selectedCommandIndex + delta;
+  const handleMoveAt = React.useCallback(
+    (fromIndex: number, delta: -1 | 1) => {
+      const to = fromIndex + delta;
+      if (fromIndex < 0) return;
       if (to < 0 || to >= commands.length) return;
 
-      moveCommand(selectedCommandIndex, to);
+      moveCommand(fromIndex, to);
       onSelectStep(to);
     },
-    [commands.length, moveCommand, onSelectStep, selectedCommandIndex],
+    [commands.length, moveCommand, onSelectStep],
   );
+
+  const clearLongPress = React.useCallback(() => {
+    const d = dragRef.current;
+    if (!d) return;
+    if (d.longPressTimer != null) {
+      window.clearTimeout(d.longPressTimer);
+      d.longPressTimer = null;
+    }
+  }, []);
+
+  const cancelDrag = React.useCallback(() => {
+    clearLongPress();
+    dragRef.current = null;
+  }, [clearLongPress]);
+
+  const shouldTreatAsScroll = React.useCallback((d: DragState) => {
+    const el = stripRef.current;
+    if (!el) return false;
+    const now = el.scrollLeft;
+    const delta = Math.abs(now - d.lastScrollLeft);
+    d.lastScrollLeft = now;
+    return delta > 2;
+  }, []);
+
+  const isHorizontalGesture = (dx: number, dy: number, thresholdPx: number) => {
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    if (absX < thresholdPx) return false;
+    if (absX < absY * 1.2) return false;
+    return true;
+  };
+
+  const tryReorder = React.useCallback(
+    (clientX: number, clientY: number) => {
+      const d = dragRef.current;
+      if (!d) return;
+
+      const now = Date.now();
+      if (now - d.lastMoveAt < 120) return;
+
+      const dx = clientX - d.startX;
+      const dy = clientY - d.startY;
+
+      const threshold = d.pointerType === "mouse" ? 36 : 44;
+      if (!isHorizontalGesture(dx, dy, threshold)) return;
+
+      const dir: -1 | 1 = dx < 0 ? -1 : 1;
+      const to = d.fromIndex + dir;
+      if (to < 0 || to >= commands.length) return;
+
+      handleMoveAt(d.fromIndex, dir);
+
+      d.fromIndex = to;
+      d.startX = clientX;
+      d.startY = clientY;
+      d.lastMoveAt = now;
+    },
+    [commands.length, handleMoveAt],
+  );
+
+  const onChipPointerDown = React.useCallback(
+    (e: React.PointerEvent, fromIndex: number) => {
+      const pt = e.pointerType ?? "mouse";
+      if (pt === "mouse" && e.button !== 0) return;
+
+      onSelectStep(fromIndex);
+
+      const el = stripRef.current;
+      const d: DragState = {
+        pointerId: e.pointerId,
+        pointerType: pt,
+        fromIndex,
+        startX: e.clientX,
+        startY: e.clientY,
+        armed: pt === "mouse",
+        longPressTimer: null,
+        lastScrollLeft: el?.scrollLeft ?? 0,
+        lastMoveAt: 0,
+      };
+
+      dragRef.current = d;
+
+      if (pt !== "mouse") {
+        d.longPressTimer = window.setTimeout(() => {
+          const cur = dragRef.current;
+          if (!cur || cur.pointerId !== e.pointerId) return;
+          cur.armed = true;
+        }, 180);
+      }
+
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    },
+    [onSelectStep],
+  );
+
+  const onChipPointerMove = React.useCallback(
+    (e: React.PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (e.pointerId !== d.pointerId) return;
+
+      if ((e.pointerType ?? "mouse") === "mouse" && (e.buttons & 1) !== 1) {
+        cancelDrag();
+        return;
+      }
+
+      if (shouldTreatAsScroll(d)) {
+        clearLongPress();
+        d.armed = false;
+        return;
+      }
+
+      if (!d.armed && d.pointerType !== "mouse") {
+        const dx = e.clientX - d.startX;
+        const dy = e.clientY - d.startY;
+        if (Math.abs(dx) + Math.abs(dy) > 12) {
+          clearLongPress();
+          cancelDrag();
+          return;
+        }
+        return;
+      }
+
+      if (!d.armed) return;
+
+      tryReorder(e.clientX, e.clientY);
+    },
+    [cancelDrag, clearLongPress, shouldTreatAsScroll, tryReorder],
+  );
+
+  const onChipPointerUp = React.useCallback(
+    (e: React.PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (e.pointerId !== d.pointerId) return;
+
+      clearLongPress();
+      dragRef.current = null;
+    },
+    [clearLongPress],
+  );
+
+  const onChipPointerCancel = React.useCallback(() => {
+    cancelDrag();
+  }, [cancelDrag]);
 
   const revealed = React.useMemo(() => {
     if (selectedIndex < 0) return [];
@@ -137,9 +340,7 @@ export function PipelinePanel(props: Props) {
             </button>
             <button
               type="button"
-              className={`border-l px-2 py-1 ${
-                viewMode === "detailed" ? "bg-accent" : "bg-background"
-              }`}
+              className={`border-l px-2 py-1 ${viewMode === "detailed" ? "bg-accent" : "bg-background"}`}
               onClick={() => setViewMode("detailed")}
               data-testid="pipe-view-detailed"
               aria-pressed={viewMode === "detailed"}
@@ -156,84 +357,76 @@ export function PipelinePanel(props: Props) {
         </div>
       ) : viewMode === "compact" ? (
         <div className="mt-4 rounded border bg-muted/30 px-3 py-2" data-testid="pipe-compact-view">
-          <div className="overflow-x-auto whitespace-nowrap font-mono text-sm">
-            <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
-              input.csv
+          <div ref={stripRef} className="overflow-x-auto whitespace-nowrap font-mono text-sm">
+            <span className="rounded border bg-background px-2 py-1" title={RUNNER_INPUT_STEP.cmd}>
+              {RUNNER_INPUT_STEP.cmd}
             </span>
+
+            {RUNNER_PREPROCESS_STEPS.map((s) => (
+              <React.Fragment key={s.label}>
+                <span className="mx-2 text-muted-foreground">|</span>
+                <span className="rounded border bg-background px-2 py-1" title={s.cmd}>
+                  {s.cmd}
+                </span>
+              </React.Fragment>
+            ))}
 
             {commands.map((cmd, i) => {
               const type = getType(cmd.value);
               const item = getCatalogItem(type as any);
-
-              const raw =
+              const unixTemplate =
                 typeof item?.unixHint === "string" && item.unixHint.trim().length > 0
-                  ? item.unixHint.trim().split("\n")[0]
+                  ? item.unixHint.trim()
                   : type;
 
+              const unixFull = substituteTemplate(unixTemplate, cmd.value);
+              const label = compactChipLabel(type, cmd.value);
               const isSelected = selectedId != null && cmd.id === selectedId;
 
               return (
                 <React.Fragment key={cmd.id}>
                   <span className="mx-2 text-muted-foreground">|</span>
 
-                  <span className="inline-flex items-center gap-1">
-                    <button
-                      type="button"
-                      className={`rounded border px-2 py-1 hover:bg-accent ${
-                        isSelected ? "bg-accent/60" : "bg-background"
-                      }`}
-                      onClick={() => onSelectStep(i)}
-                      title={raw}
-                      data-testid="pipe-step"
-                    >
-                      {raw}
-                    </button>
-
-                    {isSelected ? (
-                      <>
-                        <button
-                          type="button"
-                          className="rounded border bg-background px-1.5 py-1 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
-                          onClick={() => handleMoveSelected(-1)}
-                          disabled={!canMoveLeft}
-                          title="左へ移動"
-                          aria-label="move left"
-                          data-testid="pipe-move-left"
-                        >
-                          ←
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded border bg-background px-1.5 py-1 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
-                          onClick={() => handleMoveSelected(1)}
-                          disabled={!canMoveRight}
-                          title="右へ移動"
-                          aria-label="move right"
-                          data-testid="pipe-move-right"
-                        >
-                          →
-                        </button>
-                      </>
-                    ) : null}
-                  </span>
+                  <button
+                    type="button"
+                    className={`rounded border px-2 py-1 hover:bg-accent select-none ${
+                      isSelected ? "bg-accent/60" : "bg-background"
+                    } cursor-grab active:cursor-grabbing`}
+                    onClick={() => onSelectStep(i)}
+                    onPointerDown={(e) => onChipPointerDown(e, i)}
+                    onPointerMove={onChipPointerMove}
+                    onPointerUp={onChipPointerUp}
+                    onPointerCancel={onChipPointerCancel}
+                    title={unixFull}
+                    style={{ userSelect: "none", touchAction: "pan-y" }}
+                    data-testid="pipe-step"
+                    aria-label={`step-${i + 1}-${type}`}
+                  >
+                    {label}
+                  </button>
                 </React.Fragment>
               );
             })}
 
-            <span className="mx-2 text-muted-foreground">&gt;</span>
-            <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
-              output.csv
+            <span className="mx-2 text-muted-foreground">|</span>
+            <span className="rounded border bg-background px-2 py-1" title={RUNNER_OUTPUT_STEP.cmd}>
+              {RUNNER_OUTPUT_STEP.cmd}
             </span>
           </div>
 
-          {selectedCommandIndex >= 0 ? (
-            <div className="mt-2 text-xs text-muted-foreground">
-              選択中のコマンドは ← / → で並べ替えできる
-            </div>
-          ) : null}
+          <div className="mt-2 text-xs text-muted-foreground">
+            ドラッグで並べ替え。スマホは長押ししてから左右に動かす。
+          </div>
         </div>
       ) : (
         <div className="mt-4 space-y-3">
+          <div className="rounded border bg-muted/30 px-3 py-2">
+            <div className="text-xs font-medium text-muted-foreground">Pipeline</div>
+            <pre className="mt-2 overflow-x-auto whitespace-nowrap font-mono text-xs">
+{buildFullPipelinePreview(commands)}
+            </pre>
+          </div>
+
           {selectedIndex < 0 ? (
             <div className="rounded border px-3 py-6 text-sm text-muted-foreground">
               詳細を見るにはコマンドを選択してね。
@@ -246,14 +439,29 @@ export function PipelinePanel(props: Props) {
                   const item = getCatalogItem(type as any);
                   const stepNo = selectedIndex + j;
 
+                  const unixTemplate =
+                    typeof item?.unixHint === "string" && item.unixHint.trim().length > 0
+                      ? item.unixHint.trim()
+                      : type;
+                  const unixFull = substituteTemplate(unixTemplate, cmd.value);
+
                   return (
                     <div
                       key={cmd.id}
-                      className="w-[300px] shrink-0 rounded border bg-background p-3 hover:bg-accent"
+                      className="w-[320px] shrink-0 rounded border bg-background p-3 hover:bg-accent"
                       onClick={() => onSelectStep(stepNo)}
                     >
-                      <div className="font-mono text-sm">{type}</div>
-                      {renderUnixBlock(item, type)}
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div className="font-mono text-sm">{type}</div>
+                        <div className="text-xs text-muted-foreground">#{stepNo + 1}</div>
+                      </div>
+
+                      <pre
+                        className="mt-2 max-h-28 overflow-auto rounded border bg-background p-3 text-xs"
+                        data-testid="pipe-preview"
+                      >
+{unixFull}
+                      </pre>
                     </div>
                   );
                 })}

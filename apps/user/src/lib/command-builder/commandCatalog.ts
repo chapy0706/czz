@@ -46,12 +46,6 @@ export type CommandCatalogItem = {
   unixHint: string;
 
   /**
-   * “短い表示” 用（可能なら 1 コマンドに圧縮）。
-   * 例: "sort -n" / "awk -v v=VALUE '$1>v'"
-   */
-  unixShort?: string;
-
-  /**
    * 分解表示用（学習者に「パイプの部品」を見せる）
    * unixHint とズレないように、同一ソースから作る。
    */
@@ -66,20 +60,17 @@ export type CommandCatalogItem = {
 export const RUNNER_INPUT_STEP: UnixStep = { label: "input", cmd: "cat input.csv" };
 export const RUNNER_OUTPUT_STEP: UnixStep = { label: "output", cmd: "> output.csv" };
 
-// COL=1 固定、ヘッダあり前提の “前処理” を分解して定義
-// ここもファイル名は含めない（入力は Runner が担当）
-const PREPROCESS_STEPS: UnixStep[] = [
+/**
+ * Runner 専用の “前処理” ステップ（CSV前提の暗黙処理を一度だけ見せる）
+ * - 1行目はヘッダ
+ * - 1列目だけを対象にする
+ *
+ * NOTE: ここを DSL の明示コマンド化するかは将来の検討（A-7/A-8）。
+ */
+export const RUNNER_PREPROCESS_STEPS: UnixStep[] = [
   { label: "skip header", cmd: "tail -n +2" },
   { label: "col1", cmd: "cut -d, -f1" },
 ];
-
-function buildUnixHintFromSteps(steps: UnixStep[]): string {
-  return steps.map((s) => s.cmd).join(" | ");
-}
-
-function stepsWithPreprocess(coreCmd: string): UnixStep[] {
-  return [...PREPROCESS_STEPS, { label: "command", cmd: coreCmd }];
-}
 
 function buildItem(args: {
   type: CommandType;
@@ -87,15 +78,11 @@ function buildItem(args: {
   coreCmd: string;
   params?: CommandParamSpec[];
 }): CommandCatalogItem {
-  const unixSteps = stepsWithPreprocess(args.coreCmd);
-  const unixHint = buildUnixHintFromSteps(unixSteps);
-
   return {
     type: args.type,
     label: args.label,
-    unixSteps,
-    unixHint,
-    unixShort: args.coreCmd,
+    unixHint: args.coreCmd,
+    unixSteps: [{ label: "command", cmd: args.coreCmd }],
     params: args.params,
   };
 }

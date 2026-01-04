@@ -50,6 +50,10 @@ function substituteTemplate(template: string, cmdValue: unknown): string {
   return template;
 }
 
+/**
+ * compact は “短く意味が伝わる” 表現に寄せる（VALUE テンプレで混乱しにくい）
+ * NOTE: ここは教材方針に合わせて随時調整してOK。
+ */
 function compactChipLabel(type: string, cmdValue: unknown): string {
   const v = getParamValue(cmdValue, "value");
   const vn = typeof v === "number" ? v : v == null ? undefined : Number(v);
@@ -109,11 +113,11 @@ type DragState = {
   startX: number;
   startY: number;
 
-  armed: boolean;
+  armed: boolean; // 長押し(タッチ) or 即時(マウス)で true
   longPressTimer: number | null;
 
   lastScrollLeft: number;
-  lastMoveAt: number;
+  lastMoveAt: number; // 連続移動のデバウンス
 };
 
 export function PipelinePanel(props: Props) {
@@ -136,6 +140,23 @@ export function PipelinePanel(props: Props) {
 
   const stripRef = React.useRef<HTMLDivElement | null>(null);
   const dragRef = React.useRef<DragState | null>(null);
+
+  // 選択中のコマンドを常に視界に入れる（長いパイプでも迷子にならない）
+  React.useEffect(() => {
+    if (viewMode !== "compact") return;
+    if (!selectedId) return;
+    const el = stripRef.current;
+    if (!el) return;
+
+    // DOM が更新された後に追従（連続更新時のチラつきを抑える）
+    const raf = window.requestAnimationFrame(() => {
+      const target = el.querySelector<HTMLElement>(`[data-cmdid="${selectedId}"]`);
+      if (!target) return;
+      target.scrollIntoView({ block: "nearest", inline: "center" });
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [viewMode, selectedId]);
 
   const handleMoveAt = React.useCallback(
     (fromIndex: number, delta: -1 | 1) => {
@@ -401,6 +422,7 @@ export function PipelinePanel(props: Props) {
                     style={{ userSelect: "none", touchAction: "pan-y" }}
                     data-testid="pipe-step"
                     aria-label={`step-${i + 1}-${type}`}
+                    data-cmdid={cmd.id}
                   >
                     {label}
                   </button>

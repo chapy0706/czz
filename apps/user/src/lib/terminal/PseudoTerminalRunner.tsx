@@ -3,7 +3,8 @@
 
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import { ResultPanel } from "@/lib/terminal/ResultPanel";
-import { useTerminalHistoryStore } from "@/lib/terminal/terminalStore";
+import { persistResult, useTerminalHistoryStore } from "@/lib/terminal/terminalStore";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 type TerminalEntry = {
@@ -45,8 +46,20 @@ function asText(value: unknown): string {
   }
 }
 
-export function PseudoTerminalRunner(props: { taskId: string; userId?: string }) {
-  const { taskId, userId } = props;
+type Props = {
+  taskId: string;
+  userId?: string;
+
+  /**
+   * true の場合、実行後に結果ページへ遷移する（/results/:resultId）。
+   * 既存のPseudo Terminal用途（同画面に結果表示）を壊さないため、デフォルトは false。
+   */
+  navigateOnRun?: boolean;
+};
+
+export function PseudoTerminalRunner(props: Props) {
+  const { taskId, userId, navigateOnRun = false } = props;
+  const router = useRouter();
 
   const history = useTerminalHistoryStore((s) => s.history);
   const pushHistory = useTerminalHistoryStore((s) => s.pushHistory);
@@ -59,6 +72,7 @@ export function PseudoTerminalRunner(props: { taskId: string; userId?: string })
   const draftRef = React.useRef<string>("");
 
   const [lastResult, setLastResult] = React.useState<UiResult | null>(null);
+  const [lastResultId, setLastResultId] = React.useState<string | null>(null);
 
   const bottomRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
@@ -74,6 +88,7 @@ export function PseudoTerminalRunner(props: { taskId: string; userId?: string })
   function clear() {
     setEntries([]);
     setLastResult(null);
+    setLastResultId(null);
   }
 
   async function execute(raw: string) {
@@ -109,6 +124,16 @@ export function PseudoTerminalRunner(props: { taskId: string; userId?: string })
     try {
       const result: any = await evaluateTask({ taskId, userId, submittedProgram });
 
+      // 直打ち(/result)やリロードでも見れるように、評価レスポンスをlocalStorageへ保存する。
+      // 失敗してもUIを壊さない（結果表示は従来通り）。
+      let savedId: string | null = null;
+      try {
+        savedId = persistResult(result, { taskId });
+        setLastResultId(savedId);
+      } catch {
+        // ignore
+      }
+
       const total = typeof result?.total === "number" ? result.total : undefined;
       const passed = typeof result?.passed === "number" ? result.passed : undefined;
 
@@ -140,6 +165,11 @@ export function PseudoTerminalRunner(props: { taskId: string; userId?: string })
           outputText: `${passLine}\n${errText}${outText}`,
           hint: { title: errObj?.kind === "ZOD" ? "Validation" : "Error", detail: errText },
         });
+
+        if (navigateOnRun && savedId) {
+          router.push(`/results/${savedId}`);
+          return;
+        }
       } else {
         const okLine =
           typeof passed === "number" && typeof total === "number" ? `PASS (${passed}/${total})` : "PASS";
@@ -153,6 +183,11 @@ export function PseudoTerminalRunner(props: { taskId: string; userId?: string })
         append("meta", "exit 0");
 
         setLastResult({ status: "success", outputText: `${okLine}${outText}` });
+
+        if (navigateOnRun && savedId) {
+          router.push(`/results/${savedId}`);
+          return;
+        }
       }
     } finally {
       setRunning(false);
@@ -234,6 +269,20 @@ export function PseudoTerminalRunner(props: { taskId: string; userId?: string })
             title="Ctrl+L"
           >
             Clear
+          </button>
+
+          <button
+            type="button"
+            className="rounded border px-2 py-1 text-sm disabled:opacity-50"
+            onClick={() => {
+              if (lastResultId) router.push(`/results/${lastResultId}`);
+              else router.push("/result");
+            }}
+            disabled={running}
+            data-testid="terminal-open-result"
+            title="Open last result"
+          >
+            Result
           </button>
         </div>
       </header>

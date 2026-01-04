@@ -3,20 +3,63 @@
 
 import { useCommandBuilderStore, type CommandDraft } from "@/lib/command-builder/commandBuilderStore";
 import {
+  COMMAND_CATALOG,
   RUNNER_INPUT_STEP,
   RUNNER_OUTPUT_STEP,
   RUNNER_PREPROCESS_STEPS,
   getCatalogItem,
+  type CommandCatalogItem,
+  type CommandType,
 } from "@/lib/command-builder/commandCatalog";
 import { GesturePad } from "@/lib/command-builder/GesturePad";
+import { evaluateTask } from "@/lib/terminal/evaluateClient";
+import { useParams, useRouter } from "next/navigation";
 import * as React from "react";
+
+const LAST_RESULT_STORAGE_KEY = "czz-terminal-last-result";
+
+function safeStringify(x: unknown): string {
+  try {
+    return JSON.stringify(x, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
+  } catch {
+    return "";
+  }
+}
+
+function persistLastResult(taskId: string, response: unknown): boolean {
+  const payload = { savedAt: Date.now(), meta: { taskId }, response };
+  const json = safeStringify(payload);
+  if (!json) return false;
+
+  try {
+    localStorage.setItem(LAST_RESULT_STORAGE_KEY, json);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getTaskIdFromParams(params: ReturnType<typeof useParams>): string | null {
+  const v = (params as any)?.taskId;
+  if (typeof v === "string") return v;
+  if (Array.isArray(v) && typeof v[0] === "string") return v[0];
+  return null;
+}
+
+function isCommandType(type: string): type is CommandType {
+  return COMMAND_CATALOG.some((x) => x.type === type);
+}
+
+function getCatalogItemSafe(type: string): CommandCatalogItem | undefined {
+  return isCommandType(type) ? getCatalogItem(type) : undefined;
+}
 
 type Props = {
   commands: CommandDraft[];
   selectedId: string | null;
-
   selectedIndex: number;
   revealIndex: number;
+
   onStepPlus: () => void;
   onStepMinus: () => void;
   onSelectNext: () => void;
@@ -25,23 +68,36 @@ type Props = {
 
 type ViewMode = "compact" | "detailed";
 
-function getType(value: unknown): string {
-  if (!value || typeof value !== "object") return "UNKNOWN";
-  const any = value as { type?: unknown };
-  return typeof any.type === "string" ? any.type : "UNKNOWN";
+type DragState = {
+  active: boolean;
+  startX: number;
+  startY: number;
+  index: number;
+  moved: boolean;
+  pointerId: number;
+};
+
+function getType(cmdValue: unknown): string {
+  const any = cmdValue as any;
+  if (any && typeof any === "object" && typeof any.type === "string") return any.type;
+  return "UNKNOWN";
 }
 
-function getParamValue(value: unknown, key: string): unknown {
-  if (!value || typeof value !== "object") return undefined;
-  const any = value as Record<string, unknown>;
-  return any[key];
+function getParamValue(cmdValue: unknown, key: string): unknown {
+  const any = cmdValue as any;
+  if (!any || typeof any !== "object") return undefined;
+  if (any[key] != null) return any[key];
+  const params = any.params;
+  if (params && typeof params === "object" && (params as any)[key] != null) return (params as any)[key];
+  return undefined;
 }
 
-function toShellLiteral(x: unknown): string {
-  if (typeof x === "number") return Number.isFinite(x) ? String(x) : "0";
-  if (typeof x === "string") return JSON.stringify(x);
-  if (typeof x === "boolean") return x ? "1" : "0";
-  return "0";
+function toShellLiteral(v: unknown): string {
+  if (v == null) return "VALUE";
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  const s = String(v);
+  if (/^[a-zA-Z0-9._-]+$/.test(s)) return s;
+  return `'${s.replaceAll("'", `'\\''`)}'`;
 }
 
 function substituteTemplate(template: string, cmdValue: unknown): string {
@@ -51,74 +107,44 @@ function substituteTemplate(template: string, cmdValue: unknown): string {
 }
 
 /**
- * compact は “短く意味が伝わる” 表現に寄せる（VALUE テンプレで混乱しにくい）
- * NOTE: ここは教材方針に合わせて随時調整してOK。
+ * 短い表示では “学習者が一瞬で意味を取れる” 表現に寄せる
  */
 function compactChipLabel(type: string, cmdValue: unknown): string {
   const v = getParamValue(cmdValue, "value");
   const vn = typeof v === "number" ? v : v == null ? undefined : Number(v);
 
   switch (type) {
-    case "FILTER_EQUALS":
-      return `awk '$1==${vn ?? "v"}'`;
-    case "FILTER_NOT_EQUALS":
-      return `awk '$1!=${vn ?? "v"}'`;
     case "FILTER_GT":
-      return `awk '$1>${vn ?? "v"}'`;
+      return vn != null ? `filter > ${vn}` : "filter > VALUE";
+    case "FILTER_EQUALS":
+      return vn != null ? `filter = ${vn}` : "filter = VALUE";
+    case "FILTER_NOT_EQUALS":
+      return vn != null ? `filter != ${vn}` : "filter != VALUE";
     case "MAP_ADD":
-      return `awk '{+${vn ?? "v"}}'`;
+      return vn != null ? `map + ${vn}` : "map + VALUE";
     case "MAP_MULTIPLY":
-      return `awk '{*${vn ?? "v"}}'`;
+      return vn != null ? `map × ${vn}` : "map × VALUE";
     case "SORT_ASC":
-      return "sort -n";
+      return "sort asc";
     case "SORT_DESC":
-      return "sort -nr";
+      return "sort desc";
     case "OUTPUT_FIRST":
-      return "head -n 1";
+      return "head";
     case "OUTPUT_LAST":
-      return "tail -n 1";
+      return "tail";
     case "OUTPUT_SUM":
       return "sum";
     default:
-      return type;
+      return type.toLowerCase();
   }
 }
 
-function buildFullPipelinePreview(commands: CommandDraft[]): string {
-  const core = commands.map((cmd) => {
-    const type = getType(cmd.value);
-    const item = getCatalogItem(type as any);
-    const tpl =
-      typeof item?.unixHint === "string" && item.unixHint.trim().length > 0 ? item.unixHint.trim() : type;
-    return substituteTemplate(tpl, cmd.value);
-  });
-
-  const pieces = [
-    RUNNER_INPUT_STEP.cmd,
-    ...RUNNER_PREPROCESS_STEPS.map((s) => s.cmd),
-    ...core,
-    RUNNER_OUTPUT_STEP.cmd,
-  ];
-
-  const last = pieces[pieces.length - 1] ?? "";
-  const main = pieces.slice(0, -1).join(" | ");
-  return `${main} ${last}`;
+function coreUnixCmdFor(cmd: CommandDraft): string {
+  const type = getType(cmd.value);
+  const item = getCatalogItemSafe(type);
+  const tpl = typeof item?.unixHint === "string" && item.unixHint.trim().length > 0 ? item.unixHint.trim() : type;
+  return substituteTemplate(tpl, cmd.value);
 }
-
-type DragState = {
-  pointerId: number;
-  pointerType: string;
-  fromIndex: number;
-
-  startX: number;
-  startY: number;
-
-  armed: boolean; // 長押し(タッチ) or 即時(マウス)で true
-  longPressTimer: number | null;
-
-  lastScrollLeft: number;
-  lastMoveAt: number; // 連続移動のデバウンス
-};
 
 export function PipelinePanel(props: Props) {
   const {
@@ -132,199 +158,117 @@ export function PipelinePanel(props: Props) {
     onSelectStep,
   } = props;
 
+  const router = useRouter();
+  const params = useParams();
+  const taskId = React.useMemo(() => getTaskIdFromParams(params), [params]);
+
+  type RunPhase = "idle" | "running" | "ready";
+  const [runPhase, setRunPhase] = React.useState<RunPhase>("idle");
+  const [canOpenResult, setCanOpenResult] = React.useState(false);
+
+  // コマンドが変わったら「実行」に戻す（3コマンド前後なので digest で十分）
+  const programDigest = React.useMemo(() => JSON.stringify(commands.map((c) => c.value)), [commands]);
+  React.useEffect(() => {
+    setRunPhase("idle");
+    setCanOpenResult(false);
+  }, [programDigest, taskId]);
+
+  const onRunnerPrimary = React.useCallback(async () => {
+    if (runPhase === "ready") {
+      router.push("/result");
+      return;
+    }
+    if (runPhase === "running") return;
+    if (!taskId) return;
+    if (commands.length === 0) return;
+
+    setRunPhase("running");
+
+    try {
+      const submittedProgram = useCommandBuilderStore.getState().serializeProgram();
+      const res: unknown = await evaluateTask({ taskId, submittedProgram });
+
+      const saved = persistLastResult(taskId, res);
+      setCanOpenResult(saved);
+      setRunPhase("ready");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Network error";
+      const errRes = { ok: false, error: { kind: "NETWORK", message, details: e } };
+
+      const saved = persistLastResult(taskId, errRes);
+      setCanOpenResult(saved);
+      setRunPhase("ready");
+    }
+  }, [router, runPhase, taskId, commands.length]);
+
   const moveCommand = useCommandBuilderStore((s) => s.move);
   const [viewMode, setViewMode] = React.useState<ViewMode>("compact");
 
-  const canStepPlus = selectedIndex >= 0 && revealIndex < commands.length - 1;
-  const canStepMinus = selectedIndex >= 0 && revealIndex > selectedIndex;
+  const canStepPlus = selectedIndex >= 0 && revealIndex < commands.length;
+  const canStepMinus = selectedIndex >= 0;
 
   const stripRef = React.useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    if (!stripRef.current) return;
+    const el = stripRef.current.querySelectorAll<HTMLElement>("[data-testid='pipe-step']")?.[selectedIndex];
+    el?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [selectedIndex, viewMode]);
+
   const dragRef = React.useRef<DragState | null>(null);
 
-  // 選択中のコマンドを常に視界に入れる（長いパイプでも迷子にならない）
-  React.useEffect(() => {
-    if (viewMode !== "compact") return;
-    if (!selectedId) return;
-    const el = stripRef.current;
-    if (!el) return;
+  const onChipPointerDown = React.useCallback((e: React.PointerEvent, index: number) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      index,
+      moved: false,
+      pointerId: e.pointerId,
+    };
+  }, []);
 
-    // DOM が更新された後に追従（連続更新時のチラつきを抑える）
-    const raf = window.requestAnimationFrame(() => {
-      const target = el.querySelector<HTMLElement>(`[data-cmdid="${selectedId}"]`);
-      if (!target) return;
-      target.scrollIntoView({ block: "nearest", inline: "center" });
-    });
+  const onChipPointerMove = React.useCallback(
+    (e: React.PointerEvent) => {
+      const st = dragRef.current;
+      if (!st || !st.active || st.pointerId !== e.pointerId) return;
 
-    return () => window.cancelAnimationFrame(raf);
-  }, [viewMode, selectedId]);
+      const dx = e.clientX - st.startX;
+      const dy = e.clientY - st.startY;
 
-  const handleMoveAt = React.useCallback(
-    (fromIndex: number, delta: -1 | 1) => {
-      const to = fromIndex + delta;
-      if (fromIndex < 0) return;
+      const THRESH_X = 18;
+      const THRESH_DOMINANCE = 1.2;
+
+      if (Math.abs(dx) < THRESH_X) return;
+      if (Math.abs(dx) < Math.abs(dy) * THRESH_DOMINANCE) return;
+
+      if (!st.moved) st.moved = true;
+
+      const dir = dx > 0 ? 1 : -1;
+      const from = st.index;
+      const to = from + dir;
+
       if (to < 0 || to >= commands.length) return;
 
-      moveCommand(fromIndex, to);
+      moveCommand(from, to);
       onSelectStep(to);
+
+      dragRef.current = { ...st, startX: e.clientX, startY: e.clientY, index: to };
     },
     [commands.length, moveCommand, onSelectStep],
   );
 
-  const clearLongPress = React.useCallback(() => {
-    const d = dragRef.current;
-    if (!d) return;
-    if (d.longPressTimer != null) {
-      window.clearTimeout(d.longPressTimer);
-      d.longPressTimer = null;
-    }
-  }, []);
-
-  const cancelDrag = React.useCallback(() => {
-    clearLongPress();
+  const onChipPointerUp = React.useCallback((e: React.PointerEvent) => {
+    const st = dragRef.current;
+    if (!st || st.pointerId !== e.pointerId) return;
     dragRef.current = null;
-  }, [clearLongPress]);
-
-  const shouldTreatAsScroll = React.useCallback((d: DragState) => {
-    const el = stripRef.current;
-    if (!el) return false;
-    const now = el.scrollLeft;
-    const delta = Math.abs(now - d.lastScrollLeft);
-    d.lastScrollLeft = now;
-    return delta > 2;
   }, []);
 
-  const isHorizontalGesture = (dx: number, dy: number, thresholdPx: number) => {
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-    if (absX < thresholdPx) return false;
-    if (absX < absY * 1.2) return false;
-    return true;
-  };
-
-  const tryReorder = React.useCallback(
-    (clientX: number, clientY: number) => {
-      const d = dragRef.current;
-      if (!d) return;
-
-      const now = Date.now();
-      if (now - d.lastMoveAt < 120) return;
-
-      const dx = clientX - d.startX;
-      const dy = clientY - d.startY;
-
-      const threshold = d.pointerType === "mouse" ? 36 : 44;
-      if (!isHorizontalGesture(dx, dy, threshold)) return;
-
-      const dir: -1 | 1 = dx < 0 ? -1 : 1;
-      const to = d.fromIndex + dir;
-      if (to < 0 || to >= commands.length) return;
-
-      handleMoveAt(d.fromIndex, dir);
-
-      d.fromIndex = to;
-      d.startX = clientX;
-      d.startY = clientY;
-      d.lastMoveAt = now;
-    },
-    [commands.length, handleMoveAt],
-  );
-
-  const onChipPointerDown = React.useCallback(
-    (e: React.PointerEvent, fromIndex: number) => {
-      const pt = e.pointerType ?? "mouse";
-      if (pt === "mouse" && e.button !== 0) return;
-
-      onSelectStep(fromIndex);
-
-      const el = stripRef.current;
-      const d: DragState = {
-        pointerId: e.pointerId,
-        pointerType: pt,
-        fromIndex,
-        startX: e.clientX,
-        startY: e.clientY,
-        armed: pt === "mouse",
-        longPressTimer: null,
-        lastScrollLeft: el?.scrollLeft ?? 0,
-        lastMoveAt: 0,
-      };
-
-      dragRef.current = d;
-
-      if (pt !== "mouse") {
-        d.longPressTimer = window.setTimeout(() => {
-          const cur = dragRef.current;
-          if (!cur || cur.pointerId !== e.pointerId) return;
-          cur.armed = true;
-        }, 180);
-      }
-
-      try {
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      } catch {
-        // ignore
-      }
-    },
-    [onSelectStep],
-  );
-
-  const onChipPointerMove = React.useCallback(
-    (e: React.PointerEvent) => {
-      const d = dragRef.current;
-      if (!d) return;
-      if (e.pointerId !== d.pointerId) return;
-
-      if ((e.pointerType ?? "mouse") === "mouse" && (e.buttons & 1) !== 1) {
-        cancelDrag();
-        return;
-      }
-
-      if (shouldTreatAsScroll(d)) {
-        clearLongPress();
-        d.armed = false;
-        return;
-      }
-
-      if (!d.armed && d.pointerType !== "mouse") {
-        const dx = e.clientX - d.startX;
-        const dy = e.clientY - d.startY;
-        if (Math.abs(dx) + Math.abs(dy) > 12) {
-          clearLongPress();
-          cancelDrag();
-          return;
-        }
-        return;
-      }
-
-      if (!d.armed) return;
-
-      tryReorder(e.clientX, e.clientY);
-    },
-    [cancelDrag, clearLongPress, shouldTreatAsScroll, tryReorder],
-  );
-
-  const onChipPointerUp = React.useCallback(
-    (e: React.PointerEvent) => {
-      const d = dragRef.current;
-      if (!d) return;
-      if (e.pointerId !== d.pointerId) return;
-
-      clearLongPress();
-      dragRef.current = null;
-    },
-    [clearLongPress],
-  );
-
-  const onChipPointerCancel = React.useCallback(() => {
-    cancelDrag();
-  }, [cancelDrag]);
-
-  const revealed = React.useMemo(() => {
-    if (selectedIndex < 0) return [];
-    const from = selectedIndex;
-    const to = Math.min(Math.max(revealIndex, selectedIndex), commands.length - 1);
-    return commands.slice(from, to + 1);
-  }, [commands, selectedIndex, revealIndex]);
+  const onChipPointerCancel = React.useCallback((e: React.PointerEvent) => {
+    const st = dragRef.current;
+    if (!st || st.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+  }, []);
 
   const nextTargetIndex = React.useMemo(() => {
     if (selectedIndex < 0) return null;
@@ -340,6 +284,15 @@ export function PipelinePanel(props: Props) {
     return commands[nextTargetIndex] ?? null;
   }, [commands, nextTargetIndex]);
 
+  // 詳細ビューの Runner プレビュー用（重複しない構成：input + preprocess + coreCmds + output）
+  const runnerPreview = React.useMemo(() => {
+    const core = commands.map((cmd) => coreUnixCmdFor(cmd));
+    const pieces = [RUNNER_INPUT_STEP.cmd, ...RUNNER_PREPROCESS_STEPS.map((s) => s.cmd), ...core, RUNNER_OUTPUT_STEP.cmd];
+    const last = pieces[pieces.length - 1] ?? "";
+    const main = pieces.slice(0, -1).join(" | ");
+    return `${main} ${last}`;
+  }, [commands]);
+
   return (
     <aside className="rounded-lg border bg-card p-4" data-testid="pipe-panel">
       <div className="flex items-start justify-between gap-3">
@@ -349,6 +302,27 @@ export function PipelinePanel(props: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="rounded border bg-background px-3 py-1 text-sm disabled:opacity-50 hover:bg-accent"
+            onClick={onRunnerPrimary}
+            disabled={!taskId || commands.length === 0 || runPhase === "running"}
+            data-testid="runner-primary"
+            title={
+              !taskId
+                ? "taskId が無いので実行できない"
+                : commands.length === 0
+                  ? "コマンドが無いので実行できない"
+                  : runPhase === "ready" && !canOpenResult
+                    ? "結果の保存に失敗した（/result は空になる可能性がある）"
+                    : runPhase === "ready"
+                      ? "結果画面へ"
+                      : "実行"
+            }
+          >
+            {runPhase === "running" ? "判定中…" : runPhase === "ready" ? "結果へ進む" : "実行"}
+          </button>
+
           <div className="flex overflow-hidden rounded border text-xs" data-testid="pipe-view-toggle">
             <button
               type="button"
@@ -394,13 +368,10 @@ export function PipelinePanel(props: Props) {
 
             {commands.map((cmd, i) => {
               const type = getType(cmd.value);
-              const item = getCatalogItem(type as any);
-              const unixTemplate =
-                typeof item?.unixHint === "string" && item.unixHint.trim().length > 0
-                  ? item.unixHint.trim()
-                  : type;
+              const item = getCatalogItemSafe(type);
+              const tpl = typeof item?.unixHint === "string" && item.unixHint.trim().length > 0 ? item.unixHint.trim() : type;
 
-              const unixFull = substituteTemplate(unixTemplate, cmd.value);
+              const unixFull = substituteTemplate(tpl, cmd.value);
               const label = compactChipLabel(type, cmd.value);
               const isSelected = selectedId != null && cmd.id === selectedId;
 
@@ -436,59 +407,85 @@ export function PipelinePanel(props: Props) {
             </span>
           </div>
 
-          <div className="mt-2 text-xs text-muted-foreground">
-            ドラッグで並べ替え。スマホは長押ししてから左右に動かす。
+          <div className="mt-2 text-xs text-muted-foreground" data-testid="pipe-compact-note">
+            コマンドは横フリックで並べ替えできる（選択はクリック）
           </div>
         </div>
       ) : (
-        <div className="mt-4 space-y-3">
-          <div className="rounded border bg-muted/30 px-3 py-2">
-            <div className="text-xs font-medium text-muted-foreground">Pipeline</div>
-            <pre className="mt-2 overflow-x-auto whitespace-nowrap font-mono text-xs">
-{buildFullPipelinePreview(commands)}
-            </pre>
-          </div>
+        <div className="mt-4 space-y-4" data-testid="pipe-detailed-view">
+          <div className="rounded border bg-muted/30 p-3">
+            <div className="text-xs font-medium text-muted-foreground">Runner</div>
+            <div className="mt-2 space-y-2 font-mono text-sm" data-testid="pipe-preview">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded border bg-background px-2 py-1">{RUNNER_INPUT_STEP.cmd}</span>
 
-          {selectedIndex < 0 ? (
-            <div className="rounded border px-3 py-6 text-sm text-muted-foreground">
-              詳細を見るにはコマンドを選択してね。
-            </div>
-          ) : (
-            <>
-              <div className="flex gap-2 overflow-x-auto" data-testid="pipe-strip">
-                {revealed.map((cmd, j) => {
-                  const type = getType(cmd.value);
-                  const item = getCatalogItem(type as any);
-                  const stepNo = selectedIndex + j;
+                {RUNNER_PREPROCESS_STEPS.map((s) => (
+                  <React.Fragment key={s.label}>
+                    <span className="text-muted-foreground">|</span>
+                    <span className="rounded border bg-background px-2 py-1">{s.cmd}</span>
+                  </React.Fragment>
+                ))}
 
-                  const unixTemplate =
-                    typeof item?.unixHint === "string" && item.unixHint.trim().length > 0
-                      ? item.unixHint.trim()
-                      : type;
-                  const unixFull = substituteTemplate(unixTemplate, cmd.value);
-
+                {commands.map((cmd) => {
+                  const unixFull = coreUnixCmdFor(cmd);
                   return (
-                    <div
-                      key={cmd.id}
-                      className="w-[320px] shrink-0 rounded border bg-background p-3 hover:bg-accent"
-                      onClick={() => onSelectStep(stepNo)}
-                    >
-                      <div className="flex items-baseline justify-between gap-2">
-                        <div className="font-mono text-sm">{type}</div>
-                        <div className="text-xs text-muted-foreground">#{stepNo + 1}</div>
-                      </div>
-
-                      <pre
-                        className="mt-2 max-h-28 overflow-auto rounded border bg-background p-3 text-xs"
-                        data-testid="pipe-preview"
-                      >
-{unixFull}
-                      </pre>
-                    </div>
+                    <React.Fragment key={cmd.id}>
+                      <span className="text-muted-foreground">|</span>
+                      <span className="rounded border bg-background px-2 py-1">{unixFull}</span>
+                    </React.Fragment>
                   );
                 })}
+
+                <span className="text-muted-foreground">|</span>
+                <span className="rounded border bg-background px-2 py-1">{RUNNER_OUTPUT_STEP.cmd}</span>
               </div>
 
+              <div className="text-xs text-muted-foreground" data-testid="pipe-preview-note">
+                input/output は Runner パネル側で見える。ここは “中間コマンド” を読む練習用。
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded border p-3">
+              <div className="text-xs font-medium text-muted-foreground">Selected</div>
+
+              {selectedIndex < 0 || !commands[selectedIndex] ? (
+                <div className="mt-2 text-sm text-muted-foreground">(none)</div>
+              ) : (() => {
+                  const cmd = commands[selectedIndex]!;
+                  const type = getType(cmd.value);
+                  const item = getCatalogItemSafe(type);
+
+                  const title = item?.label ?? type;
+                  const template =
+                    typeof item?.unixHint === "string" && item.unixHint.trim().length > 0 ? item.unixHint.trim() : type;
+                  const unixFull = substituteTemplate(template, cmd.value);
+
+                  return (
+                    <div className="mt-2 space-y-2">
+                      <div className="text-sm font-semibold">{title}</div>
+                      <div className="rounded border bg-muted/30 p-2 font-mono text-sm" data-testid="pipe-selected">
+                        {unixFull}
+                      </div>
+
+                      {item?.params && item.params.length > 0 ? (
+                        <div className="text-sm text-muted-foreground">
+                          {item.params.map((p) => (
+                            <div key={p.key} className="flex gap-2">
+                              <span className="font-mono">{p.key}</span>
+                              <span>({p.kind})</span>
+                              <span className="opacity-70">{p.required ? "required" : "optional"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
+            </div>
+
+            <div className="space-y-3">
               <div data-testid="runner-gesturepad">
                 <GesturePad
                   onStepPlus={onStepPlus}
@@ -513,8 +510,16 @@ export function PipelinePanel(props: Props) {
                   <div className="mt-2 text-sm text-muted-foreground">(no next)</div>
                 )}
               </div>
-            </>
-          )}
+
+              <div className="rounded border bg-muted/30 p-3 text-xs text-muted-foreground">
+                ヒント：短い表示は “形を覚える”。詳細は “意味を読む”。
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded border bg-muted/30 p-3 text-xs text-muted-foreground">
+            full preview: <span className="font-mono">{runnerPreview}</span>
+          </div>
         </div>
       )}
     </aside>

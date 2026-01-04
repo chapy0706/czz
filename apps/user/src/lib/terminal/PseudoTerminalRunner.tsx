@@ -3,7 +3,7 @@
 
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import { ResultPanel } from "@/lib/terminal/ResultPanel";
-import { persistResult, useTerminalHistoryStore } from "@/lib/terminal/terminalStore";
+import { useTerminalHistoryStore } from "@/lib/terminal/terminalStore";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
@@ -22,8 +22,49 @@ type UiResult = {
   hint?: { title?: string; detail: string };
 };
 
+type Props = {
+  taskId: string;
+  userId?: string;
+
+  /**
+   * true の場合、Run 後に /result へ遷移する（結果は localStorage へ保存して復元可能）
+   * 既存の「同画面で結果表示」は維持しつつ、導線だけ追加するためのスイッチ。
+   */
+  navigateOnRun?: boolean;
+};
+
+const LAST_RESULT_STORAGE_KEY = "czz-terminal-last-result";
+
 function uid() {
   return Math.random().toString(36).slice(2);
+}
+
+function safeStringify(x: unknown): string {
+  try {
+    return JSON.stringify(x, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 0);
+  } catch {
+    return "";
+  }
+}
+
+function persistLastResult(taskId: string, response: unknown): boolean {
+  if (typeof window === "undefined") return false;
+
+  const payload = {
+    savedAt: Date.now(),
+    meta: { taskId },
+    response,
+  };
+
+  const json = safeStringify(payload);
+  if (!json) return false;
+
+  try {
+    localStorage.setItem(LAST_RESULT_STORAGE_KEY, json);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function summarizeZod(message: string): string {
@@ -46,17 +87,6 @@ function asText(value: unknown): string {
   }
 }
 
-type Props = {
-  taskId: string;
-  userId?: string;
-
-  /**
-   * true の場合、実行後に結果ページへ遷移する（/results/:resultId）。
-   * 既存のPseudo Terminal用途（同画面に結果表示）を壊さないため、デフォルトは false。
-   */
-  navigateOnRun?: boolean;
-};
-
 export function PseudoTerminalRunner(props: Props) {
   const { taskId, userId, navigateOnRun = false } = props;
   const router = useRouter();
@@ -72,7 +102,7 @@ export function PseudoTerminalRunner(props: Props) {
   const draftRef = React.useRef<string>("");
 
   const [lastResult, setLastResult] = React.useState<UiResult | null>(null);
-  const [lastResultId, setLastResultId] = React.useState<string | null>(null);
+  const [hasPersisted, setHasPersisted] = React.useState(false);
 
   const bottomRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
@@ -88,7 +118,7 @@ export function PseudoTerminalRunner(props: Props) {
   function clear() {
     setEntries([]);
     setLastResult(null);
-    setLastResultId(null);
+    setHasPersisted(false);
   }
 
   async function execute(raw: string) {
@@ -112,11 +142,6 @@ export function PseudoTerminalRunner(props: Props) {
       const msg = 'ERR: input must be JSON (submittedProgram). Example: [{"type":"FILTER_GT",...}]';
       append("stderr", msg);
       append("meta", "exit 1");
-
-      // NOTE:
-      // strict mode: pseudo-terminal.spec は getByText(/ERR: .../) を使う。
-      // ResultPanel に同じ文言を二重表示すると strict mode violation になるので、
-      // parse失敗は「端末ログだけ」に出す。
       return;
     }
 
@@ -124,15 +149,9 @@ export function PseudoTerminalRunner(props: Props) {
     try {
       const result: any = await evaluateTask({ taskId, userId, submittedProgram });
 
-      // 直打ち(/result)やリロードでも見れるように、評価レスポンスをlocalStorageへ保存する。
-      // 失敗してもUIを壊さない（結果表示は従来通り）。
-      let savedId: string | null = null;
-      try {
-        savedId = persistResult(result, { taskId });
-        setLastResultId(savedId);
-      } catch {
-        // ignore
-      }
+      // 直打ち(/result)やリロードでも見れるように保存（失敗してもUIは維持）
+      const saved = persistLastResult(taskId, result);
+      setHasPersisted(saved);
 
       const total = typeof result?.total === "number" ? result.total : undefined;
       const passed = typeof result?.passed === "number" ? result.passed : undefined;
@@ -156,8 +175,7 @@ export function PseudoTerminalRunner(props: Props) {
         append("stderr", errText);
         append("meta", "exit 1");
 
-        const maybeOutput =
-          result?.output ?? result?.stdout ?? result?.runOutput ?? result?.data?.output ?? undefined;
+        const maybeOutput = result?.output ?? result?.stdout ?? result?.runOutput ?? result?.data?.output ?? undefined;
         const outText = maybeOutput ? `\n\n--- output ---\n${asText(maybeOutput)}` : "";
 
         setLastResult({
@@ -166,16 +184,15 @@ export function PseudoTerminalRunner(props: Props) {
           hint: { title: errObj?.kind === "ZOD" ? "Validation" : "Error", detail: errText },
         });
 
-        if (navigateOnRun && savedId) {
-          router.push(`/results/${savedId}`);
+        if (navigateOnRun) {
+          router.push("/result");
           return;
         }
       } else {
         const okLine =
           typeof passed === "number" && typeof total === "number" ? `PASS (${passed}/${total})` : "PASS";
 
-        const maybeOutput =
-          result?.output ?? result?.stdout ?? result?.runOutput ?? result?.data?.output ?? undefined;
+        const maybeOutput = result?.output ?? result?.stdout ?? result?.runOutput ?? result?.data?.output ?? undefined;
         const outText = maybeOutput ? `\n\n--- output ---\n${asText(maybeOutput)}` : "";
 
         append("stdout", okLine);
@@ -184,8 +201,8 @@ export function PseudoTerminalRunner(props: Props) {
 
         setLastResult({ status: "success", outputText: `${okLine}${outText}` });
 
-        if (navigateOnRun && savedId) {
-          router.push(`/results/${savedId}`);
+        if (navigateOnRun) {
+          router.push("/result");
           return;
         }
       }
@@ -246,6 +263,7 @@ export function PseudoTerminalRunner(props: Props) {
     <section data-testid="pseudo-terminal" className="flex h-full flex-col rounded-lg border bg-background">
       <header className="flex items-center justify-between gap-2 border-b px-3 py-2">
         <div className="font-mono text-sm">Pseudo Terminal</div>
+
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -274,13 +292,10 @@ export function PseudoTerminalRunner(props: Props) {
           <button
             type="button"
             className="rounded border px-2 py-1 text-sm disabled:opacity-50"
-            onClick={() => {
-              if (lastResultId) router.push(`/results/${lastResultId}`);
-              else router.push("/result");
-            }}
-            disabled={running}
+            onClick={() => router.push("/result")}
+            disabled={running || !hasPersisted}
             data-testid="terminal-open-result"
-            title="Open last result"
+            title={hasPersisted ? "Open last result" : "No persisted result yet"}
           >
             Result
           </button>

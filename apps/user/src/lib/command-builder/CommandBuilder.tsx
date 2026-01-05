@@ -4,12 +4,15 @@
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import { ResultPanel } from "@/lib/terminal/ResultPanel";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { CommandEditorSheet } from "./CommandEditorSheet";
 import { CommandList } from "./CommandList";
 import { CommandPalette } from "./CommandPalette";
 import { PipelinePanel } from "./PipelinePanel";
+
+const LAST_RESULT_STORAGE_KEY = "czz-terminal-last-result";
 
 type UiResultStatus = "success" | "failure";
 type UiResult = {
@@ -23,6 +26,29 @@ function safeStringify(value: unknown): string {
     return JSON.stringify(value, null, 2);
   } catch {
     return String(value);
+  }
+}
+
+function safeJsonCompact(value: unknown): string {
+  try {
+    return JSON.stringify(value, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
+  } catch {
+    return "";
+  }
+}
+
+function persistLastResult(taskId: string, response: unknown): boolean {
+  if (typeof window === "undefined") return false;
+
+  const payload = { savedAt: Date.now(), meta: { taskId }, response };
+  const json = safeJsonCompact(payload);
+  if (!json) return false;
+
+  try {
+    localStorage.setItem(LAST_RESULT_STORAGE_KEY, json);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -66,6 +92,8 @@ function toUiResult(res: any): UiResult {
 export function CommandBuilder(props: { taskId: string }) {
   const { taskId } = props;
 
+  const router = useRouter();
+
   const commands = useCommandBuilderStore((s) => s.commands);
   const selectedId = useCommandBuilderStore((s) => s.selectedId);
   const editingId = useCommandBuilderStore((s) => s.editingId);
@@ -94,6 +122,7 @@ export function CommandBuilder(props: { taskId: string }) {
   }, [taskId, initForTask]);
 
   const program = React.useMemo(() => serializeProgram(), [commands, serializeProgram]);
+  const resetKey = React.useMemo(() => JSON.stringify(commands.map((c) => c.value)), [commands]);
 
   // PipelinePanel state
   const selectedIndex = React.useMemo(() => {
@@ -145,16 +174,25 @@ export function CommandBuilder(props: { taskId: string }) {
     return toUiResult(result as any);
   }, [result]);
 
-  async function run() {
+  // A案: 実行 → 判定/保存 → /result へ自動遷移
+  async function runA() {
+    if (running) return;
+    if (commands.length === 0) return;
+
     setRunning(true);
     setResult(null);
-      try {
+
+    try {
       const res = await (evaluateTask as any)({ taskId, submittedProgram: program });
       setResult(res);
+      persistLastResult(taskId, res);
     } catch (e: any) {
-      setResult({ error: { message: e?.message ?? String(e) } });
+      const errRes = { error: { message: e?.message ?? String(e) } };
+      setResult(errRes);
+      persistLastResult(taskId, errRes);
     } finally {
       setRunning(false);
+      router.push("/result");
     }
   }
 
@@ -168,7 +206,16 @@ export function CommandBuilder(props: { taskId: string }) {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <CommandPalette onAdd={(type) => add(type)} />
+            <CommandPalette
+              onAdd={(type) => add(type)}
+              runButton={{
+                taskId,
+                resetKey,
+                getSubmittedProgram: () => serializeProgram(),
+                navigateTo: "/result",
+                autoNavigateOnComplete: true,
+              }}
+            />
             <button
               type="button"
               className="rounded border px-3 py-2 text-sm disabled:opacity-50"
@@ -178,15 +225,9 @@ export function CommandBuilder(props: { taskId: string }) {
             >
               Clear
             </button>
-            <button
-              type="button"
-              className="rounded border px-4 py-2 text-sm disabled:opacity-50"
-              onClick={run}
-              disabled={running || commands.length === 0}
-              data-testid="cb-run"
-            >
-              {running ? "Running..." : "Run"}
-            </button>
+
+            {/* Run（A案対応）は CommandPalette 横に1つだけ */}
+            {/* NOTE: 旧 Run ボタンはノイズなので撤去 */}
           </div>
         </div>
 
@@ -231,7 +272,7 @@ export function CommandBuilder(props: { taskId: string }) {
           </div>
         ) : null}
 
-        {/* Result */}
+        {/* Result（この画面はデバッグ用途として残す） */}
         <div className="mt-4" data-testid="cb-result">
           <div className="text-xs font-medium text-muted-foreground">Result</div>
 
@@ -240,11 +281,11 @@ export function CommandBuilder(props: { taskId: string }) {
               status={uiResult.status}
               outputText={uiResult.outputText}
               hint={uiResult.hint}
-              onRetry={running ? undefined : run}
+              onRetry={running ? undefined : runA}
             />
           ) : (
             <div className="mt-2 rounded border bg-muted/20 p-3 text-sm text-muted-foreground">
-              まだ実行していない。
+              まだ実行していない。（Run すると /result に遷移する）
             </div>
           )}
 

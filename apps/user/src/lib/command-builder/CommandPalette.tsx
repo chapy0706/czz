@@ -2,20 +2,67 @@
 "use client";
 
 import { COMMAND_CATALOG, type CommandType } from "@/lib/command-builder/commandCatalog";
+import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
+import { useRouter } from "next/navigation";
 import * as React from "react";
+
+type RunButtonConfig = {
+  /**
+   * /tasks/[taskId] の taskId。存在しない場合は Run ボタンは表示しない。
+   */
+  taskId: string | null;
+
+  /**
+   * 実行対象が変わったらボタン状態を idle に戻すためのキー。
+   * 例: JSON.stringify(commands.map(c => c.value))
+   */
+  resetKey: string;
+
+  /**
+   * submittedProgram を返す関数（例: useCommandBuilderStore.getState().serializeProgram()）
+   */
+  getSubmittedProgram: () => unknown;
+
+  userId?: string;
+
+  /**
+   * 既定: "/result"
+   */
+  navigateTo?: string;
+
+  /**
+   * true の場合、判定完了後に自動遷移する（A案）。
+   * 既定: true
+   *
+   * NOTE:
+   * useRunToResultButton 側に autoNavigateOnComplete が無い版でも動くよう、
+   * ここでは phase === "ready" を監視して遷移する。
+   */
+  autoNavigateOnComplete?: boolean;
+};
 
 type Props = {
   onAdd: (type: CommandType) => void;
+
+  /**
+   * + Add command の横に A案対応 Run（実行→結果へ）を置くための設定。
+   * 未指定の場合、Run ボタン自体を出さない（ノイズ回避）。
+   */
+  runButton?: RunButtonConfig;
 };
 
 export function CommandPalette(props: Props) {
-  const { onAdd } = props;
+  const { onAdd, runButton } = props;
+
+  const router = useRouter();
+
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
 
   const items = React.useMemo(() => {
     const query = q.trim().toLowerCase();
     if (!query) return COMMAND_CATALOG;
+
     return COMMAND_CATALOG.filter((x) => {
       return (
         x.type.toLowerCase().includes(query) ||
@@ -24,6 +71,28 @@ export function CommandPalette(props: Props) {
       );
     });
   }, [q]);
+
+  // Run ボタンは「設定がある時だけ」表示（非活性ボタンのノイズを出さない）
+  const run = runButton
+    ? useRunToResultButton({
+        taskId: runButton.taskId,
+        resetKey: runButton.resetKey,
+        getSubmittedProgram: runButton.getSubmittedProgram,
+        userId: runButton.userId,
+        navigateTo: runButton.navigateTo ?? "/result",
+      } as any) // 旧版 hook との互換を保つため any
+    : null;
+
+  const autoNavigateOnComplete = runButton?.autoNavigateOnComplete ?? true;
+  const navigateTo = runButton?.navigateTo ?? "/result";
+
+  // A案: 判定が終わったら自動で結果へ（hook 側が未対応でもここで担保）
+  React.useEffect(() => {
+    if (!runButton) return;
+    if (!autoNavigateOnComplete) return;
+    if (run?.phase !== "ready") return;
+    router.push(navigateTo);
+  }, [run?.phase, runButton, autoNavigateOnComplete, router, navigateTo]);
 
   return (
     <div className="flex items-center gap-2">
@@ -36,6 +105,19 @@ export function CommandPalette(props: Props) {
         + Add command
       </button>
 
+      {runButton?.taskId ? (
+        <button
+          type="button"
+          className="rounded border px-3 py-2 text-sm disabled:opacity-50"
+          data-testid="cb-run"
+          onClick={() => run?.onClick()}
+          disabled={!run || run.disabled}
+          title={run?.title ?? "Run"}
+        >
+          {run?.label ?? "実行"}
+        </button>
+      ) : null}
+
       {open && (
         <div className="relative">
           <div className="absolute z-50 mt-2 w-[360px] rounded border bg-background p-2 shadow">
@@ -47,7 +129,12 @@ export function CommandPalette(props: Props) {
                 onChange={(e) => setQ(e.target.value)}
                 data-testid="cb-search"
               />
-              <button type="button" className="rounded border px-2 py-1 text-sm" onClick={() => setOpen(false)}>
+              <button
+                type="button"
+                className="rounded border px-2 py-1 text-sm"
+                onClick={() => setOpen(false)}
+                data-testid="cb-close"
+              >
                 Close
               </button>
             </div>
@@ -76,9 +163,7 @@ export function CommandPalette(props: Props) {
                   )}
                 </button>
               ))}
-              {items.length === 0 && (
-                <div className="px-2 py-4 text-sm text-muted-foreground">No commands.</div>
-              )}
+              {items.length === 0 && <div className="px-2 py-4 text-sm text-muted-foreground">No commands.</div>}
             </div>
           </div>
         </div>

@@ -12,32 +12,9 @@ import {
   type CommandType,
 } from "@/lib/command-builder/commandCatalog";
 import { GesturePad } from "@/lib/command-builder/GesturePad";
-import { evaluateTask } from "@/lib/terminal/evaluateClient";
-import { useParams, useRouter } from "next/navigation";
+import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
+import { useParams } from "next/navigation";
 import * as React from "react";
-
-const LAST_RESULT_STORAGE_KEY = "czz-terminal-last-result";
-
-function safeStringify(x: unknown): string {
-  try {
-    return JSON.stringify(x, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
-  } catch {
-    return "";
-  }
-}
-
-function persistLastResult(taskId: string, response: unknown): boolean {
-  const payload = { savedAt: Date.now(), meta: { taskId }, response };
-  const json = safeStringify(payload);
-  if (!json) return false;
-
-  try {
-    localStorage.setItem(LAST_RESULT_STORAGE_KEY, json);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function getTaskIdFromParams(params: ReturnType<typeof useParams>): string | null {
   const v = (params as any)?.taskId;
@@ -106,9 +83,6 @@ function substituteTemplate(template: string, cmdValue: unknown): string {
   return template;
 }
 
-/**
- * 短い表示では “学習者が一瞬で意味を取れる” 表現に寄せる
- */
 function compactChipLabel(type: string, cmdValue: unknown): string {
   const v = getParamValue(cmdValue, "value");
   const vn = typeof v === "number" ? v : v == null ? undefined : Number(v);
@@ -118,22 +92,18 @@ function compactChipLabel(type: string, cmdValue: unknown): string {
       return vn != null ? `filter > ${vn}` : "filter > VALUE";
     case "FILTER_EQUALS":
       return vn != null ? `filter = ${vn}` : "filter = VALUE";
-    case "FILTER_NOT_EQUALS":
-      return vn != null ? `filter != ${vn}` : "filter != VALUE";
     case "MAP_ADD":
       return vn != null ? `map + ${vn}` : "map + VALUE";
-    case "MAP_MULTIPLY":
-      return vn != null ? `map × ${vn}` : "map × VALUE";
+    case "MAP_MUL":
+      return vn != null ? `map * ${vn}` : "map * VALUE";
     case "SORT_ASC":
       return "sort asc";
     case "SORT_DESC":
       return "sort desc";
-    case "OUTPUT_FIRST":
-      return "head";
-    case "OUTPUT_LAST":
-      return "tail";
-    case "OUTPUT_SUM":
-      return "sum";
+    case "OUTPUT":
+      return "> output.csv";
+    case "INPUT":
+      return "cat input.csv";
     default:
       return type.toLowerCase();
   }
@@ -158,48 +128,19 @@ export function PipelinePanel(props: Props) {
     onSelectStep,
   } = props;
 
-  const router = useRouter();
   const params = useParams();
   const taskId = React.useMemo(() => getTaskIdFromParams(params), [params]);
 
-  type RunPhase = "idle" | "running" | "ready";
-  const [runPhase, setRunPhase] = React.useState<RunPhase>("idle");
-  const [canOpenResult, setCanOpenResult] = React.useState(false);
-
-  // コマンドが変わったら「実行」に戻す（3コマンド前後なので digest で十分）
+  // コマンドが変わったら"実行"に戻す（3コマンド前後なので digest で十分）
   const programDigest = React.useMemo(() => JSON.stringify(commands.map((c) => c.value)), [commands]);
-  React.useEffect(() => {
-    setRunPhase("idle");
-    setCanOpenResult(false);
-  }, [programDigest, taskId]);
 
-  const onRunnerPrimary = React.useCallback(async () => {
-    if (runPhase === "ready") {
-      router.push("/result");
-      return;
-    }
-    if (runPhase === "running") return;
-    if (!taskId) return;
-    if (commands.length === 0) return;
-
-    setRunPhase("running");
-
-    try {
-      const submittedProgram = useCommandBuilderStore.getState().serializeProgram();
-      const res: unknown = await evaluateTask({ taskId, submittedProgram });
-
-      const saved = persistLastResult(taskId, res);
-      setCanOpenResult(saved);
-      setRunPhase("ready");
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Network error";
-      const errRes = { ok: false, error: { kind: "NETWORK", message, details: e } };
-
-      const saved = persistLastResult(taskId, errRes);
-      setCanOpenResult(saved);
-      setRunPhase("ready");
-    }
-  }, [router, runPhase, taskId, commands.length]);
+  const run = useRunToResultButton({
+    taskId,
+    resetKey: programDigest,
+    getSubmittedProgram: () => useCommandBuilderStore.getState().serializeProgram(),
+    navigateTo: "/result",
+    autoNavigateOnComplete: true,
+  });
 
   const moveCommand = useCommandBuilderStore((s) => s.move);
   const [viewMode, setViewMode] = React.useState<ViewMode>("compact");
@@ -239,23 +180,22 @@ export function PipelinePanel(props: Props) {
       const THRESH_X = 18;
       const THRESH_DOMINANCE = 1.2;
 
-      if (Math.abs(dx) < THRESH_X) return;
-      if (Math.abs(dx) < Math.abs(dy) * THRESH_DOMINANCE) return;
-
-      if (!st.moved) st.moved = true;
+      if (!st.moved) {
+        if (Math.abs(dx) < THRESH_X) return;
+        if (Math.abs(dx) < Math.abs(dy) * THRESH_DOMINANCE) return;
+        st.moved = true;
+      }
 
       const dir = dx > 0 ? 1 : -1;
-      const from = st.index;
-      const to = from + dir;
+      const nextIndex = st.index + dir;
+      if (nextIndex < 0 || nextIndex >= commands.length) return;
 
-      if (to < 0 || to >= commands.length) return;
-
-      moveCommand(from, to);
-      onSelectStep(to);
-
-      dragRef.current = { ...st, startX: e.clientX, startY: e.clientY, index: to };
+      moveCommand(st.index, nextIndex);
+      st.index = nextIndex;
+      st.startX = e.clientX;
+      st.startY = e.clientY;
     },
-    [commands.length, moveCommand, onSelectStep],
+    [commands.length, moveCommand]
   );
 
   const onChipPointerUp = React.useCallback((e: React.PointerEvent) => {
@@ -269,6 +209,13 @@ export function PipelinePanel(props: Props) {
     if (!st || st.pointerId !== e.pointerId) return;
     dragRef.current = null;
   }, []);
+
+  const revealed = React.useMemo(() => {
+    if (selectedIndex < 0) return [];
+    const from = selectedIndex;
+    const to = Math.min(Math.max(revealIndex, selectedIndex), commands.length - 1);
+    return commands.slice(from, to + 1);
+  }, [commands, selectedIndex, revealIndex]);
 
   const nextTargetIndex = React.useMemo(() => {
     if (selectedIndex < 0) return null;
@@ -284,7 +231,6 @@ export function PipelinePanel(props: Props) {
     return commands[nextTargetIndex] ?? null;
   }, [commands, nextTargetIndex]);
 
-  // 詳細ビューの Runner プレビュー用（重複しない構成：input + preprocess + coreCmds + output）
   const runnerPreview = React.useMemo(() => {
     const core = commands.map((cmd) => coreUnixCmdFor(cmd));
     const pieces = [RUNNER_INPUT_STEP.cmd, ...RUNNER_PREPROCESS_STEPS.map((s) => s.cmd), ...core, RUNNER_OUTPUT_STEP.cmd];
@@ -305,22 +251,15 @@ export function PipelinePanel(props: Props) {
           <button
             type="button"
             className="rounded border bg-background px-3 py-1 text-sm disabled:opacity-50 hover:bg-accent"
-            onClick={onRunnerPrimary}
-            disabled={!taskId || commands.length === 0 || runPhase === "running"}
+            onClick={() => {
+              if (commands.length === 0) return;
+              run.onClick();
+            }}
+            disabled={commands.length === 0 || run.disabled}
             data-testid="runner-primary"
-            title={
-              !taskId
-                ? "taskId が無いので実行できない"
-                : commands.length === 0
-                  ? "コマンドが無いので実行できない"
-                  : runPhase === "ready" && !canOpenResult
-                    ? "結果の保存に失敗した（/result は空になる可能性がある）"
-                    : runPhase === "ready"
-                      ? "結果画面へ"
-                      : "実行"
-            }
+            title={commands.length === 0 ? "コマンドが無いので実行できない" : run.title}
           >
-            {runPhase === "running" ? "判定中…" : runPhase === "ready" ? "結果へ進む" : "実行"}
+            {run.label}
           </button>
 
           <div className="flex overflow-hidden rounded border text-xs" data-testid="pipe-view-toggle">
@@ -392,8 +331,6 @@ export function PipelinePanel(props: Props) {
                     title={unixFull}
                     style={{ userSelect: "none", touchAction: "pan-y" }}
                     data-testid="pipe-step"
-                    aria-label={`step-${i + 1}-${type}`}
-                    data-cmdid={cmd.id}
                   >
                     {label}
                   </button>
@@ -406,120 +343,109 @@ export function PipelinePanel(props: Props) {
               {RUNNER_OUTPUT_STEP.cmd}
             </span>
           </div>
-
-          <div className="mt-2 text-xs text-muted-foreground" data-testid="pipe-compact-note">
-            コマンドは横フリックで並べ替えできる（選択はクリック）
-          </div>
         </div>
       ) : (
-        <div className="mt-4 space-y-4" data-testid="pipe-detailed-view">
-          <div className="rounded border bg-muted/30 p-3">
-            <div className="text-xs font-medium text-muted-foreground">Runner</div>
-            <div className="mt-2 space-y-2 font-mono text-sm" data-testid="pipe-preview">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded border bg-background px-2 py-1">{RUNNER_INPUT_STEP.cmd}</span>
+        <div className="mt-4 space-y-3" data-testid="pipe-detailed-view">
+          <div className="rounded border bg-background p-3">
+            <div className="text-xs text-muted-foreground">Runner preview</div>
+            <pre className="mt-2 overflow-auto font-mono text-xs">{runnerPreview}</pre>
+          </div>
 
-                {RUNNER_PREPROCESS_STEPS.map((s) => (
-                  <React.Fragment key={s.label}>
-                    <span className="text-muted-foreground">|</span>
-                    <span className="rounded border bg-background px-2 py-1">{s.cmd}</span>
-                  </React.Fragment>
-                ))}
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-muted-foreground">
+              step: {selectedIndex >= 0 ? `${selectedIndex + 1}/${commands.length}` : "-"}
+            </div>
 
-                {commands.map((cmd) => {
-                  const unixFull = coreUnixCmdFor(cmd);
-                  return (
-                    <React.Fragment key={cmd.id}>
-                      <span className="text-muted-foreground">|</span>
-                      <span className="rounded border bg-background px-2 py-1">{unixFull}</span>
-                    </React.Fragment>
-                  );
-                })}
-
-                <span className="text-muted-foreground">|</span>
-                <span className="rounded border bg-background px-2 py-1">{RUNNER_OUTPUT_STEP.cmd}</span>
-              </div>
-
-              <div className="text-xs text-muted-foreground" data-testid="pipe-preview-note">
-                input/output は Runner パネル側で見える。ここは “中間コマンド” を読む練習用。
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded border px-2 py-1 text-xs disabled:opacity-50"
+                onClick={onStepMinus}
+                disabled={!canStepMinus}
+                data-testid="pipe-step-minus"
+              >
+                -1
+              </button>
+              <button
+                type="button"
+                className="rounded border px-2 py-1 text-xs disabled:opacity-50"
+                onClick={onStepPlus}
+                disabled={!canStepPlus}
+                data-testid="pipe-step-plus"
+              >
+                +1
+              </button>
+              <button
+                type="button"
+                className="rounded border px-2 py-1 text-xs disabled:opacity-50"
+                onClick={onSelectNext}
+                disabled={nextTargetIndex == null}
+                data-testid="pipe-step-next"
+              >
+                Next
+              </button>
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded border p-3">
-              <div className="text-xs font-medium text-muted-foreground">Selected</div>
+          <div className="rounded border bg-card p-3">
+            <div className="text-xs text-muted-foreground">Step</div>
 
-              {selectedIndex < 0 || !commands[selectedIndex] ? (
-                <div className="mt-2 text-sm text-muted-foreground">(none)</div>
-              ) : (() => {
-                  const cmd = commands[selectedIndex]!;
+            {selectedIndex < 0 ? (
+              <div className="mt-2 text-sm text-muted-foreground">コマンドを選択してね。</div>
+            ) : (
+              <div className="mt-2 space-y-2">
+                {revealed.map((cmd, idx) => {
                   const type = getType(cmd.value);
                   const item = getCatalogItemSafe(type);
-
                   const title = item?.label ?? type;
-                  const template =
-                    typeof item?.unixHint === "string" && item.unixHint.trim().length > 0 ? item.unixHint.trim() : type;
-                  const unixFull = substituteTemplate(template, cmd.value);
+                  const hint = item?.unixHint ?? type;
+
+                  const isCurrent = cmd.id === selectedId;
+                  const stepIndex = selectedIndex + idx;
 
                   return (
-                    <div className="mt-2 space-y-2">
-                      <div className="text-sm font-semibold">{title}</div>
-                      <div className="rounded border bg-muted/30 p-2 font-mono text-sm" data-testid="pipe-selected">
-                        {unixFull}
+                    <div key={cmd.id} className={`rounded border p-2 ${isCurrent ? "bg-accent/30" : "bg-background"}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          className="text-left"
+                          onClick={() => onSelectStep(stepIndex)}
+                          data-testid={`pipe-step-${stepIndex}`}
+                        >
+                          <div className="text-sm font-semibold">{title}</div>
+                          <div className="text-xs text-muted-foreground">{hint}</div>
+                        </button>
+
+                        {isCurrent && (
+                          <div data-testid="runner-gesturepad">
+                            <GesturePad
+                              onStepPlus={onStepPlus}
+                              onStepMinus={onStepMinus}
+                              canStepPlus={canStepPlus}
+                              canStepMinus={canStepMinus}
+                            />
+                          </div>
+                        )}
                       </div>
 
-                      {item?.params && item.params.length > 0 ? (
-                        <div className="text-sm text-muted-foreground">
-                          {item.params.map((p) => (
-                            <div key={p.key} className="flex gap-2">
-                              <span className="font-mono">{p.key}</span>
-                              <span>({p.kind})</span>
-                              <span className="opacity-70">{p.required ? "required" : "optional"}</span>
-                            </div>
-                          ))}
-                        </div>
+                      {typeof hint === "string" && hint.trim().length > 0 ? (
+                        <pre className="mt-2 max-h-28 overflow-auto rounded border bg-background p-3 text-xs" data-testid="pipe-preview">
+                          {hint}
+                        </pre>
                       ) : null}
                     </div>
                   );
-                })()}
-            </div>
-
-            <div className="space-y-3">
-              <div data-testid="runner-gesturepad">
-                <GesturePad
-                  onStepPlus={onStepPlus}
-                  onStepMinus={onStepMinus}
-                  canStepPlus={canStepPlus}
-                  canStepMinus={canStepMinus}
-                />
+                })}
               </div>
-
-              <div className="rounded border p-3">
-                <div className="text-xs font-medium text-muted-foreground">Next Step</div>
-                {next ? (
-                  <button
-                    type="button"
-                    className="mt-2 w-full rounded border bg-background px-3 py-2 text-left hover:bg-accent"
-                    onClick={onSelectNext}
-                    data-testid="pipe-next"
-                  >
-                    <div className="font-mono">{getType(next.value)}</div>
-                  </button>
-                ) : (
-                  <div className="mt-2 text-sm text-muted-foreground">(no next)</div>
-                )}
-              </div>
-
-              <div className="rounded border bg-muted/30 p-3 text-xs text-muted-foreground">
-                ヒント：短い表示は “形を覚える”。詳細は “意味を読む”。
-              </div>
-            </div>
+            )}
           </div>
 
-          <div className="rounded border bg-muted/30 p-3 text-xs text-muted-foreground">
-            full preview: <span className="font-mono">{runnerPreview}</span>
-          </div>
+          {next ? (
+            <div className="rounded border bg-muted/20 p-3">
+              <div className="text-xs text-muted-foreground">Next</div>
+              <div className="mt-1 font-mono text-sm">{compactChipLabel(getType(next.value), next.value)}</div>
+            </div>
+          ) : null}
         </div>
       )}
     </aside>

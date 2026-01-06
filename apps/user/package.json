@@ -7,6 +7,7 @@
     "start": "next start --port 3000"
   },
   "dependencies": {
+    "@czz/domain": "workspace:^",
     "@czz/dsl-core": "workspace:*",
     "autoprefixer": "^10.4.20",
     "drizzle-orm": "^0.33.0",

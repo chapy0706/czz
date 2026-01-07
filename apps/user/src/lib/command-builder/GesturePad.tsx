@@ -10,96 +10,97 @@ type Props = {
   canStepMinus: boolean;
 };
 
-type Point = { x: number; y: number };
+/**
+ * Runner の「表示ステップ切り替え」専用のジェスチャ領域。
+ *
+ * 重要:
+ * - 画面全体を覆う overlay（fixed/absolute inset-0 等）は使わない
+ * - このコンポーネントの矩形領域だけがポインタ入力を受ける
+ *   （＝他のボタン/UI をブロックしない）
+ */
+export function GesturePad({ onStepPlus, onStepMinus, canStepPlus, canStepMinus }: Props) {
+  const startXRef = React.useRef<number | null>(null);
+  const startYRef = React.useRef<number | null>(null);
+  const consumedRef = React.useRef(false);
 
-export function GesturePad(props: Props) {
-  const { onStepPlus, onStepMinus, canStepPlus, canStepMinus } = props;
+  const THRESHOLD_PX = 28; // これ以上横に動いたらスワイプ扱い
+  const VERTICAL_TOLERANCE_PX = 22; // 縦ブレが大きいとスクロール優先
 
-  const startRef = React.useRef<Point | null>(null);
-  const firedRef = React.useRef(false);
-
-  // 誤爆しにくいよう少し強め
-  const THRESHOLD_PX = 48;
-  const DOMINANCE_RATIO = 1.2; // 縦が横より 1.2倍以上大きいときだけ縦判定
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary) return;
-
-    firedRef.current = false;
-    startRef.current = { x: e.clientX, y: e.clientY };
-
-    // ここを入れると pointermove が安定する（特に Mac/Trackpad）
-    try {
-      (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-    } catch {
-      // ignore
-    }
+  const reset = () => {
+    startXRef.current = null;
+    startYRef.current = null;
+    consumedRef.current = false;
   };
 
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const start = startRef.current;
-    if (!start) return;
-    if (firedRef.current) return;
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // 右クリック等は無視
+    if (e.pointerType === "mouse" && e.button !== 0) return;
 
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
+    startXRef.current = e.clientX;
+    startYRef.current = e.clientY;
+    consumedRef.current = false;
 
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-
-    // 縦が優勢で、閾値を超えたら発火
-    const isVertical = absY >= absX * DOMINANCE_RATIO;
-
-    if (isVertical && absY >= THRESHOLD_PX) {
-      firedRef.current = true;
-      startRef.current = null;
-
-      if (dy > 0) {
-        // 下スワイプ → +Step
-        if (canStepPlus) onStepPlus();
-      } else {
-        // 上スワイプ → -Step
-        if (canStepMinus) onStepMinus();
-      }
-    }
+    // この領域内の操作だけ確実に受ける
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
-  const end = (e: React.PointerEvent<HTMLDivElement>) => {
-    startRef.current = null;
-    firedRef.current = false;
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (startXRef.current == null || startYRef.current == null) return;
+    if (consumedRef.current) return;
 
-    try {
-      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
-    } catch {
-      // ignore
+    const dx = e.clientX - startXRef.current;
+    const dy = e.clientY - startYRef.current;
+
+    // 縦に強く動いているならスクロール優先（操作を奪わない）
+    if (Math.abs(dy) > VERTICAL_TOLERANCE_PX && Math.abs(dy) > Math.abs(dx)) {
+      reset();
+      return;
     }
+
+    if (Math.abs(dx) < THRESHOLD_PX) return;
+
+    consumedRef.current = true;
+
+    if (dx > 0) {
+      if (canStepPlus) onStepPlus();
+    } else {
+      if (canStepMinus) onStepMinus();
+    }
+
+    // 1スワイプ=1ステップ
+    reset();
   };
+
+  const handlePointerUp = () => reset();
+  const handlePointerCancel = () => reset();
 
   return (
-    <div
-      className="rounded border bg-background px-3 py-3"
-      data-testid="pipe-gesture"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={end}
-      onPointerCancel={end}
-      style={{
-        // 縦スワイプは GesturePad 内で解釈したい。
-        // pan-x にしておくと、縦方向の挙動をブラウザに渡しにくくなる（= こちらで検知しやすい）
-        touchAction: "pan-x",
-        userSelect: "none",
-      }}
-      role="group"
-      aria-label="Gesture pad"
-    >
-      <div className="text-xs font-medium text-muted-foreground">Gesture</div>
-      <div className="mt-1 text-sm">
-        <div>↓ swipe: +Step</div>
-        <div>↑ swipe: -Step</div>
-      </div>
-      <div className="mt-2 text-xs text-muted-foreground">
-        {canStepPlus ? "" : "(+Step disabled) "}
-        {canStepMinus ? "" : "(-Step disabled)"}
+    <div className="rounded border bg-muted/20 p-3">
+      <div
+        className="select-none rounded border bg-background p-3 text-sm text-muted-foreground"
+        style={{
+          // 横スワイプは取るが、縦スクロールを阻害しない
+          touchAction: "pan-y",
+        }}
+        role="group"
+        aria-label="Runner gesture pad"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        data-testid="gesturepad"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-xs">← swipe</span>
+          <span className="text-xs">step</span>
+          <span className="text-xs">swipe →</span>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between text-xs">
+          <span className={canStepMinus ? "" : "opacity-40"}>前へ</span>
+          <span className="opacity-60">この枠内だけ操作</span>
+          <span className={canStepPlus ? "" : "opacity-40"}>次へ</span>
+        </div>
       </div>
     </div>
   );

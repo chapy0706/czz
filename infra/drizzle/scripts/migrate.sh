@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
 # infra/drizzle/scripts/migrate.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 if [[ -z "${DB_URL:-}" ]]; then
@@ -8,10 +8,12 @@ if [[ -z "${DB_URL:-}" ]]; then
   exit 1
 fi
 
-# drizzle-kit は通常 DATABASE_URL を参照するため、互換のために転写する
+# drizzle-kit が参照しうる env をまとめて揃える（プロジェクト差異を吸収）
 export DATABASE_URL="${DB_URL}"
+export DATABASE_URL_UNPOOLED="${DB_URL}"
+export POSTGRES_URL="${DB_URL}"
+export DB_URL="${DB_URL}"
 
-# drizzle config の候補をいくつか探す（プロジェクト差異を吸収）
 CONFIG_CANDIDATES=(
   "infra/drizzle/drizzle.config.ts"
   "infra/drizzle/drizzle.config.mjs"
@@ -37,9 +39,6 @@ else
   echo "      Trying drizzle-kit migrate without --config."
 fi
 
-# 期待する動作:
-# - drizzle-kit が devDependencies にある（pnpm workspace）
-# - migrations の実行（DDL反映）
 if [[ -n "${CONFIG_PATH}" ]]; then
   pnpm -w exec drizzle-kit migrate --config "${CONFIG_PATH}"
 else

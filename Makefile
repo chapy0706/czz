@@ -32,9 +32,11 @@ help:
 	@echo "  make db-down         Stop dev DB"
 	@echo "  make db-logs         Tail dev DB logs"
 	@echo ""
-	@echo "DB (seed/reset)"
+	@echo "DB (migrate/seed/verify)"
+	@echo "  make db-migrate      Apply Drizzle migrations (safe default DB_URL)"
 	@echo "  make db-reset        Cleanup+insert+verify seed data (safe default DB_URL)"
 	@echo "  make db-verify       Run verification queries"
+	@echo "  make db-count        Print row counts (users/tasks/results)"
 	@echo ""
 	@echo "Apps"
 	@echo "  make dev-user        Start apps/user (Next.js) on 3100"
@@ -46,7 +48,10 @@ help:
 	@echo ""
 	@echo "Override examples"
 	@echo "  DB_URL=postgres://app:app@localhost:5433/czz_dev make db-reset"
-	@echo "  ALLOW_NONLOCAL=1 DB_URL=postgres://... make db-reset   # NOT recommended"
+	@echo "  DB_URL=postgres://app:app@localhost:5433/czz_dev make db-migrate"
+	@echo "  DB_URL=postgres://app:app@localhost:5433/czz_dev make db-count"
+	@echo "  ALLOW_NONLOCAL=1 DB_URL=postgres://... make db-migrate   # e.g. Neon direct/unpooled"
+	@echo "  ALLOW_NONLOCAL=1 DB_URL=postgres://... make db-count     # NOT recommended"
 	@echo ""
 
 .PHONY: db-up
@@ -61,6 +66,11 @@ db-down:
 db-logs:
 	docker compose -f "$(COMPOSE_FILE)" logs -f db
 
+.PHONY: db-migrate
+db-migrate:
+	$(call assert_safe_db)
+	DB_URL="$(DB_URL)" bash infra/drizzle/scripts/migrate.sh
+
 .PHONY: db-reset
 db-reset:
 	$(call assert_safe_db)
@@ -70,6 +80,11 @@ db-reset:
 db-verify:
 	$(call assert_safe_db)
 	psql "$(DB_URL)" -f infra/drizzle/scripts/seed_verify.sql
+
+.PHONY: db-count
+db-count:
+	$(call assert_safe_db)
+	DB_URL="$(DB_URL)" bash infra/drizzle/scripts/db_count.sh
 
 .PHONY: dev-user
 dev-user:

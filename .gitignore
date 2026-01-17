@@ -32,3 +32,6 @@ coverage/
 apps/user/.env.local
 apps/admin/.env.local
 .env
+
+#keys
+apps/user/certificates

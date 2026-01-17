@@ -4,9 +4,10 @@
 import { CommandBuilder } from "@/lib/command-builder/CommandBuilder";
 import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
 import { getOrCreateGuestUserId } from "@/lib/terminal/guestUserId";
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 
-export default function TaskDetailPage({ params }: { params: { taskId: string } }) {
+export default function TaskDetailPage(props: { params: Promise<{ taskId: string }> }) {
+  const params = use(props.params);
   const taskId = params.taskId;
 
   // デバッグ用途（必要な人だけ開く）

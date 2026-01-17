@@ -12,8 +12,15 @@ type ResultPanelProps = React.ComponentProps<typeof ResultPanel>;
 type ResultStatus = ResultPanelProps["status"];
 
 function safeStringify(x: unknown): string {
-  try { return JSON.stringify(x, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2); }
-  catch { return String(x); }
+  try {
+    return JSON.stringify(
+      x,
+      (_k, v) => (typeof v === "bigint" ? v.toString() : v),
+      2
+    );
+  } catch {
+    return String(x);
+  }
 }
 
 function extractText(x: unknown): string {
@@ -36,17 +43,24 @@ function extractText(x: unknown): string {
   return safeStringify(x);
 }
 
-function toResultPanelProps(res: EvaluateResponse): Pick<ResultPanelProps, "status" | "outputText" | "expectedText" | "hint"> {
+function toResultPanelProps(
+  res: EvaluateResponse
+): Pick<ResultPanelProps, "status" | "outputText" | "expectedText" | "hint"> {
   const ok = res.ok;
-  const passed = typeof (res as any)?.passed === "number" ? (res as any).passed : 0;
-  const total = typeof (res as any)?.total === "number" ? (res as any).total : 0;
+  const passed =
+    typeof (res as any)?.passed === "number" ? (res as any).passed : 0;
+  const total =
+    typeof (res as any)?.total === "number" ? (res as any).total : 0;
 
   const isAllPassed = ok && total >= 0 && passed === total;
   const status: ResultStatus = isAllPassed ? "success" : "failure";
 
   if (ok) {
     const outputText = extractText((res as any).output);
-    const hint = (isAllPassed || total === 0) ? undefined : { title: "Test summary", detail: `passed ${passed} / ${total}` };
+    const hint =
+      isAllPassed || total === 0
+        ? undefined
+        : { title: "Test summary", detail: `passed ${passed} / ${total}` };
     return { status, outputText, expectedText: undefined, hint };
   }
 
@@ -55,22 +69,37 @@ function toResultPanelProps(res: EvaluateResponse): Pick<ResultPanelProps, "stat
   const msg = typeof err?.message === "string" ? err.message : "Unknown error";
   const details = err?.details != null ? `\n\n${extractText(err.details)}` : "";
 
-  return { status: "failure", outputText: `${kind}: ${msg}${details}`, expectedText: undefined, hint: { title: "Error", detail: `${kind}: ${msg}` } };
+  return {
+    status: "failure",
+    outputText: `${kind}: ${msg}${details}`,
+    expectedText: undefined,
+    hint: { title: "Error", detail: `${kind}: ${msg}` },
+  };
 }
 
-export default function ResultByIdPage({ params }: { params: { resultId: string } }) {
+export default function ResultByIdPage({
+  params,
+}: {
+  params: { resultId: string };
+}) {
   const router = useRouter();
   const { resultId } = params;
 
   const entry = useTerminalResultCacheStore((s) => s.byId[resultId] ?? null);
   const remove = useTerminalResultCacheStore((s) => s.remove);
 
-  const panelProps = React.useMemo(() => (entry ? toResultPanelProps(entry.response) : null), [entry]);
+  const panelProps = React.useMemo(
+    () => (entry ? toResultPanelProps(entry.response) : null),
+    [entry]
+  );
 
   const savedAtText = React.useMemo(() => {
     if (!entry) return "";
-    try { return new Date(entry.savedAt).toLocaleString(); }
-    catch { return String(entry.savedAt); }
+    try {
+      return new Date(entry.savedAt).toLocaleString();
+    } catch {
+      return String(entry.savedAt);
+    }
   }, [entry]);
 
   const taskId = entry?.meta?.taskId;
@@ -84,26 +113,58 @@ export default function ResultByIdPage({ params }: { params: { resultId: string 
   }, [router]);
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10" data-testid="results-by-id-page">
+    <main
+      className="mx-auto max-w-5xl px-6 py-10"
+      data-testid="results-by-id-page"
+    >
       <div className="flex items-baseline justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">リザルト</h1>
-          <p className="text-sm text-muted-foreground">resultId: <span className="font-mono">{resultId}</span></p>
+          <p className="text-sm text-muted-foreground">
+            resultId: <span className="font-mono">{resultId}</span>
+          </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/tasks" className="text-sm text-muted-foreground hover:underline">課題一覧へ</Link>
-          <Link href="/" className="text-sm text-muted-foreground hover:underline">TOPへ</Link>
+          <Link
+            href="/tasks"
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            課題一覧へ
+          </Link>
+          <Link
+            href="/"
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            TOPへ
+          </Link>
         </div>
       </div>
 
       {!entry || !panelProps ? (
         <div className="mt-6 space-y-3">
-          <div className="rounded border bg-muted/30 p-4 text-sm text-muted-foreground" data-testid="results-not-found">
-            この resultId の結果が見つからない。別タブ/別ブラウザだと共有できないことがある。
+          <div
+            className="rounded border bg-muted/30 p-4 text-sm text-muted-foreground"
+            data-testid="results-not-found"
+          >
+            この resultId
+            の結果が見つからない。別タブ/別ブラウザだと共有できないことがある。
           </div>
           <div className="flex items-center gap-3 text-sm">
-            {taskId ? <Link href={`/tasks/${taskId}`} className="text-muted-foreground hover:underline">タスクへ戻る</Link>
-              : <Link href="/tasks" className="text-muted-foreground hover:underline">課題一覧へ</Link>}
+            {taskId ? (
+              <Link
+                href={`/tasks/${taskId}`}
+                className="text-muted-foreground hover:underline"
+              >
+                タスクへ戻る
+              </Link>
+            ) : (
+              <Link
+                href="/tasks"
+                className="text-muted-foreground hover:underline"
+              >
+                課題一覧へ
+              </Link>
+            )}
           </div>
         </div>
       ) : (

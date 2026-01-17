@@ -18,10 +18,10 @@ const requestSchema = z.object({
 
 export async function POST(
   req: Request,
-  ctx: { params: { taskId: string } },
+  ctx: { params: Promise<{ taskId: string }> },
 ) {
   try {
-    const { taskId } = paramsSchema.parse(ctx.params);
+    const { taskId } = paramsSchema.parse((await ctx.params));
 
     const body = await req.json();
     const parsed = requestSchema.parse(body);

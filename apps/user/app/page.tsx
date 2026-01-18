@@ -1,4 +1,5 @@
 // apps/user/app/page.tsx
+import { UiModeToggle } from "@/components/beginner/ui-mode-toggle";
 import Link from "next/link";
 
 export default function Page() {
@@ -7,12 +8,15 @@ export default function Page() {
       <div className="space-y-4" data-testid="top-page">
         <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
           <span className="rounded border bg-background px-2 py-1">czz</span>
-          <span>Instruction Builder Game</span>
+          <span>指示厨が課題を解決するゲーム</span>
         </div>
 
-        <h1 className="text-3xl font-bold tracking-tight">小さな命令をつないで、課題を解く</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          小さな命令をつないで、課題を解く
+        </h1>
         <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          UNIX 的な「流れ」を、UI で組み立てて学ぶゲーム。コマンドを並べて実行し、テストで確かめる。
+          UNIX 的な「流れ」を、UI
+          で組み立てて学ぶゲーム。コマンドを並べて実行し、テストで確かめる。
         </p>
 
         <div className="flex flex-wrap gap-2 pt-2">
@@ -37,6 +41,7 @@ export default function Page() {
           ヒント：まずは 1 つだけコマンドを置いて、動作を観察すると理解が速い。
         </div>
       </div>
+      <UiModeToggle className="mt-6" />
     </main>
   );
 }

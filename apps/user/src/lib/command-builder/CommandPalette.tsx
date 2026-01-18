@@ -3,6 +3,7 @@
 
 import {
   COMMAND_CATALOG,
+  type CommandCatalogItem,
   type CommandType,
 } from "@/lib/command-builder/commandCatalog";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
@@ -24,156 +25,165 @@ type Props = {
   runButton?: RunButtonConfig;
 };
 
+function isFilterCommand(x: CommandCatalogItem): boolean {
+  return x.type.startsWith("FILTER_");
+}
+
+function matchesQuery(
+  x: CommandCatalogItem,
+  q: string,
+  isBeginner: boolean,
+): boolean {
+  if (!q) return true;
+  const hay = isBeginner
+    ? [x.ui.beginnerLabel, x.ui.beginnerExample ?? "", x.label, x.type]
+    : [x.type, x.label, x.unixHint];
+  return hay.some((h) => h.toLowerCase().includes(q));
+}
+
+function getRunState(run: unknown) {
+  const r = run as any;
+
+  const isVisible = Boolean(r?.isVisible ?? r?.visible ?? true);
+  const isBusy = Boolean(
+    r?.isBusy ?? r?.isRunning ?? r?.isLoading ?? r?.loading ?? false,
+  );
+  const disabled = Boolean(r?.disabled ?? isBusy);
+  const label = typeof r?.label === "string" ? r.label : "Run";
+  const onClick =
+    typeof r?.onClick === "function" ? (r.onClick as () => void) : undefined;
+
+  return { isVisible, isBusy, disabled, label, onClick };
+}
+
 export function CommandPalette(props: Props) {
   const { onAdd, runButton } = props;
-
   const router = useRouter();
   const mode = useUiModeStore((s) => s.mode);
   const isBeginner = mode === "beginner";
 
   const [open, setOpen] = React.useState(false);
-  const [q, setQ] = React.useState("");
+  const [query, setQuery] = React.useState("");
+
+  const baseCatalog = React.useMemo(
+    () =>
+      isBeginner
+        ? COMMAND_CATALOG.filter((x) => !isFilterCommand(x))
+        : COMMAND_CATALOG,
+    [isBeginner],
+  );
 
   const items = React.useMemo(() => {
-    const query = q.trim().toLowerCase();
-    if (!query) return COMMAND_CATALOG;
+    const q = query.trim().toLowerCase();
+    return baseCatalog.filter((x) => matchesQuery(x, q, isBeginner));
+  }, [baseCatalog, query, isBeginner]);
 
-    return COMMAND_CATALOG.filter((x) => {
-      const extra = (x.beginnerSearchKeywords ?? []).join(" ").toLowerCase();
-      const beginnerText =
-        `${x.beginnerLabel ?? ""} ${x.beginnerDescription ?? ""}`.toLowerCase();
+  // ✅ useRunToResultButton は「1引数（オブジェクト）」で呼ぶ
+  const run = useRunToResultButton({
+    taskId: runButton?.taskId ?? null,
+    resetKey: runButton?.resetKey ?? "",
+    getSubmittedProgram: runButton?.getSubmittedProgram ?? (() => null),
+    userId: runButton?.userId,
+    onNavigate: (to: string) => router.push(to),
+    navigateTo: runButton?.navigateTo ?? "/result",
+    autoNavigateOnComplete: runButton?.autoNavigateOnComplete ?? true,
+  } as any);
 
-      return (
-        x.type.toLowerCase().includes(query) ||
-        x.label.toLowerCase().includes(query) ||
-        x.unixHint.toLowerCase().includes(query) ||
-        beginnerText.includes(query) ||
-        extra.includes(query)
-      );
-    });
-  }, [q]);
-
-  const run = runButton
-    ? useRunToResultButton({
-        taskId: runButton.taskId,
-        resetKey: runButton.resetKey,
-        getSubmittedProgram: runButton.getSubmittedProgram,
-        userId: runButton.userId,
-        navigateTo: runButton.navigateTo ?? "/result",
-      } as any)
-    : null;
-
-  const autoNavigateOnComplete = runButton?.autoNavigateOnComplete ?? true;
-  const navigateTo = runButton?.navigateTo ?? "/result";
-
-  React.useEffect(() => {
-    if (!runButton) return;
-    if (!autoNavigateOnComplete) return;
-    if (run?.phase !== "ready") return;
-    router.push(navigateTo);
-  }, [run?.phase, runButton, autoNavigateOnComplete, router, navigateTo]);
+  const runState = React.useMemo(() => getRunState(run), [run]);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="relative flex items-center gap-2">
       <button
         type="button"
-        className="rounded border px-3 py-2 text-sm"
-        data-testid="cb-add-open"
         onClick={() => setOpen((v) => !v)}
+        className="rounded-lg border px-3 py-2 text-sm hover:bg-muted"
+        data-testid="cb-add-command"
       >
-        {isBeginner ? "コマンドを追加" : "+ Add command"}
+        {isBeginner ? "+ コマンド追加" : "+ Add command"}
       </button>
 
-      {runButton?.taskId ? (
+      {runState.isVisible && runState.onClick ? (
         <button
           type="button"
-          className="rounded border px-3 py-2 text-sm disabled:opacity-50"
+          onClick={runState.onClick}
+          disabled={runState.disabled}
+          className="rounded-lg border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
           data-testid="cb-run"
-          onClick={() => run?.onClick()}
-          disabled={!run || run.disabled}
-          title={run?.title ?? "Run"}
         >
-          {isBeginner ? "実行する" : (run?.label ?? "Run")}
+          {isBeginner
+            ? runState.isBusy
+              ? "実行中…"
+              : "実行してみる"
+            : runState.label}
         </button>
       ) : null}
 
-      {open && (
-        <div className="relative">
-          <div className="absolute z-50 mt-2 w-[380px] rounded border bg-background p-2 shadow">
-            <div className="flex items-center gap-2">
-              <input
-                className="w-full rounded border px-2 py-1 text-sm"
-                placeholder={
-                  isBeginner
-                    ? "さがす（例: ならべる / 合計 / 足す）"
-                    : "Search (e.g. sort, grep, output)"
-                }
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                data-testid="cb-search"
-              />
-              <button
-                type="button"
-                className="rounded border px-2 py-1 text-sm"
-                onClick={() => setOpen(false)}
-                data-testid="cb-close"
-              >
-                {isBeginner ? "とじる" : "Close"}
-              </button>
-            </div>
-
-            <div className="mt-2 max-h-[280px] overflow-auto">
-              {items.map((x) => (
-                <button
-                  key={x.type}
-                  type="button"
-                  className="flex w-full items-start justify-between gap-3 rounded px-2 py-2 text-left hover:bg-muted"
-                  data-testid={`cb-add-${x.type}`}
-                  onClick={() => {
-                    onAdd(x.type);
-                    setOpen(false);
-                    setQ("");
-                  }}
-                >
-                  <div className="min-w-0">
-                    <div
-                      className={
-                        isBeginner ? "text-sm font-medium" : "font-mono text-sm"
-                      }
-                    >
-                      {isBeginner ? (x.beginnerLabel ?? x.label) : x.type}
-                    </div>
-
-                    <div className="text-xs text-muted-foreground">
-                      {isBeginner
-                        ? (x.beginnerDescription ?? x.unixHint)
-                        : x.unixHint}
-                    </div>
-
-                    {isBeginner ? (
-                      <div className="mt-1 font-mono text-[11px] text-muted-foreground/80">
-                        {x.type}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {!!x.params?.length && (
-                    <span className="shrink-0 rounded border px-2 py-0.5 text-[11px] text-muted-foreground">
-                      {isBeginner ? "設定あり" : "params"}
-                    </span>
-                  )}
-                </button>
-              ))}
-
-              {items.length === 0 && (
-                <div className="px-2 py-4 text-sm text-muted-foreground">
-                  {isBeginner ? "見つからないよ" : "No commands."}
-                </div>
-              )}
-            </div>
+      {open ? (
+        <div className="absolute left-0 top-full z-50 mt-2 w-[min(560px,calc(100vw-2rem))] rounded-xl border bg-background p-3 shadow-lg">
+          <div className="flex items-center gap-2">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder={
+                isBeginner
+                  ? "さがす（例: 足す / かける / 並べる / 合計）"
+                  : "Search"
+              }
+            />
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-lg border px-3 py-2 text-sm hover:bg-muted"
+            >
+              {isBeginner ? "閉じる" : "Close"}
+            </button>
           </div>
+
+          <div className="mt-3 max-h-[360px] overflow-auto rounded-lg border">
+            {items.map((x) => (
+              <button
+                key={x.type}
+                type="button"
+                onClick={() => {
+                  onAdd(x.type);
+                  setOpen(false);
+                  setQuery("");
+                }}
+                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left hover:bg-muted"
+                data-testid={`cb-add-${x.type}`}
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold">
+                    {isBeginner ? x.ui.beginnerLabel : x.type}
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {isBeginner ? x.ui.beginnerExample : x.label}
+                  </div>
+                </div>
+
+                {!isBeginner ? (
+                  <div className="shrink-0 rounded-md bg-muted px-2 py-1 text-[11px] font-mono text-muted-foreground">
+                    {x.unixHint}
+                  </div>
+                ) : null}
+              </button>
+            ))}
+
+            {items.length === 0 ? (
+              <div className="px-3 py-6 text-sm text-muted-foreground">
+                {isBeginner ? "見つからなかったよ。" : "No matches."}
+              </div>
+            ) : null}
+          </div>
+
+          {isBeginner ? (
+            <div className="mt-2 text-xs text-muted-foreground">
+              ※ 初心者モードでは FILTER（絞り込み）系は表示しないよ。
+            </div>
+          ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

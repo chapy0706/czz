@@ -4,8 +4,6 @@
 import type { CommandDraft } from "@/lib/command-builder/commandBuilderStore";
 import {
   getCatalogItem,
-  getCommandDisplayLabel,
-  getCommandDisplaySubLabel,
   type CommandType,
 } from "@/lib/command-builder/commandCatalog";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
@@ -14,205 +12,249 @@ import * as React from "react";
 type Props = {
   selected: CommandDraft | null;
   onClose: () => void;
-  onSave: (id: string, next: unknown) => void;
+  onSave: (nextValue: unknown) => void;
 };
 
+type Mode = "basic" | "advanced";
+
+function extractType(value: unknown): string {
+  if (!value || typeof value !== "object") return "UNKNOWN";
+  const v = value as { type?: unknown };
+  return typeof v.type === "string" ? v.type : "UNKNOWN";
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  // ✅ spread エラー対策：object 以外は空オブジェクトに落とす
+  if (value && typeof value === "object")
+    return value as Record<string, unknown>;
+  return {};
+}
+
 export function CommandEditorSheet(props: Props) {
-  const mode = useUiModeStore((s) => s.mode);
-  const isBeginner = mode === "beginner";
+  const { selected, onClose, onSave } = props;
+  const isBeginner = useUiModeStore((s) => s.mode === "beginner");
 
-  const selected = props.selected;
-
-  const [localJson, setLocalJson] = React.useState("");
+  const [mode, setMode] = React.useState<Mode>("basic");
+  const [advancedJson, setAdvancedJson] = React.useState<string>("");
+  const [basicValues, setBasicValues] = React.useState<Record<string, unknown>>(
+    {},
+  );
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!selected) {
-      setLocalJson("");
-      setError(null);
-      return;
+    if (!selected) return;
+
+    const typeRaw = extractType(selected.value);
+    const cat = getCatalogItem(typeRaw as CommandType);
+
+    setMode(isBeginner ? "basic" : "basic");
+    setAdvancedJson(JSON.stringify(selected.value ?? {}, null, 2));
+
+    const init: Record<string, unknown> = {};
+    const obj = asObject(selected.value);
+    for (const p of cat?.params ?? []) {
+      init[p.key] = (obj as any)[p.key] ?? "";
     }
-    setLocalJson(JSON.stringify(selected.value, null, 2));
+    setBasicValues(init);
     setError(null);
-  }, [selected?.id]);
+  }, [selected, isBeginner]);
 
   if (!selected) return null;
 
-  const cmdType = ((selected.value as any)?.type ?? null) as CommandType | null;
-  const item = cmdType ? getCatalogItem(cmdType) : undefined;
+  const typeRaw = extractType(selected.value);
+  const cat = getCatalogItem(typeRaw as CommandType);
 
-  // value パラメータ（現状 1個前提のUI）
-  const paramSpec = item?.params?.[0] ?? null;
-  const paramKey = paramSpec?.key ?? null;
+  const title = isBeginner ? "コマンドの設定" : "Command Editor";
+  const label = isBeginner
+    ? (cat?.ui.beginnerLabel ?? cat?.label ?? typeRaw)
+    : typeRaw;
+  const help = isBeginner
+    ? (cat?.ui.beginnerExample ?? "")
+    : (cat?.unixHint ?? "");
 
-  const parsed = (() => {
-    try {
-      const v = JSON.parse(localJson);
-      return { ok: true as const, value: v };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Invalid JSON";
-      return { ok: false as const, message: msg };
+  const canShowAdvanced = !isBeginner;
+
+  function onSubmitBasic() {
+    setError(null);
+
+    const base = asObject(selected.value);
+    const next: Record<string, unknown> = { ...base, type: typeRaw };
+
+    for (const p of cat?.params ?? []) {
+      const v = basicValues[p.key];
+
+      if (p.required && (v === "" || v === undefined || v === null)) {
+        setError(
+          isBeginner
+            ? `「${p.beginnerLabel ?? p.label}」は必須だよ。`
+            : `${p.key} is required`,
+        );
+        return;
+      }
+      next[p.key] = v;
     }
-  })();
 
-  const displayTitle = cmdType
-    ? getCommandDisplayLabel(cmdType, isBeginner ? "beginner" : "default")
-    : isBeginner
-      ? "コマンド"
-      : "Command";
-  const displaySub = cmdType
-    ? getCommandDisplaySubLabel(cmdType, isBeginner ? "beginner" : "default")
-    : "";
+    onSave(next);
+    onClose();
+  }
 
-  const currentParamValue = paramKey
-    ? parsed.ok
-      ? (parsed.value as any)?.[paramKey]
-      : (selected.value as any)?.[paramKey]
-    : undefined;
+  function onSubmitAdvanced() {
+    setError(null);
+    try {
+      const parsed = JSON.parse(advancedJson);
+      if (!parsed || typeof parsed !== "object") {
+        setError("JSON must be an object");
+        return;
+      }
+      (parsed as any).type = typeRaw;
+      onSave(parsed);
+      onClose();
+    } catch (e: any) {
+      setError(e?.message ?? "Invalid JSON");
+    }
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3">
-      <div className="w-full max-w-[560px] rounded-2xl border bg-background p-4 shadow-xl">
-        <div className="flex items-start justify-between gap-3">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-2">
+      <div className="w-full max-w-xl rounded-2xl border bg-background shadow-xl">
+        <div className="flex items-start justify-between gap-3 border-b p-4">
           <div className="min-w-0">
-            <div className="text-base font-semibold">{displayTitle}</div>
-            <div className="mt-1 text-sm text-muted-foreground">
-              {displaySub}
+            <div className="text-sm text-muted-foreground">{title}</div>
+            <div
+              className={
+                isBeginner ? "text-lg font-semibold" : "font-mono text-lg"
+              }
+            >
+              {label}
             </div>
-            {cmdType ? (
-              <div className="mt-1 font-mono text-[11px] text-muted-foreground/80">
-                {cmdType}
-              </div>
+            {help ? (
+              <div className="mt-1 text-xs text-muted-foreground">{help}</div>
             ) : null}
           </div>
 
           <button
             type="button"
-            className="rounded border px-3 py-1.5 text-xs hover:bg-muted"
-            onClick={props.onClose}
-            data-testid="cb-close"
+            onClick={onClose}
+            className="rounded-lg border px-3 py-2 text-sm hover:bg-muted"
           >
-            {isBeginner ? "とじる" : "Close"}
+            {isBeginner ? "閉じる" : "Close"}
           </button>
         </div>
 
-        {paramSpec && cmdType ? (
-          <div className="mt-4 rounded-xl border bg-card/30 p-3">
-            <div className="text-sm font-medium">
-              {isBeginner
-                ? (paramSpec.beginnerLabel ?? "数字")
-                : paramSpec.label}
-            </div>
-            {isBeginner && paramSpec.beginnerHelp ? (
-              <div className="mt-1 text-xs text-muted-foreground">
-                {paramSpec.beginnerHelp}
-              </div>
-            ) : null}
-
-            <div className="mt-2">
-              <input
-                className="w-full rounded border bg-background px-3 py-2 text-sm"
-                value={
-                  currentParamValue === undefined || currentParamValue === null
-                    ? ""
-                    : String(currentParamValue)
-                }
-                placeholder={
-                  isBeginner
-                    ? (paramSpec.beginnerPlaceholder ?? "例: 3")
-                    : "value"
-                }
-                onChange={(e) => {
-                  setError(null);
-                  const raw = e.target.value;
-
-                  // selected.value を土台にして編集（Storeの形を変えない）
-                  const base = { ...(selected.value as any) };
-                  base.type = cmdType;
-
-                  if (paramSpec.kind === "number") {
-                    const t = raw.trim();
-                    if (!t) {
-                      base[paramSpec.key] = raw; // 入力途中も保持
-                      setLocalJson(JSON.stringify(base, null, 2));
-                      setError(
-                        isBeginner ? "数字を入れてね" : "number required",
-                      );
-                      return;
-                    }
-                    const n = Number(t);
-                    if (Number.isNaN(n)) {
-                      base[paramSpec.key] = raw;
-                      setLocalJson(JSON.stringify(base, null, 2));
-                      setError(
-                        isBeginner ? "数字じゃないみたい" : "invalid number",
-                      );
-                      return;
-                    }
-                    base[paramSpec.key] = n;
-                  } else {
-                    base[paramSpec.key] = raw;
-                  }
-
-                  setLocalJson(JSON.stringify(base, null, 2));
-                }}
-                data-testid="cb-param-input"
-              />
-              {error ? (
-                <div className="mt-2 text-xs text-red-600">{error}</div>
-              ) : null}
+        {canShowAdvanced ? (
+          <div className="flex items-center justify-between border-b px-4 py-2">
+            <div className="text-sm text-muted-foreground">Mode</div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={[
+                  "rounded-lg border px-3 py-1 text-sm",
+                  mode === "basic" ? "bg-muted" : "hover:bg-muted/50",
+                ].join(" ")}
+                onClick={() => setMode("basic")}
+              >
+                Basic
+              </button>
+              <button
+                type="button"
+                className={[
+                  "rounded-lg border px-3 py-1 text-sm",
+                  mode === "advanced" ? "bg-muted" : "hover:bg-muted/50",
+                ].join(" ")}
+                onClick={() => setMode("advanced")}
+              >
+                Advanced(JSON)
+              </button>
             </div>
           </div>
         ) : null}
 
-        <div className="mt-4">
-          <div className="text-sm font-medium">
-            {isBeginner ? "いまの設定（JSON）" : "Command JSON"}
-          </div>
-          <textarea
-            className="mt-2 w-full rounded border bg-background p-3 font-mono text-xs"
-            rows={10}
-            value={localJson}
-            onChange={(e) => {
-              setLocalJson(e.target.value);
-              setError(null);
-            }}
-            spellCheck={false}
-            data-testid="cb-json"
-          />
-          {!parsed.ok ? (
-            <div className="mt-2 text-xs text-red-600">
-              {isBeginner ? "JSONがこわれてるかも: " : "Invalid JSON: "}
-              {parsed.message}
+        <div className="p-4">
+          {error ? (
+            <div className="mb-3 rounded-lg border border-red-400/50 bg-red-500/10 px-3 py-2 text-sm">
+              {error}
             </div>
           ) : null}
-        </div>
 
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            className="rounded border px-4 py-2 text-sm hover:bg-muted"
-            onClick={props.onClose}
-          >
-            {isBeginner ? "キャンセル" : "Cancel"}
-          </button>
+          {mode === "advanced" && canShowAdvanced ? (
+            <div className="space-y-2">
+              <textarea
+                value={advancedJson}
+                onChange={(e) => setAdvancedJson(e.target.value)}
+                className="h-56 w-full rounded-xl border p-3 font-mono text-xs"
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={onSubmitAdvanced}
+                  className="rounded-lg border px-4 py-2 text-sm hover:bg-muted"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(cat?.params?.length ?? 0) === 0 ? (
+                <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                  {isBeginner
+                    ? "このコマンドは設定いらないよ。"
+                    : "No parameters."}
+                </div>
+              ) : null}
 
-          <button
-            type="button"
-            className="rounded bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            onClick={() => {
-              if (!parsed.ok) {
-                setError(isBeginner ? "JSONが正しくないよ" : "Invalid JSON");
-                return;
-              }
-              props.onSave(selected.id, parsed.value);
-              props.onClose();
-            }}
-            data-testid="cb-save"
-            disabled={!parsed.ok}
-          >
-            {isBeginner ? "これでOK" : "Save"}
-          </button>
+              {cat?.params?.map((p) => {
+                const label = isBeginner
+                  ? (p.beginnerLabel ?? p.label)
+                  : p.label;
+                const placeholder = isBeginner
+                  ? (p.beginnerPlaceholder ?? "")
+                  : "";
+                const v = basicValues[p.key] ?? "";
+
+                return (
+                  <div key={p.key} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-medium">{label}</div>
+                      {p.required ? (
+                        <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          {isBeginner ? "必須" : "required"}
+                        </span>
+                      ) : null}
+                    </div>
+                    <input
+                      value={String(v)}
+                      onChange={(e) =>
+                        setBasicValues((prev) => ({
+                          ...prev,
+                          [p.key]: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-xl border px-3 py-2 text-sm"
+                      placeholder={placeholder}
+                    />
+                  </div>
+                );
+              })}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg border px-4 py-2 text-sm hover:bg-muted"
+                >
+                  {isBeginner ? "もどる" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onSubmitBasic}
+                  className="rounded-lg border px-4 py-2 text-sm hover:bg-muted"
+                >
+                  {isBeginner ? "OK" : "Save"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

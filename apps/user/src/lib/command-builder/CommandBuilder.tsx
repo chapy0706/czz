@@ -5,6 +5,7 @@ import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStor
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import { ResultPanel } from "@/lib/terminal/ResultPanel";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
+import { safeJsonCompact, safeStringify } from "@/lib/utils/safeStringify";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
@@ -21,24 +22,6 @@ type UiResult = {
   outputText: string;
   hint?: { title?: string; detail: string };
 };
-
-function safeStringify(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
-function safeJsonCompact(value: unknown): string {
-  try {
-    return JSON.stringify(value, (_k, v) =>
-      typeof v === "bigint" ? v.toString() : v,
-    );
-  } catch {
-    return "";
-  }
-}
 
 function persistLastResult(taskId: string, response: unknown): boolean {
   if (typeof window === "undefined") return false;
@@ -116,25 +99,46 @@ export function CommandBuilder(props: { taskId: string }) {
   const { taskId } = props;
 
   const router = useRouter();
+  const isBeginner = useUiModeStore((s) => s.mode === "beginner");
 
-  const uiMode = useUiModeStore((s) => s.mode);
-  const isBeginner = uiMode === "beginner";
+  // Zustand 側の型推論が崩れて unknown[] になる場合があるので、ここで最小限の構造に寄せる
+  const commands = useCommandBuilderStore((s) => s.commands) as Array<{
+    id: string;
+    value: unknown;
+  }>;
+  const selectedId = useCommandBuilderStore((s) => s.selectedId) as
+    | string
+    | null;
+  const editingId = useCommandBuilderStore((s) => s.editingId) as string | null;
 
-  const commands = useCommandBuilderStore((s) => s.commands);
-  const selectedId = useCommandBuilderStore((s) => s.selectedId);
-  const editingId = useCommandBuilderStore((s) => s.editingId);
+  const initForTask = useCommandBuilderStore((s) => s.initForTask) as (
+    taskId: string,
+  ) => void;
+  const select = useCommandBuilderStore((s) => s.select) as (
+    id: string,
+  ) => void;
+  const openEditor = useCommandBuilderStore((s) => s.openEditor) as (
+    id: string,
+  ) => void;
+  const closeEditor = useCommandBuilderStore(
+    (s) => s.closeEditor,
+  ) as () => void;
 
-  const initForTask = useCommandBuilderStore((s) => s.initForTask);
-  const select = useCommandBuilderStore((s) => s.select);
-  const openEditor = useCommandBuilderStore((s) => s.openEditor);
-  const closeEditor = useCommandBuilderStore((s) => s.closeEditor);
-
-  const add = useCommandBuilderStore((s) => s.add);
-  const remove = useCommandBuilderStore((s) => s.remove);
-  const move = useCommandBuilderStore((s) => s.move);
-  const clear = useCommandBuilderStore((s) => s.clear);
-  const serializeProgram = useCommandBuilderStore((s) => s.serializeProgram);
-  const updateCommandJson = useCommandBuilderStore((s) => s.updateCommandJson);
+  const add = useCommandBuilderStore((s) => s.add) as (type: any) => void;
+  const remove = useCommandBuilderStore((s) => s.remove) as (
+    id: string,
+  ) => void;
+  const move = useCommandBuilderStore((s) => s.move) as (
+    from: number,
+    to: number,
+  ) => void;
+  const clear = useCommandBuilderStore((s) => s.clear) as () => void;
+  const serializeProgram = useCommandBuilderStore(
+    (s) => s.serializeProgram,
+  ) as () => unknown;
+  const updateCommandJson = useCommandBuilderStore(
+    (s) => s.updateCommandJson,
+  ) as (id: string, nextValue: unknown) => void;
 
   const editing = React.useMemo(() => {
     return editingId
@@ -158,7 +162,6 @@ export function CommandBuilder(props: { taskId: string }) {
     [commands],
   );
 
-  // PipelinePanel state
   const selectedIndex = React.useMemo(() => {
     if (!selectedId) return -1;
     return commands.findIndex((c) => c.id === selectedId);
@@ -210,7 +213,6 @@ export function CommandBuilder(props: { taskId: string }) {
     return toUiResult(result as any);
   }, [result]);
 
-  // A案: 実行 → 判定/保存 → /result へ自動遷移
   async function runA() {
     if (running) return;
     if (commands.length === 0) return;
@@ -242,16 +244,24 @@ export function CommandBuilder(props: { taskId: string }) {
       aria-label="pipeline workspace"
     >
       <div className="w-full rounded-lg border bg-card p-4">
+        {/* 上部：操作エリア（初心者モードは説明だけ薄く） */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <div className="text-sm font-semibold">
-              {isBeginner ? "コマンド実行" : "Runner"}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {isBeginner
-                ? "コマンドをならべて、実行してみよう。"
-                : "コマンドを並べて実行する。"}
-            </div>
+            {!isBeginner ? (
+              <>
+                <div className="text-sm font-semibold">Runner</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  コマンドを並べて実行する。
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-sm font-semibold">やってみる</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  指示をえらんで、実行してみよう。
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
@@ -265,52 +275,64 @@ export function CommandBuilder(props: { taskId: string }) {
                 autoNavigateOnComplete: true,
               }}
             />
-            <button
-              type="button"
-              className="rounded border px-3 py-2 text-sm disabled:opacity-50"
-              onClick={clear}
-              disabled={running}
-              data-testid="cb-clear"
-            >
-              {isBeginner ? "ぜんぶ消す" : "Clear"}
-            </button>
+
+            {!isBeginner ? (
+              <button
+                type="button"
+                className="rounded border px-3 py-2 text-sm disabled:opacity-50"
+                onClick={clear}
+                disabled={running}
+                data-testid="cb-clear"
+              >
+                Clear
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="rounded border px-3 py-2 text-sm disabled:opacity-50"
+                onClick={clear}
+                disabled={running}
+                data-testid="cb-clear"
+              >
+                ぜんぶ消す
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Commands（横並び）。Selected枠は撤去し、行操作＋Sheetで完結させる */}
+        {/* Commands */}
         <div className="mt-4">
           <div className="mb-2 text-xs font-medium text-muted-foreground">
-            {isBeginner ? "えらんだコマンド" : "Commands"}
+            {isBeginner ? "えらんだ指示" : "Commands"}
           </div>
 
           <CommandList
             layout="horizontal"
-            commands={commands}
-            selectedId={selectedId}
-            onSelect={(id) => select(id)}
-            onEdit={(id) => openEditor(id)}
-            onRemove={(id) => remove(id)}
-            onReorder={(from, to) => move(from, to)}
+            commands={commands as any}
+            selectedId={selectedId as any}
+            onSelect={(id: string) => select(id)}
+            onEdit={(id: string) => openEditor(id)}
+            onRemove={(id: string) => remove(id)}
+            onReorder={(from: number, to: number) => move(from, to)}
           />
 
-          {/* 選択がないときの空状態（Selectedの代替） */}
           {commands.length > 0 && !selectedId ? (
             <div
               className="mt-2 rounded border bg-muted/20 p-3 text-sm text-muted-foreground"
               data-testid="command-selected-empty"
             >
               {isBeginner
-                ? "どれかをタップすると、数字などを編集できるよ。"
+                ? "コマンドをタップすると、設定を変えられるよ。"
                 : "まだ何も選択していない。コマンドをクリックして編集する。"}
             </div>
           ) : null}
         </div>
 
-        {/* 下段：PipelinePanel 全幅。デフォルトは compact（PipelinePanel側で対応） */}
-        {selectedId ? (
+        {/* PipelinePanel / ResultPanel は初心者モードでは非表示（ノイズ削減） */}
+        {!isBeginner && selectedId ? (
           <div className="mt-4" data-testid="pipe-panel-wrap">
             <PipelinePanel
-              commands={commands}
+              commands={commands as any}
               selectedId={selectedId}
               selectedIndex={selectedIndex}
               revealIndex={revealIndex}
@@ -322,44 +344,46 @@ export function CommandBuilder(props: { taskId: string }) {
           </div>
         ) : null}
 
-        {/* Result（この画面はデバッグ用途として残す） */}
-        <div className="mt-4" data-testid="cb-result">
-          <div className="text-xs font-medium text-muted-foreground">
-            {isBeginner ? "結果（ここはデバッグ用）" : "Result"}
-          </div>
-
-          {uiResult ? (
-            <ResultPanel
-              status={uiResult.status}
-              outputText={uiResult.outputText}
-              hint={uiResult.hint}
-              onRetry={running ? undefined : runA}
-            />
-          ) : (
-            <div className="mt-2 rounded border bg-muted/20 p-3 text-sm text-muted-foreground">
-              {isBeginner
-                ? "まだ実行していないよ。"
-                : "まだ実行していない。（Run すると /result に遷移する）"}
+        {!isBeginner ? (
+          <div className="mt-4" data-testid="cb-result">
+            <div className="text-xs font-medium text-muted-foreground">
+              Result
             </div>
-          )}
 
-          {result ? (
-            <details className="mt-2 rounded border bg-muted/20 p-2">
-              <summary className="cursor-pointer text-xs text-muted-foreground">
-                raw result (debug)
-              </summary>
-              <pre className="mt-2 max-h-[240px] overflow-auto rounded border bg-background p-3 text-xs">
-                {safeStringify(result)}
-              </pre>
-            </details>
-          ) : null}
-        </div>
+            {uiResult ? (
+              <ResultPanel
+                status={uiResult.status}
+                outputText={uiResult.outputText}
+                hint={uiResult.hint}
+                onRetry={running ? undefined : runA}
+              />
+            ) : (
+              <div className="mt-2 rounded border bg-muted/20 p-3 text-sm text-muted-foreground">
+                まだ実行していない。（Run すると /result に遷移する）
+              </div>
+            )}
+
+            {result ? (
+              <details className="mt-2 rounded border bg-muted/20 p-2">
+                <summary className="cursor-pointer text-xs text-muted-foreground">
+                  raw result (debug)
+                </summary>
+                <pre className="mt-2 max-h-[240px] overflow-auto rounded border bg-background p-3 text-xs">
+                  {safeStringify(result)}
+                </pre>
+              </details>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <CommandEditorSheet
-        selected={editing}
+        selected={editing as any}
         onClose={closeEditor}
-        onSave={(id, next) => updateCommandJson(id, next)}
+        onSave={(nextValue) => {
+          if (!editing) return;
+          updateCommandJson(editing.id, nextValue);
+        }}
       />
     </section>
   );

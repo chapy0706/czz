@@ -51,6 +51,37 @@ function extractText(x: unknown): string {
   return safeStringify(x);
 }
 
+type TaskTestCase = {
+  title?: string | null;
+  name?: string | null;
+  label?: string | null;
+};
+
+async function fetchTaskTestTitles(taskId: string): Promise<string[]> {
+  try {
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as any;
+    if (json?.ok !== true) return [];
+    const task = json?.value ?? json?.task ?? json?.value?.task ?? json?.value;
+    const tcs = Array.isArray(task?.testCases)
+      ? (task.testCases as TaskTestCase[])
+      : [];
+    return tcs.map((tc, i) => {
+      const t =
+        (typeof tc?.title === "string" && tc.title) ||
+        (typeof tc?.name === "string" && tc.name) ||
+        (typeof tc?.label === "string" && tc.label);
+      return t || `テスト ${i + 1}`;
+    });
+  } catch {
+    return [];
+  }
+}
+
 function isCaseOk(c: any): boolean {
   if (!c) return false;
   if (typeof c.ok === "boolean") return c.ok;
@@ -61,7 +92,14 @@ function isCaseOk(c: any): boolean {
   return false;
 }
 
-function pickCaseTitle(c: any, index: number): string {
+function pickCaseTitle(
+  c: any,
+  index: number,
+  overrideTitles?: string[],
+): string {
+  const o = Array.isArray(overrideTitles) ? overrideTitles[index] : undefined;
+  if (typeof o === "string" && o.trim()) return o;
+
   const t =
     (typeof c?.title === "string" && c.title) ||
     (typeof c?.name === "string" && c.name) ||
@@ -81,7 +119,10 @@ function pickCaseDetail(c: any): string | undefined {
   return d ? d : undefined;
 }
 
-function extractCaseVerdicts(res: EvaluateResponse): {
+function extractCaseVerdicts(
+  res: EvaluateResponse,
+  overrideTitles?: string[],
+): {
   cases: CaseVerdict[];
   passed: number;
   total: number;
@@ -109,14 +150,17 @@ function extractCaseVerdicts(res: EvaluateResponse): {
     cases = arr.map((c, i) => ({
       index: i,
       ok: isCaseOk(c),
-      title: pickCaseTitle(c, i),
+      title: pickCaseTitle(c, i, overrideTitles),
       detail: pickCaseDetail(c),
     }));
   } else if (totalFromTop > 0) {
     cases = Array.from({ length: totalFromTop }).map((_, i) => ({
       index: i,
       ok: i < passedFromTop,
-      title: `テスト ${i + 1}`,
+      title:
+        Array.isArray(overrideTitles) && overrideTitles[i]
+          ? overrideTitles[i]
+          : `テスト ${i + 1}`,
     }));
   }
 
@@ -132,8 +176,12 @@ function extractCaseVerdicts(res: EvaluateResponse): {
 
 function toResultPanelProps(
   res: EvaluateResponse,
+  overrideTitles?: string[],
 ): Pick<ResultPanelProps, "status" | "outputText" | "expectedText" | "hint"> {
-  const { passed, total, isAllPassed } = extractCaseVerdicts(res);
+  const { passed, total, isAllPassed } = extractCaseVerdicts(
+    res,
+    overrideTitles,
+  );
 
   const status: ResultStatus = isAllPassed ? "success" : "failure";
 
@@ -273,15 +321,34 @@ export default function ResultByIdPage({
   const entry = useTerminalResultCacheStore((s) => s.byId[resultId] ?? null);
   const remove = useTerminalResultCacheStore((s) => s.remove);
 
+  const taskId = entry?.meta?.taskId;
+
+  const [testTitles, setTestTitles] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    let alive = true;
+    if (!taskId) {
+      setTestTitles([]);
+      return;
+    }
+    fetchTaskTestTitles(taskId).then((titles) => {
+      if (!alive) return;
+      setTestTitles(titles);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [taskId]);
+
   const panelProps = React.useMemo(
-    () => (entry ? toResultPanelProps(entry.response) : null),
-    [entry],
+    () => (entry ? toResultPanelProps(entry.response, testTitles) : null),
+    [entry, testTitles],
   );
 
   const { cases, isAllPassed } = React.useMemo(() => {
     if (!entry) return { cases: [] as CaseVerdict[], isAllPassed: false };
-    return extractCaseVerdicts(entry.response);
-  }, [entry]);
+    return extractCaseVerdicts(entry.response, testTitles);
+  }, [entry, testTitles]);
 
   const savedAtText = React.useMemo(() => {
     if (!entry) return "";
@@ -291,8 +358,6 @@ export default function ResultByIdPage({
       return String(entry.savedAt);
     }
   }, [entry]);
-
-  const taskId = entry?.meta?.taskId;
 
   const onRetry = React.useCallback(() => {
     router.push(taskId ? `/tasks/${taskId}` : "/tasks");

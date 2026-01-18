@@ -59,6 +59,37 @@ function extractText(x: unknown): string {
   return safeStringify(x);
 }
 
+type TaskTestCase = {
+  title?: string | null;
+  name?: string | null;
+  label?: string | null;
+};
+
+async function fetchTaskTestTitles(taskId: string): Promise<string[]> {
+  try {
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as any;
+    if (json?.ok !== true) return [];
+    const task = json?.value ?? json?.task ?? json?.value?.task ?? json?.value;
+    const tcs = Array.isArray(task?.testCases)
+      ? (task.testCases as TaskTestCase[])
+      : [];
+    return tcs.map((tc, i) => {
+      const t =
+        (typeof tc?.title === "string" && tc.title) ||
+        (typeof tc?.name === "string" && tc.name) ||
+        (typeof tc?.label === "string" && tc.label);
+      return t || `テスト ${i + 1}`;
+    });
+  } catch {
+    return [];
+  }
+}
+
 type StoredLastResult = {
   savedAt: number;
   meta?: { taskId?: string };
@@ -82,7 +113,14 @@ function isCaseOk(c: any): boolean {
   return false;
 }
 
-function pickCaseTitle(c: any, index: number): string {
+function pickCaseTitle(
+  c: any,
+  index: number,
+  overrideTitles?: string[],
+): string {
+  const o = Array.isArray(overrideTitles) ? overrideTitles[index] : undefined;
+  if (typeof o === "string" && o.trim()) return o;
+
   const t =
     (typeof c?.title === "string" && c.title) ||
     (typeof c?.name === "string" && c.name) ||
@@ -101,7 +139,10 @@ function pickCaseDetail(c: any): string | undefined {
   return d ? d : undefined;
 }
 
-function extractCaseVerdicts(res: EvaluateResponse): {
+function extractCaseVerdicts(
+  res: EvaluateResponse,
+  overrideTitles?: string[],
+): {
   cases: CaseVerdict[];
   passed: number;
   total: number;
@@ -129,14 +170,17 @@ function extractCaseVerdicts(res: EvaluateResponse): {
     cases = arr.map((c, i) => ({
       index: i,
       ok: isCaseOk(c),
-      title: pickCaseTitle(c, i),
+      title: pickCaseTitle(c, i, overrideTitles),
       detail: pickCaseDetail(c),
     }));
   } else if (totalFromTop > 0) {
     cases = Array.from({ length: totalFromTop }).map((_, i) => ({
       index: i,
       ok: i < passedFromTop,
-      title: `テスト ${i + 1}`,
+      title:
+        Array.isArray(overrideTitles) && overrideTitles[i]
+          ? overrideTitles[i]
+          : `テスト ${i + 1}`,
     }));
   }
 
@@ -151,10 +195,14 @@ function extractCaseVerdicts(res: EvaluateResponse): {
 
 function toPanelProps(
   res: EvaluateResponse,
+  overrideTitles?: string[],
 ): Pick<ResultPanelProps, "status" | "outputText" | "expectedText" | "hint"> {
   const ok = res.ok;
 
-  const { passed, total, isAllPassed } = extractCaseVerdicts(res);
+  const { passed, total, isAllPassed } = extractCaseVerdicts(
+    res,
+    overrideTitles,
+  );
   const status: ResultStatus = isAllPassed ? "success" : "failure";
 
   if (ok) {
@@ -295,6 +343,7 @@ export default function ResultPage() {
   > | null>(null);
   const [cases, setCases] = React.useState<CaseVerdict[]>([]);
   const [isAllPassed, setIsAllPassed] = React.useState(false);
+  const [testTitles, setTestTitles] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     if (!mounted) return;
@@ -326,12 +375,12 @@ export default function ResultPage() {
     }
 
     const res = parsed.data;
-    const verdict = extractCaseVerdicts(res);
+    const verdict = extractCaseVerdicts(res, testTitles);
 
     setCases(verdict.cases);
     setIsAllPassed(verdict.isAllPassed);
-    setPanel(toPanelProps(res));
-  }, [mounted]);
+    setPanel(toPanelProps(res, testTitles));
+  }, [mounted, testTitles]);
 
   const savedAtText = React.useMemo(() => {
     if (!stored) return "";
@@ -343,6 +392,21 @@ export default function ResultPage() {
   }, [stored]);
 
   const taskId = stored?.meta?.taskId;
+
+  React.useEffect(() => {
+    let alive = true;
+    if (!taskId) {
+      setTestTitles([]);
+      return;
+    }
+    fetchTaskTestTitles(taskId).then((titles) => {
+      if (!alive) return;
+      setTestTitles(titles);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [taskId]);
 
   const clear = React.useCallback(() => {
     try {

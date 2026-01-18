@@ -33,7 +33,7 @@ export async function GET() {
       {
         tasks: payload,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("GET /api/tasks error:", error);
@@ -42,7 +42,7 @@ export async function GET() {
       {
         error: "Failed to fetch tasks",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

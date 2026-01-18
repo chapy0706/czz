@@ -42,13 +42,19 @@ export default function TasksPage() {
           </p>
         </div>
 
-        <Link href="/" className="text-sm text-muted-foreground hover:underline" data-testid="tasks-back-top">
+        <Link
+          href="/"
+          className="text-sm text-muted-foreground hover:underline"
+          data-testid="tasks-back-top"
+        >
           TOPへ
         </Link>
       </div>
 
       {isLoading ? (
-        <div className="mt-6 rounded border bg-muted/30 p-4 text-sm text-muted-foreground">読み込み中…</div>
+        <div className="mt-6 rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
+          読み込み中…
+        </div>
       ) : error ? (
         <div className="mt-6 rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
           課題の取得に失敗した。DB起動や seed 状態を確認してね。
@@ -60,14 +66,24 @@ export default function TasksPage() {
       ) : (
         <ul className="mt-6 grid gap-3 sm:grid-cols-2">
           {tasks.map((t) => (
-            <li key={String(t.id)} className="rounded border bg-background p-4" data-testid="task-card">
+            <li
+              key={String(t.id)}
+              className="rounded border bg-background p-4"
+              data-testid="task-card"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
-                  <div className="text-sm font-semibold">{t.title ?? `Task ${t.id}`}</div>
+                  <div className="text-sm font-semibold">
+                    {t.title ?? `Task ${t.id}`}
+                  </div>
                   {t.description ? (
-                    <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">{t.description}</p>
+                    <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                      {t.description}
+                    </p>
                   ) : (
-                    <p className="text-xs text-muted-foreground">(no description)</p>
+                    <p className="text-xs text-muted-foreground">
+                      (no description)
+                    </p>
                   )}
                 </div>
 

@@ -5,7 +5,7 @@ import { CommandBuilder } from "@/lib/command-builder/CommandBuilder";
 import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
 import { getOrCreateGuestUserId } from "@/lib/terminal/guestUserId";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
-import { useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 
 type TaskMeta = {
   title?: string;
@@ -43,12 +43,12 @@ function pickErrorMessage(json: unknown): string | null {
   return null;
 }
 
-export default function TaskDetailPage({
-  params,
-}: {
-  params: { taskId: string };
-}) {
-  const { taskId } = params;
+type Props = {
+  params: Promise<{ taskId: string }>;
+};
+
+export default function TaskDetailPage({ params }: Props) {
+  const { taskId } = use(params);
 
   const uiMode = useUiModeStore((s) => s.mode);
   const isBeginner = uiMode === "beginner";
@@ -95,7 +95,6 @@ export default function TaskDetailPage({
 
         const picked = pickMeta(json);
 
-        // title/description が無ければ、APIかseedのどちらかが期待と違う
         if (!picked?.title && !picked?.description) {
           setMeta({});
           setMetaError(

@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 
 import { BeginnerBgmController } from "@/components/beginner/beginner-bgm-controller";
+import { BeginnerHud } from "@/components/beginner/beginner-hud";
 import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
 
 export default function RootLayout({
@@ -26,6 +27,7 @@ export default function RootLayout({
               {/* beginner mode only: mascot + bgm */}
               <BeginnerMascotDock />
               <BeginnerBgmController />
+              <BeginnerHud />
             </UiModeProvider>
           </NeonAuthProvider>
         </ThemeProvider>

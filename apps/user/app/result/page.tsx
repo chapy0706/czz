@@ -2,7 +2,11 @@
 "use client";
 
 import { ResultPanel } from "@/lib/terminal/ResultPanel";
-import { EvaluateResponseSchema, type EvaluateResponse } from "@/lib/terminal/evaluateContract";
+import {
+  EvaluateResponseSchema,
+  type EvaluateResponse,
+} from "@/lib/terminal/evaluateContract";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -18,6 +22,18 @@ function safeParse(json: string | null): unknown {
     return JSON.parse(json);
   } catch {
     return null;
+  }
+}
+
+function safeStringify(x: unknown): string {
+  try {
+    return JSON.stringify(
+      x,
+      (_k, v) => (typeof v === "bigint" ? v.toString() : v),
+      2,
+    );
+  } catch {
+    return String(x);
   }
 }
 
@@ -40,11 +56,7 @@ function extractText(x: unknown): string {
     if (blocks.length > 0) return blocks.join("\n\n");
   }
 
-  try {
-    return JSON.stringify(x, null, 2);
-  } catch {
-    return String(x);
-  }
+  return safeStringify(x);
 }
 
 type StoredLastResult = {
@@ -53,19 +65,104 @@ type StoredLastResult = {
   response: unknown;
 };
 
-function toPanelProps(res: EvaluateResponse): Pick<ResultPanelProps, "status" | "outputText" | "expectedText" | "hint"> {
+type CaseVerdict = {
+  index: number;
+  ok: boolean;
+  title: string;
+  detail?: string;
+};
+
+function isCaseOk(c: any): boolean {
+  if (!c) return false;
+  if (typeof c.ok === "boolean") return c.ok;
+  if (typeof c.passed === "boolean") return c.passed;
+  if (typeof c.success === "boolean") return c.success;
+  if (typeof c.status === "string") return c.status.toLowerCase() === "pass";
+  if (typeof c.result === "string") return c.result.toLowerCase() === "pass";
+  return false;
+}
+
+function pickCaseTitle(c: any, index: number): string {
+  const t =
+    (typeof c?.title === "string" && c.title) ||
+    (typeof c?.name === "string" && c.name) ||
+    (typeof c?.label === "string" && c.label);
+  return t || `テスト ${index + 1}`;
+}
+
+function pickCaseDetail(c: any): string | undefined {
+  const parts: string[] = [];
+  if (typeof c?.message === "string" && c.message) parts.push(c.message);
+  if (c?.expected != null) parts.push(`expected:\n${extractText(c.expected)}`);
+  if (c?.actual != null) parts.push(`actual:\n${extractText(c.actual)}`);
+  if (c?.diff != null) parts.push(`diff:\n${extractText(c.diff)}`);
+
+  const d = parts.join("\n\n").trim();
+  return d ? d : undefined;
+}
+
+function extractCaseVerdicts(res: EvaluateResponse): {
+  cases: CaseVerdict[];
+  passed: number;
+  total: number;
+  isAllPassed: boolean;
+} {
+  const any = res as any;
+
+  const passedFromTop = typeof any?.passed === "number" ? any.passed : 0;
+  const totalFromTop = typeof any?.total === "number" ? any.total : 0;
+
+  const candidates: unknown[] = [
+    any?.caseResults,
+    any?.testResults,
+    any?.results,
+    any?.details?.caseResults,
+    any?.details?.testResults,
+    any?.details?.results,
+    any?.details?.cases,
+  ];
+
+  const arr = candidates.find((x) => Array.isArray(x)) as any[] | undefined;
+
+  let cases: CaseVerdict[] = [];
+  if (arr && arr.length > 0) {
+    cases = arr.map((c, i) => ({
+      index: i,
+      ok: isCaseOk(c),
+      title: pickCaseTitle(c, i),
+      detail: pickCaseDetail(c),
+    }));
+  } else if (totalFromTop > 0) {
+    cases = Array.from({ length: totalFromTop }).map((_, i) => ({
+      index: i,
+      ok: i < passedFromTop,
+      title: `テスト ${i + 1}`,
+    }));
+  }
+
+  const total = cases.length > 0 ? cases.length : totalFromTop;
+  const passed =
+    cases.length > 0 ? cases.filter((c) => c.ok).length : passedFromTop;
+
+  const isAllPassed = res.ok && total > 0 ? passed === total : false;
+
+  return { cases, passed, total, isAllPassed };
+}
+
+function toPanelProps(
+  res: EvaluateResponse,
+): Pick<ResultPanelProps, "status" | "outputText" | "expectedText" | "hint"> {
   const ok = res.ok;
 
-  const passed = typeof (res as any)?.passed === "number" ? (res as any).passed : 0;
-  const total = typeof (res as any)?.total === "number" ? (res as any).total : 0;
-
-  const isAllPassed = ok && total >= 0 && passed === total;
+  const { passed, total, isAllPassed } = extractCaseVerdicts(res);
   const status: ResultStatus = isAllPassed ? "success" : "failure";
 
   if (ok) {
     const outputText = extractText((res as any).output);
     const hint =
-      isAllPassed || total === 0 ? undefined : { title: "Test summary", detail: `passed ${passed} / ${total}` };
+      isAllPassed || total === 0
+        ? undefined
+        : { title: "Test summary", detail: `passed ${passed} / ${total}` };
 
     return { status, outputText, expectedText: undefined, hint };
   }
@@ -83,24 +180,133 @@ function toPanelProps(res: EvaluateResponse): Pick<ResultPanelProps, "status" | 
   };
 }
 
+function CaseList({
+  cases,
+  compact,
+}: {
+  cases: CaseVerdict[];
+  compact: boolean;
+}) {
+  if (cases.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border bg-card p-4" data-testid="case-list">
+      <div className="text-sm font-semibold">テスト結果</div>
+      <ul className="mt-3 space-y-2">
+        {cases.map((c) => (
+          <li
+            key={c.index}
+            className="flex items-start justify-between gap-3 rounded-lg border bg-background px-3 py-2"
+          >
+            <div className="min-w-0">
+              <div className="text-sm font-medium">{c.title}</div>
+              {!compact && c.detail ? (
+                <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-muted/40 p-2 text-xs text-muted-foreground">
+                  {c.detail}
+                </pre>
+              ) : null}
+            </div>
+            <div
+              className="shrink-0 rounded-full border px-2 py-1 text-xs"
+              aria-label={c.ok ? "passed" : "failed"}
+            >
+              {c.ok ? "○ 正解" : "× 不正解"}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function BeginnerResultView({
+  cases,
+  isAllPassed,
+  onRetry,
+  onBackToTasks,
+}: {
+  cases: CaseVerdict[];
+  isAllPassed: boolean;
+  onRetry: () => void;
+  onBackToTasks: () => void;
+}) {
+  const src = isAllPassed
+    ? "/assets/characters/rejoicing.gif"
+    : "/assets/characters/failing.gif";
+
+  return (
+    <div className="mt-6 space-y-4">
+      <div className="rounded-2xl border bg-card p-4">
+        <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+          <img
+            src={src}
+            alt={isAllPassed ? "全問正解" : "不正解あり"}
+            className="h-28 w-28 rounded-xl border bg-background object-cover"
+          />
+          <div className="w-full">
+            <div className="text-lg font-semibold">
+              {isAllPassed ? "ぜんぶ せいかい！" : "あと すこし！"}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isAllPassed
+                ? "やったね。つぎの問題もいけるよ。"
+                : "まちがいがあるところだけ、もういちどためしてみよう。"}
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-md border bg-background px-3 py-2 text-sm hover:bg-accent"
+                onClick={onRetry}
+                data-testid="beginner-retry"
+              >
+                もういちど
+              </button>
+              <button
+                type="button"
+                className="rounded-md border bg-background px-3 py-2 text-sm hover:bg-accent"
+                onClick={onBackToTasks}
+                data-testid="beginner-back"
+              >
+                もどる
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <CaseList cases={cases} compact />
+    </div>
+  );
+}
+
 export default function ResultPage() {
   const router = useRouter();
+  const mode = useUiModeStore((s) => s.mode);
+  const isBeginner = mode === "beginner";
 
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
   const [stored, setStored] = React.useState<StoredLastResult | null>(null);
-  const [panel, setPanel] = React.useState<
-    Pick<ResultPanelProps, "status" | "outputText" | "expectedText" | "hint"> | null
-  >(null);
+  const [panel, setPanel] = React.useState<Pick<
+    ResultPanelProps,
+    "status" | "outputText" | "expectedText" | "hint"
+  > | null>(null);
+  const [cases, setCases] = React.useState<CaseVerdict[]>([]);
+  const [isAllPassed, setIsAllPassed] = React.useState(false);
 
   React.useEffect(() => {
     if (!mounted) return;
 
-    const raw = safeParse(localStorage.getItem(LAST_RESULT_STORAGE_KEY)) as StoredLastResult | null;
+    const raw = safeParse(
+      localStorage.getItem(LAST_RESULT_STORAGE_KEY),
+    ) as StoredLastResult | null;
     if (!raw || typeof raw !== "object") {
       setStored(null);
       setPanel(null);
+      setCases([]);
+      setIsAllPassed(false);
       return;
     }
 
@@ -114,10 +320,17 @@ export default function ResultPage() {
         expectedText: undefined,
         hint: { title: "Storage", detail: parsed.error.message },
       });
+      setCases([]);
+      setIsAllPassed(false);
       return;
     }
 
-    setPanel(toPanelProps(parsed.data));
+    const res = parsed.data;
+    const verdict = extractCaseVerdicts(res);
+
+    setCases(verdict.cases);
+    setIsAllPassed(verdict.isAllPassed);
+    setPanel(toPanelProps(res));
   }, [mounted]);
 
   const savedAtText = React.useMemo(() => {
@@ -139,41 +352,78 @@ export default function ResultPage() {
     }
     setStored(null);
     setPanel(null);
+    setCases([]);
+    setIsAllPassed(false);
   }, []);
+
+  const onRetry = React.useCallback(() => {
+    if (taskId) {
+      router.push(`/tasks/${taskId}`);
+      return;
+    }
+    router.push("/tasks");
+  }, [router, taskId]);
+
+  const onBackToTasks = React.useCallback(() => {
+    router.push("/tasks");
+  }, [router]);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10" data-testid="result-page">
       <div className="flex items-baseline justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">リザルト</h1>
-          <p className="text-sm text-muted-foreground">直近の実行結果（localStorage 保存）を表示する。</p>
+          <p className="text-sm text-muted-foreground">
+            直近の実行結果（localStorage 保存）を表示する。
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/tasks" className="text-sm text-muted-foreground hover:underline">
+          <Link
+            href="/tasks"
+            className="text-sm text-muted-foreground hover:underline"
+          >
             課題一覧へ
           </Link>
-          <Link href="/" className="text-sm text-muted-foreground hover:underline">
+          <Link
+            href="/"
+            className="text-sm text-muted-foreground hover:underline"
+          >
             TOPへ
           </Link>
         </div>
       </div>
 
       {!mounted ? (
-        <div className="mt-6 rounded border bg-muted/30 p-4 text-sm text-muted-foreground">読み込み中…</div>
+        <div className="mt-6 rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
+          読み込み中…
+        </div>
       ) : !panel ? (
         <div className="mt-6 space-y-3">
-          <div className="rounded border bg-muted/30 p-4 text-sm text-muted-foreground" data-testid="result-empty">
+          <div
+            className="rounded border bg-muted/30 p-4 text-sm text-muted-foreground"
+            data-testid="result-empty"
+          >
             まだリザルトがないよ。タスクを実行してから戻ってきてね。
           </div>
           <div className="flex items-center gap-3 text-sm">
             {taskId ? (
-              <Link href={`/tasks/${taskId}`} className="text-muted-foreground hover:underline">
+              <Link
+                href={`/tasks/${taskId}`}
+                className="text-muted-foreground hover:underline"
+              >
                 タスクへ戻る
               </Link>
             ) : null}
           </div>
         </div>
+      ) : isBeginner ? (
+        <BeginnerResultView
+          cases={cases}
+          isAllPassed={isAllPassed}
+          onRetry={onRetry}
+          onBackToTasks={onBackToTasks}
+        />
       ) : (
         <div className="mt-6 space-y-3">
           <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -188,19 +438,15 @@ export default function ResultPage() {
             </button>
           </div>
 
+          <CaseList cases={cases} compact={false} />
+
           <ResultPanel
             status={panel.status}
             outputText={panel.outputText}
             expectedText={panel.expectedText}
             hint={panel.hint}
-            onRetry={() => {
-              if (taskId) {
-                router.push(`/tasks/${taskId}`);
-                return;
-              }
-              router.push("/tasks");
-            }}
-            onBackToTasks={() => router.push("/tasks")}
+            onRetry={onRetry}
+            onBackToTasks={onBackToTasks}
           />
         </div>
       )}

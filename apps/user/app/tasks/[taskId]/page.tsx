@@ -14,14 +14,66 @@ type TaskMeta = {
   description: string;
 };
 
+function coerceTaskMeta(raw: unknown): TaskMeta {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Task payload is not an object");
+  }
+  const r = raw as any;
+
+  const id = typeof r.id === "string" ? r.id : "";
+  const title = typeof r.title === "string" ? r.title : undefined;
+  const description =
+    typeof r.description === "string" ? r.description : undefined;
+
+  if (!id) {
+    throw new Error(
+      `Task payload missing id. keys=${Object.keys(r).join(",")}`,
+    );
+  }
+  if (title === undefined) {
+    throw new Error(
+      `Task payload missing title. keys=${Object.keys(r).join(",")}`,
+    );
+  }
+  if (description === undefined) {
+    throw new Error(
+      `Task payload missing description. keys=${Object.keys(r).join(",")}`,
+    );
+  }
+
+  return { id, title, description };
+}
+
 async function fetchTaskMeta(taskId: string): Promise<TaskMeta> {
-  const res = await fetch(`/api/tasks/${taskId}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Task fetch failed: ${res.status}`);
+  const res = await fetch(`/api/tasks/${taskId}`, {
+    cache: "no-store",
+    credentials: "same-origin",
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `Task fetch failed: ${res.status}${text ? ` (${text.slice(0, 120)})` : ""}`,
+    );
+  }
 
   const json = (await res.json()) as any;
-  if (!json?.ok) throw new Error("Task fetch failed");
 
-  return json.value as TaskMeta;
+  if (json?.ok !== true) {
+    const msg =
+      typeof json?.message === "string"
+        ? json.message
+        : typeof json?.error?.kind === "string"
+          ? json.error.kind
+          : "Task response not ok";
+    throw new Error(msg);
+  }
+
+  // 想定: { ok:true, value:{...} }
+  // でも実装差分があっても壊れないように吸収
+  const payload = json?.value ?? json?.task ?? json?.value?.task;
+
+  return coerceTaskMeta(payload);
 }
 
 export default function TaskPage() {
@@ -80,9 +132,15 @@ function TaskPageClient({ taskId }: { taskId: string }) {
         <div className="text-sm text-muted-foreground">
           {isBeginner ? "もんだい" : "Task"}
         </div>
+
         <div className="text-xl font-semibold">
-          {meta?.title ?? "読み込み中…"}
+          {error
+            ? isBeginner
+              ? "読み込みに失敗したよ"
+              : "Failed to load"
+            : (meta?.title ?? "読み込み中…")}
         </div>
+
         <div className="mt-2 text-sm text-muted-foreground">
           {error
             ? `問題文の取得に失敗: ${error}`
@@ -90,10 +148,8 @@ function TaskPageClient({ taskId }: { taskId: string }) {
         </div>
       </div>
 
-      {/* ✅ taskId 必須 */}
       <CommandBuilder taskId={taskId} />
 
-      {/* 初心者モードでは Runner/Debug を出さない */}
       {!isBeginner ? (
         <details
           className="mt-6 rounded-2xl border bg-card p-4"

@@ -1,285 +1,246 @@
-// apps/admin/app/tasks/new/page.tsx
+// app/tasks/new/page.tsx
 "use client";
-
-import { FormEvent, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useMemo, useState } from "react";
 
-type CreateTaskFormState = {
+type CreateTaskRequest = {
   title: string;
   description: string;
+  dslProgram: unknown;
+  testCases: unknown;
   isPublished: boolean;
-  dslProgramJson: string;
-  testCasesJson: string;
 };
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3100";
+type CreateTaskSuccess = { ok: true; taskId: string };
+type CreateTaskFailure = { ok: false; error: string; details?: unknown };
+type CreateTaskResponse = CreateTaskSuccess | CreateTaskFailure;
 
-export default function NewTaskPage() {
-  const [form, setForm] = useState<CreateTaskFormState>({
-    title: "",
-    description: "",
-    isPublished: false,
-    dslProgramJson: '{\n  "version": 1,\n  "commands": []\n}',
-    testCasesJson:
-      "[\n" +
-      '  {\n    "input": {},\n    "expected": {}\n  },\n' +
-      '  {\n    "input": {},\n    "expected": {}\n  },\n' +
-      '  {\n    "input": {},\n    "expected": {}\n  },\n' +
-      '  {\n    "input": {},\n    "expected": {}\n  },\n' +
-      '  {\n    "input": {},\n    "expected": {}\n  }\n' +
-      "]",
-  });
+type JsonParseOk = { ok: true; value: unknown };
+type JsonParseNg = { ok: false; error: string };
+type JsonParseResult = JsonParseOk | JsonParseNg;
 
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+const DEFAULT_DSL = {
+  version: 1,
+  commands: [],
+};
 
-  const [dslJsonError, setDslJsonError] = useState<string | null>(null);
-  const [testCasesJsonError, setTestCasesJsonError] = useState<string | null>(
-    null,
+const DEFAULT_TEST_CASES = [
+  {
+    title: "サンプル",
+    inputCsv: "a,b\n1,2\n",
+    expectedCsv: "a,b\n1,2\n",
+  },
+];
+
+function isCreateFailure(r: CreateTaskResponse): r is CreateTaskFailure {
+  return r.ok === false;
+}
+
+function isJsonNg(r: JsonParseResult): r is JsonParseNg {
+  return r.ok === false;
+}
+
+function safeJsonParse(text: string): JsonParseResult {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false, error: "JSONの構文が壊れているよ" };
+  }
+}
+
+export default function Page() {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+
+  const [dslProgramText, setDslProgramText] = useState(
+    JSON.stringify(DEFAULT_DSL, null, 2),
+  );
+  const [testCasesText, setTestCasesText] = useState(
+    JSON.stringify(DEFAULT_TEST_CASES, null, 2),
   );
 
-  const handleChange =
-    (field: keyof CreateTaskFormState) =>
-    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const value =
-        field === "isPublished"
-          ? (event as React.ChangeEvent<HTMLInputElement>).target.checked
-          : event.target.value;
+  const [isPublished, setIsPublished] = useState(false);
 
-      setForm((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<CreateTaskResponse | null>(null);
 
-      if (field === "dslProgramJson") setDslJsonError(null);
-      if (field === "testCasesJson") setTestCasesJsonError(null);
+  const parsedDsl = useMemo(
+    () => safeJsonParse(dslProgramText),
+    [dslProgramText],
+  );
+  const parsedTests = useMemo(
+    () => safeJsonParse(testCasesText),
+    [testCasesText],
+  );
+
+  const canSubmit =
+    title.trim().length > 0 &&
+    description.trim().length > 0 &&
+    !isJsonNg(parsedDsl) &&
+    !isJsonNg(parsedTests) &&
+    !isSubmitting;
+
+  async function onSubmit() {
+    setIsSubmitting(true);
+    setResult(null);
+
+    const dsl = safeJsonParse(dslProgramText);
+    const tests = safeJsonParse(testCasesText);
+
+    if (isJsonNg(dsl) || isJsonNg(tests)) {
+      setResult({
+        ok: false,
+        error: "JSONが不正だよ",
+        details: {
+          dsl: isJsonNg(dsl) ? dsl.error : null,
+          testCases: isJsonNg(tests) ? tests.error : null,
+        },
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const payload: CreateTaskRequest = {
+      title: title.trim(),
+      description: description.trim(),
+      dslProgram: dsl.value,
+      testCases: tests.value,
+      isPublished,
     };
 
-  const formatDslJson = () => {
     try {
-      const parsed = JSON.parse(form.dslProgramJson);
-      const pretty = JSON.stringify(parsed, null, 2);
-      setForm((prev) => ({ ...prev, dslProgramJson: pretty }));
-      setDslJsonError(null);
-    } catch {
-      setDslJsonError("DSL Program の JSON が不正です。");
-    }
-  };
-
-  const formatTestCasesJson = () => {
-    try {
-      const parsed = JSON.parse(form.testCasesJson);
-      const pretty = JSON.stringify(parsed, null, 2);
-      setForm((prev) => ({ ...prev, testCasesJson: pretty }));
-      setTestCasesJsonError(null);
-    } catch {
-      setTestCasesJsonError("Test Cases の JSON が不正です。");
-    }
-  };
-
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    setSubmitting(true);
-    setMessage(null);
-    setError(null);
-    setDslJsonError(null);
-    setTestCasesJsonError(null);
-
-    try {
-      let dslProgram: unknown;
-      let testCases: unknown;
-
-      try {
-        dslProgram = JSON.parse(form.dslProgramJson);
-      } catch {
-        setDslJsonError("DSL Program の JSON が不正です。");
-        setSubmitting(false);
-        return;
-      }
-
-      try {
-        testCases = JSON.parse(form.testCasesJson);
-      } catch {
-        setTestCasesJsonError("Test Cases の JSON が不正です。");
-        setSubmitting(false);
-        return;
-      }
-
-      const response = await fetch(`${API_BASE}/api/admin/tasks`, {
+      const res = await fetch("/api/admin/tasks", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: form.title,
-          description: form.description,
-          isPublished: form.isPublished,
-          dslProgram,
-          testCases,
-        }),
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        console.error("API error:", body);
-        setError("タスクの作成に失敗しました。");
+      const data = (await res.json().catch(() => null)) as any;
+
+      if (!res.ok) {
+        setResult({
+          ok: false,
+          error: data?.error ?? `作成に失敗したよ (HTTP ${res.status})`,
+          details: data,
+        });
         return;
       }
 
-      const body = await response.json();
-      setMessage(`タスクを作成しました: ${body.task.title} (${body.task.id})`);
-    } catch (err) {
-      console.error(err);
-      setError("予期せぬエラーが発生しました。");
+      const taskId =
+        typeof data?.taskId === "string"
+          ? data.taskId
+          : String(data?.taskId ?? "");
+      setResult({ ok: true, taskId });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      setResult({ ok: false, error: message });
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
-  };
+  }
 
   return (
     <main className="mx-auto max-w-3xl p-6 space-y-6">
-      <h1 className="text-2xl font-bold">タスク作成</h1>
-
-      {message && (
-        <Alert className="border-green-500">
-          <AlertTitle>成功</AlertTitle>
-          <AlertDescription>{message}</AlertDescription>
-        </Alert>
-      )}
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertTitle>エラー</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
       <Card>
         <CardHeader>
-          <CardTitle>基本情報</CardTitle>
+          <CardTitle>課題作成</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-1">
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
             <Label htmlFor="title">タイトル</Label>
             <Input
               id="title"
-              value={form.title}
-              onChange={handleChange("title")}
-              placeholder="例: 配列を昇順に並び替えよう"
-              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="例: sortで昇順にしよう"
             />
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="description">説明</Label>
+          <div className="space-y-2">
+            <Label htmlFor="description">問題文</Label>
             <Textarea
               id="description"
-              value={form.description}
-              onChange={handleChange("description")}
-              rows={4}
-              placeholder="この課題のゴールや前提条件を記述します。"
-              required
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="課題の説明をここに"
+              rows={5}
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="isPublished">公開する</Label>
-              <p className="text-xs text-muted-foreground">
-                チェックを入れると、ユーザー側の一覧に表示されます。
-              </p>
+          <div className="flex items-center justify-between rounded-md border p-4">
+            <div className="space-y-1">
+              <div className="font-medium">公開する</div>
+              <div className="text-sm text-muted-foreground">
+                公開するとユーザー側で一覧に出る想定
+              </div>
             </div>
-            <Switch
-              id="isPublished"
-              checked={form.isPublished}
-              onCheckedChange={(checked) =>
-                setForm((prev) => ({ ...prev, isPublished: checked }))
-              }
+            <Switch checked={isPublished} onCheckedChange={setIsPublished} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="dslProgram">dslProgram（JSON）</Label>
+            <Textarea
+              id="dslProgram"
+              value={dslProgramText}
+              onChange={(e) => setDslProgramText(e.target.value)}
+              rows={10}
             />
+            {isJsonNg(parsedDsl) ? (
+              <p className="text-sm text-red-600">{parsedDsl.error}</p>
+            ) : null}
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>DSL Program (JSON)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Textarea
-            value={form.dslProgramJson}
-            onChange={handleChange("dslProgramJson")}
-            rows={10}
-            className="font-mono text-xs"
-            spellCheck={false}
-          />
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={formatDslJson}
-            >
-              JSON を整形
+          <div className="space-y-2">
+            <Label htmlFor="testCases">testCases（JSON）</Label>
+            <Textarea
+              id="testCases"
+              value={testCasesText}
+              onChange={(e) => setTestCasesText(e.target.value)}
+              rows={10}
+            />
+            {isJsonNg(parsedTests) ? (
+              <p className="text-sm text-red-600">{parsedTests.error}</p>
+            ) : null}
+          </div>
+
+          <div className="flex gap-3">
+            <Button onClick={onSubmit} disabled={!canSubmit}>
+              {isSubmitting ? "送信中…" : "作成"}
             </Button>
           </div>
-          {dslJsonError && (
-            <p className="text-xs text-red-600">{dslJsonError}</p>
-          )}
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Test Cases (JSON)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Textarea
-            value={form.testCasesJson}
-            onChange={handleChange("testCasesJson")}
-            rows={10}
-            className="font-mono text-xs"
-            spellCheck={false}
-          />
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={formatTestCasesJson}
-            >
-              JSON を整形
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            いまは 5 本を推奨（PASS( x / 5 ) が分かりやすくなる）。
-          </p>
-          {testCasesJsonError && (
-            <p className="text-xs text-red-600">{testCasesJsonError}</p>
-          )}
+          {result ? (
+            result.ok ? (
+              <Alert>
+                <AlertTitle>作成できたよ</AlertTitle>
+                <AlertDescription>taskId: {result.taskId}</AlertDescription>
+              </Alert>
+            ) : (
+              <Alert>
+                <AlertTitle>失敗したよ</AlertTitle>
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <div>
+                      {isCreateFailure(result) ? result.error : "Unknown error"}
+                    </div>
+                    {isCreateFailure(result) && result.details ? (
+                      <pre className="overflow-auto rounded bg-muted p-3 text-xs">
+                        {JSON.stringify(result.details, null, 2)}
+                      </pre>
+                    ) : null}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )
+          ) : null}
         </CardContent>
-      </Card>
-
-      <Card>
-        <CardFooter className="justify-end">
-          <Button type="submit" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? "作成中..." : "作成する"}
-          </Button>
-        </CardFooter>
       </Card>
     </main>
   );

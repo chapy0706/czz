@@ -1,31 +1,35 @@
 // apps/user/app/debug/auth/page.tsx
-"use client";
 
-import { authClient } from "@/lib/auth/client";
-import { useRouter, useSearchParams } from "next/navigation";
-import * as React from "react";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+
+import AuthDebugClient from "./AuthDebugClient";
+
+/**
+ * /debug/auth は「認証が動いているか」を見るための開発用ページ。
+ *
+ * Vercel の build では request-time の値（searchParams / cookies 等）が無い状態で
+ * prerender（静的生成）しようとして落ちることがあるため、明示的に動的レンダリングに寄せる。
+ */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default function DebugAuthPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const verifier = searchParams.get("neon_auth_session_verifier");
-
-  React.useEffect(() => {
-    // OAuth から戻った直後の「セッション確定」をトリガする
-    // これで cookie が張られて、以後 /api/me が通るはず
-    void authClient.getSession().finally(() => {
-      // verifier を URL に残さない（ログ/共有/履歴対策）
-      if (verifier) router.replace("/debug/auth");
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verifier]);
+  // 本番では露出させない（Preview/Development だけでOK）
+  if (process.env.NODE_ENV === "production") notFound();
 
   return (
-    <main style={{ padding: 16 }}>
-      <h1>Auth Debug</h1>
-      <p>verifier: {verifier ? "present" : "none"}</p>
-      <p>Now checking session via authClient.getSession()…</p>
+    <main className="mx-auto max-w-3xl px-4 py-8">
+      <h1 className="text-xl font-semibold">Auth Debug</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Neon Auth のセッションと /api/me の挙動を確認するページ。
+      </p>
+
+      <div className="mt-6 rounded-lg border p-4">
+        <Suspense fallback={<div className="text-sm">loading…</div>}>
+          <AuthDebugClient />
+        </Suspense>
+      </div>
     </main>
   );
 }

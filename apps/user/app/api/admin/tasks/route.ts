@@ -1,16 +1,21 @@
 // apps/user/app/api/admin/tasks/route.ts
-import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { CreateTaskUseCase } from "@/usecases/createTask";
+import { DrizzleTaskRepository } from "@infra/drizzle/repositories/taskRepository";
+
 export const runtime = "nodejs";
 
-const BodySchema = z.object({
-  title: z.string().min(1),
-  description: z.string().min(1),
+const createTaskBodySchema = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().min(1).max(2000),
+  isPublished: z.boolean(),
+  // DSL / TestCases は JSON なら何でもOK（詳細検証は UseCase 側に寄せる）
   dslProgram: z.unknown(),
   testCases: z.unknown(),
-  isPublished: z.boolean(),
+  // 認証導入前なのでオプション扱い
+  createdByUserId: z.string().uuid().optional(),
 });
 
 function getRequiredEnv(name: string): string {
@@ -19,50 +24,71 @@ function getRequiredEnv(name: string): string {
   return v;
 }
 
-function sha256(s: string): string {
-  return crypto.createHash("sha256").update(s, "utf8").digest("hex");
-}
-
 function requireAdminToken(req: Request): NextResponse | null {
   const expected = getRequiredEnv("ADMIN_API_TOKEN");
-  const actual = req.headers.get("x-admin-token") ?? "";
+  const actual = req.headers.get("x-admin-token");
 
   if (!actual || actual !== expected) {
-    // 一時的な観測用（秘密は出さない）
-    return NextResponse.json(
-      {
-        error: "unauthorized",
-        debug: {
-          expected: { len: expected.length, sha256: sha256(expected) },
-          actual: { len: actual.length, sha256: sha256(actual) },
-        },
-      },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   return null;
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const unauth = requireAdminToken(req);
+    const unauth = requireAdminToken(request);
     if (unauth) return unauth;
 
-    const json = await req.json().catch(() => null);
-    const parsed = BodySchema.safeParse(json);
-    if (!parsed.success) {
+    const json = await request.json().catch(() => null);
+
+    const parseResult = createTaskBodySchema.safeParse(json);
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "invalid_body", details: parsed.error.flatten() },
+        {
+          error: "invalid_request",
+          details: parseResult.error.flatten(),
+        },
         { status: 400 },
       );
     }
 
+    const body = parseResult.data;
+
+    // UseCase（Application）に寄せる：Route は入力境界＋認可＋呼び出しだけ
+    const repository = new DrizzleTaskRepository();
+    const useCase = new CreateTaskUseCase(repository);
+
+    const task = await useCase.execute({
+      title: body.title,
+      description: body.description,
+      isPublished: body.isPublished,
+      dslProgram: body.dslProgram,
+      testCases: body.testCases,
+      createdByUserId: body.createdByUserId,
+    });
+
+    // admin UI が期待する形：taskId を返す
     return NextResponse.json(
-      { taskId: "dry-run", received: { title: parsed.data.title } },
+      {
+        taskId: task.id,
+        task: {
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          isPublished: task.isPublished,
+          createdAt: task.createdAt,
+          updatedAt: task.updatedAt,
+        },
+      },
       { status: 201 },
     );
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error) {
+    console.error("POST /api/admin/tasks error:", error);
+
+    // 運用上は詳細を返しすぎない（ログで追う）
+    return NextResponse.json(
+      { error: "internal_server_error" },
+      { status: 500 },
+    );
   }
 }

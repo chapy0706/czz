@@ -29,43 +29,44 @@
     --radius: 0.5rem;
   }
 
-  /* Kanagawa (Dragon-ish) dark mode: tuned for shadcn/ui variables.
-     Palette is based on the Kanagawa.nvim colors (sumiInk, fujiWhite, waveBlue, crystalBlue, etc.). */
+  /* Kanagawa (Dragon-ish) dark mode */
   .dark {
-    --background: 240 14.3% 11%; /* sumiInk1b (#181820) */
-    --foreground: 51.2 32.7% 79.6%; /* fujiWhite (#DCD7BA) */
+    --background: 240 14.3% 11%;
+    --foreground: 51.2 32.7% 79.6%;
 
-    --card: 240 12.7% 13.9%; /* sumiInk1 (#1F1F28) */
+    --card: 240 12.7% 13.9%;
     --card-foreground: 51.2 32.7% 79.6%;
 
     --popover: 240 12.7% 13.9%;
     --popover-foreground: 51.2 32.7% 79.6%;
 
-    --primary: 220 53.6% 67.1%; /* crystalBlue (#7E9CD8) */
-    --primary-foreground: 240 13.7% 10%; /* sumiInk0 (#16161D) */
+    --primary: 220 53.6% 67.1%;
+    --primary-foreground: 240 13.7% 10%;
 
-    --secondary: 215.4 36.4% 21%; /* waveBlue1 (#223249) */
+    --secondary: 215.4 36.4% 21%;
     --secondary-foreground: 51.2 32.7% 79.6%;
 
-    --muted: 240 13.4% 19%; /* sumiInk2 (#2A2A37) */
-    --muted-foreground: 257.4 15.3% 60.2%; /* springViolet1 (#938AA9) */
+    --muted: 240 13.4% 19%;
+    --muted-foreground: 257.4 15.3% 60.2%;
 
-    --accent: 204.8 39.2% 29%; /* waveBlue2 (#2D4F67) */
+    --accent: 204.8 39.2% 29%;
     --accent-foreground: 51.2 32.7% 79.6%;
 
-    --destructive: 0 81% 52.5%; /* samuraiRed (#E82424) */
+    --destructive: 0 81% 52.5%;
     --destructive-foreground: 51.2 32.7% 79.6%;
 
-    --border: 240 12.9% 24.3%; /* sumiInk3 (#363646) */
+    --border: 240 12.9% 24.3%;
     --input: 240 12.9% 24.3%;
     --ring: 220 53.6% 67.1%;
   }
 
-  /* Beginner mode: pastel + higher contrast borders.
-     We intentionally override both light/dark to keep it cute and readable. */
+  /* Beginner mode (pastel) — .dark が残っても勝てるように両方指定 */
   html[data-ui-mode="beginner"],
   html[data-ui-mode="beginner"].dark {
-    --background: 45 100% 97%;
+    color-scheme: light;
+
+    /* もう少し「黄色ベース」に寄せて、白っぽさを減らす */
+    --background: 48 100% 94%;
     --foreground: 230 20% 18%;
 
     --card: 0 0% 100%;
@@ -74,26 +75,51 @@
     --popover: 0 0% 100%;
     --popover-foreground: 230 20% 18%;
 
+    /* 主役は “かわいいピンク” のまま。アクセントで青を効かせる */
     --primary: 330 80% 62%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 160 45% 92%;
+    --secondary: 52 100% 90%;
     --secondary-foreground: 230 20% 18%;
 
-    --muted: 45 100% 94%;
-    --muted-foreground: 230 10% 35%;
+    --muted: 48 100% 88%;
+    --muted-foreground: 230 12% 32%;
 
-    --accent: 210 100% 92%;
+    /* 青を「見える」レベルに（薄すぎると白に見える） */
+    --accent: 205 100% 86%;
     --accent-foreground: 230 20% 18%;
 
     --destructive: 0 80% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 230 15% 80%;
-    --input: 230 15% 78%;
-    --ring: 330 80% 62%;
+    --border: 230 18% 70%;
+    --input: 230 18% 68%;
+    --ring: 205 100% 45%;
 
     --radius: 1rem;
+  }
+
+  /* Beginner mode background: Yellow base + Blue gradient（パステル） */
+  html[data-ui-mode="beginner"] body {
+    background-image:
+      /* 大きいグラデーション（黄 → 青）で“全体の空気”を作る */
+      linear-gradient(
+        135deg,
+        hsl(50 100% 92%) 0%,
+        hsl(54 100% 95%) 35%,
+        hsl(205 100% 92%) 100%
+      ),
+      /* ふわっとした雲みたいな青 */
+        radial-gradient(
+          circle at 85% 20%,
+          hsl(205 100% 88%) 0%,
+          transparent 45%
+        ),
+      /* ほんのりレモン */
+        radial-gradient(circle at 20% 15%, hsl(52 100% 90%) 0%, transparent 45%),
+      /* 下から暖色で支える */
+        radial-gradient(circle at 50% 92%, hsl(48 100% 90%) 0%, transparent 52%);
+    background-attachment: fixed;
   }
 
   body {

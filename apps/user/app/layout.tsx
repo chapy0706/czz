@@ -7,6 +7,7 @@ import { NeonAuthProvider } from "@/components/providers/neon-auth-ui-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 
+import { AuthUserBadge } from "@/components/auth/auth-user-badge";
 import { BeginnerBgmController } from "@/components/beginner/beginner-bgm-controller";
 import { BeginnerHud } from "@/components/beginner/beginner-hud";
 import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
@@ -24,10 +25,13 @@ export default function RootLayout({
             <UiModeProvider>
               {children}
 
-              {/* beginner mode only: mascot + bgm */}
+              {/* logged-in badge */}
+              <AuthUserBadge />
+
+              {/* beginner mode UI */}
               <BeginnerMascotDock />
-              <BeginnerBgmController />
               <BeginnerHud />
+              <BeginnerBgmController />
             </UiModeProvider>
           </NeonAuthProvider>
         </ThemeProvider>

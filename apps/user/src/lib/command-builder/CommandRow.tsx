@@ -3,17 +3,47 @@
 
 import * as React from "react";
 
-export function CommandRow(props: {
+type Props = {
+  /**
+   * CommandList 側の型に依存しないため、必要最小限だけ要求する。
+   * （構造的部分型なので、上位互換の型でも渡せる）
+   */
   command: { id: string; value: any };
+
   index: number;
   isSelected: boolean;
+
   onSelect: () => void;
+
+  /**
+   * クリック/スワイプで編集シートを開く用途
+   */
   onEdit: () => void;
+
   onRemove: () => void;
+
+  /**
+   * 既存の並び替えAPI（CommandList から渡される）
+   * このコンポーネントでは、必要なら drag&drop 実装に使う。
+   */
   onReorder: (from: number, to: number) => void;
-  variant?: "row" | "chip";
-}) {
-  const { command, index, isSelected, onSelect, onEdit, onRemove, variant = "row" } = props;
+
+  /**
+   * "row" | "chip" を想定しているが、呼び出し元が string を渡しても壊れないようにする。
+   */
+  variant?: string;
+};
+
+export function CommandRow(props: Props) {
+  const {
+    command,
+    index,
+    isSelected,
+    onSelect,
+    onEdit,
+    onRemove,
+    variant = "row",
+  } = props;
 
   const type = String(command.value?.type ?? "UNKNOWN");
 
@@ -29,17 +59,20 @@ export function CommandRow(props: {
     const dx = e.clientX - startXRef.current;
     startXRef.current = null;
 
-    if (dx > 60) onEdit();
-    if (dx < -60) onRemove();
+    // ちょい強めにして誤爆を減らす
+    if (dx > 70) onEdit();
+    if (dx < -70) onRemove();
   }
 
-  const base =
-    variant === "chip"
-      ? "relative flex items-center gap-2 rounded border px-3 py-2 text-sm"
-      : "relative flex items-center justify-between gap-2 rounded border px-3 py-2";
+  const isChip = variant === "chip";
+
+  const base = isChip
+    ? "relative flex items-center gap-2 rounded border px-3 py-2 text-sm"
+    : "relative flex items-center justify-between gap-2 rounded border px-3 py-2";
 
   // 選択中：背景を明るく（= 目立つが文字は増やさない）
-  const selected = "bg-accent/60 ring-2 ring-foreground/10 border-foreground/10";
+  const selected =
+    "bg-accent/60 ring-2 ring-foreground/10 border-foreground/10";
   const normal = "bg-background";
 
   return (
@@ -51,6 +84,11 @@ export function CommandRow(props: {
       // E2E互換（重要）
       data-testid-index={`cmd-row-${index}`}
       data-testid={`cb-item-${type}`}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onSelect();
+      }}
     >
       {/* 左アクセント（選択時のみ） */}
       <div
@@ -65,8 +103,10 @@ export function CommandRow(props: {
           <div className="font-mono text-sm">{type}</div>
         </div>
 
-        {variant === "row" ? (
-          <div className="text-xs text-muted-foreground">Swipe: → edit / ← delete</div>
+        {!isChip ? (
+          <div className="text-xs text-muted-foreground">
+            Swipe: → edit / ← delete
+          </div>
         ) : null}
       </div>
 

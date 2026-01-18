@@ -4,6 +4,7 @@
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import { ResultPanel } from "@/lib/terminal/ResultPanel";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
@@ -31,7 +32,9 @@ function safeStringify(value: unknown): string {
 
 function safeJsonCompact(value: unknown): string {
   try {
-    return JSON.stringify(value, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
+    return JSON.stringify(value, (_k, v) =>
+      typeof v === "bigint" ? v.toString() : v,
+    );
   } catch {
     return "";
   }
@@ -57,11 +60,14 @@ function toUiResult(res: any): UiResult {
   const passed = typeof res?.passed === "number" ? res.passed : undefined;
 
   const hasError = res && typeof res === "object" && "error" in res;
-  const failedByScore = typeof total === "number" && typeof passed === "number" && passed < total;
+  const failedByScore =
+    typeof total === "number" && typeof passed === "number" && passed < total;
 
   if (hasError || failedByScore) {
     const score =
-      typeof passed === "number" && typeof total === "number" ? `FAIL (${passed}/${total})` : "FAIL";
+      typeof passed === "number" && typeof total === "number"
+        ? `FAIL (${passed}/${total})`
+        : "FAIL";
 
     const errObj = res?.error;
     const errText = errObj?.message
@@ -70,20 +76,37 @@ function toUiResult(res: any): UiResult {
         ? "ERR: evaluation failed"
         : "ERR: not passed";
 
-    const output = res?.output ?? res?.stdout ?? res?.runOutput ?? res?.data?.output ?? undefined;
-    const outBlock = output ? `\n\n--- output ---\n${safeStringify(output)}` : "";
+    const output =
+      res?.output ??
+      res?.stdout ??
+      res?.runOutput ??
+      res?.data?.output ??
+      undefined;
+    const outBlock = output
+      ? `\n\n--- output ---\n${safeStringify(output)}`
+      : "";
 
     return {
       status: "failure",
       outputText: `${score}\n${errText}${outBlock}`,
-      hint: { title: errObj?.kind === "ZOD" ? "Validation" : "Error", detail: errText },
+      hint: {
+        title: errObj?.kind === "ZOD" ? "Validation" : "Error",
+        detail: errText,
+      },
     };
   }
 
   const score =
-    typeof passed === "number" && typeof total === "number" ? `PASS (${passed}/${total})` : "PASS";
+    typeof passed === "number" && typeof total === "number"
+      ? `PASS (${passed}/${total})`
+      : "PASS";
 
-  const output = res?.output ?? res?.stdout ?? res?.runOutput ?? res?.data?.output ?? undefined;
+  const output =
+    res?.output ??
+    res?.stdout ??
+    res?.runOutput ??
+    res?.data?.output ??
+    undefined;
   const outBlock = output ? `\n\n--- output ---\n${safeStringify(output)}` : "";
 
   return { status: "success", outputText: `${score}${outBlock}` };
@@ -93,6 +116,9 @@ export function CommandBuilder(props: { taskId: string }) {
   const { taskId } = props;
 
   const router = useRouter();
+
+  const uiMode = useUiModeStore((s) => s.mode);
+  const isBeginner = uiMode === "beginner";
 
   const commands = useCommandBuilderStore((s) => s.commands);
   const selectedId = useCommandBuilderStore((s) => s.selectedId);
@@ -111,7 +137,9 @@ export function CommandBuilder(props: { taskId: string }) {
   const updateCommandJson = useCommandBuilderStore((s) => s.updateCommandJson);
 
   const editing = React.useMemo(() => {
-    return editingId ? commands.find((c) => c.id === editingId) ?? null : null;
+    return editingId
+      ? (commands.find((c) => c.id === editingId) ?? null)
+      : null;
   }, [commands, editingId]);
 
   const [running, setRunning] = React.useState(false);
@@ -121,8 +149,14 @@ export function CommandBuilder(props: { taskId: string }) {
     initForTask(taskId);
   }, [taskId, initForTask]);
 
-  const program = React.useMemo(() => serializeProgram(), [commands, serializeProgram]);
-  const resetKey = React.useMemo(() => JSON.stringify(commands.map((c) => c.value)), [commands]);
+  const program = React.useMemo(
+    () => serializeProgram(),
+    [commands, serializeProgram],
+  );
+  const resetKey = React.useMemo(
+    () => JSON.stringify(commands.map((c) => c.value)),
+    [commands],
+  );
 
   // PipelinePanel state
   const selectedIndex = React.useMemo(() => {
@@ -142,7 +176,9 @@ export function CommandBuilder(props: { taskId: string }) {
 
   const stepPlus = React.useCallback(() => {
     if (selectedIndex < 0) return;
-    setRevealIndex((cur) => Math.min(Math.max(cur, selectedIndex) + 1, commands.length - 1));
+    setRevealIndex((cur) =>
+      Math.min(Math.max(cur, selectedIndex) + 1, commands.length - 1),
+    );
   }, [selectedIndex, commands.length]);
 
   const stepMinus = React.useCallback(() => {
@@ -166,7 +202,7 @@ export function CommandBuilder(props: { taskId: string }) {
       if (!cmd) return;
       select(cmd.id);
     },
-    [commands, select]
+    [commands, select],
   );
 
   const uiResult = React.useMemo(() => {
@@ -183,7 +219,10 @@ export function CommandBuilder(props: { taskId: string }) {
     setResult(null);
 
     try {
-      const res = await (evaluateTask as any)({ taskId, submittedProgram: program });
+      const res = await (evaluateTask as any)({
+        taskId,
+        submittedProgram: program,
+      });
       setResult(res);
       persistLastResult(taskId, res);
     } catch (e: any) {
@@ -197,12 +236,22 @@ export function CommandBuilder(props: { taskId: string }) {
   }
 
   return (
-    <section className="space-y-4" data-testid="command-builder" aria-label="pipeline workspace">
+    <section
+      className="space-y-4"
+      data-testid="command-builder"
+      aria-label="pipeline workspace"
+    >
       <div className="w-full rounded-lg border bg-card p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <div className="text-sm font-semibold">Runner</div>
-            <div className="mt-1 text-xs text-muted-foreground">コマンドを並べて実行する。</div>
+            <div className="text-sm font-semibold">
+              {isBeginner ? "コマンド実行" : "Runner"}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {isBeginner
+                ? "コマンドをならべて、実行してみよう。"
+                : "コマンドを並べて実行する。"}
+            </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
@@ -223,17 +272,16 @@ export function CommandBuilder(props: { taskId: string }) {
               disabled={running}
               data-testid="cb-clear"
             >
-              Clear
+              {isBeginner ? "ぜんぶ消す" : "Clear"}
             </button>
-
-            {/* Run（A案対応）は CommandPalette 横に1つだけ */}
-            {/* NOTE: 旧 Run ボタンはノイズなので撤去 */}
           </div>
         </div>
 
         {/* Commands（横並び）。Selected枠は撤去し、行操作＋Sheetで完結させる */}
         <div className="mt-4">
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Commands</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">
+            {isBeginner ? "えらんだコマンド" : "Commands"}
+          </div>
 
           <CommandList
             layout="horizontal"
@@ -251,7 +299,9 @@ export function CommandBuilder(props: { taskId: string }) {
               className="mt-2 rounded border bg-muted/20 p-3 text-sm text-muted-foreground"
               data-testid="command-selected-empty"
             >
-              まだ何も選択していない。コマンドをクリックして編集する。
+              {isBeginner
+                ? "どれかをタップすると、数字などを編集できるよ。"
+                : "まだ何も選択していない。コマンドをクリックして編集する。"}
             </div>
           ) : null}
         </div>
@@ -274,7 +324,9 @@ export function CommandBuilder(props: { taskId: string }) {
 
         {/* Result（この画面はデバッグ用途として残す） */}
         <div className="mt-4" data-testid="cb-result">
-          <div className="text-xs font-medium text-muted-foreground">Result</div>
+          <div className="text-xs font-medium text-muted-foreground">
+            {isBeginner ? "結果（ここはデバッグ用）" : "Result"}
+          </div>
 
           {uiResult ? (
             <ResultPanel
@@ -285,13 +337,17 @@ export function CommandBuilder(props: { taskId: string }) {
             />
           ) : (
             <div className="mt-2 rounded border bg-muted/20 p-3 text-sm text-muted-foreground">
-              まだ実行していない。（Run すると /result に遷移する）
+              {isBeginner
+                ? "まだ実行していないよ。"
+                : "まだ実行していない。（Run すると /result に遷移する）"}
             </div>
           )}
 
           {result ? (
             <details className="mt-2 rounded border bg-muted/20 p-2">
-              <summary className="cursor-pointer text-xs text-muted-foreground">raw result (debug)</summary>
+              <summary className="cursor-pointer text-xs text-muted-foreground">
+                raw result (debug)
+              </summary>
               <pre className="mt-2 max-h-[240px] overflow-auto rounded border bg-background p-3 text-xs">
                 {safeStringify(result)}
               </pre>

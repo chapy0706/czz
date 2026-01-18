@@ -1,53 +1,26 @@
-// apps/user/src/components/command-builder/CommandPalette.tsx
+// apps/user/src/lib/command-builder/CommandPalette.tsx
 "use client";
 
-import { COMMAND_CATALOG, type CommandType } from "@/lib/command-builder/commandCatalog";
+import {
+  COMMAND_CATALOG,
+  type CommandType,
+} from "@/lib/command-builder/commandCatalog";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
 type RunButtonConfig = {
-  /**
-   * /tasks/[taskId] の taskId。存在しない場合は Run ボタンは表示しない。
-   */
   taskId: string | null;
-
-  /**
-   * 実行対象が変わったらボタン状態を idle に戻すためのキー。
-   * 例: JSON.stringify(commands.map(c => c.value))
-   */
   resetKey: string;
-
-  /**
-   * submittedProgram を返す関数（例: useCommandBuilderStore.getState().serializeProgram()）
-   */
   getSubmittedProgram: () => unknown;
-
   userId?: string;
-
-  /**
-   * 既定: "/result"
-   */
   navigateTo?: string;
-
-  /**
-   * true の場合、判定完了後に自動遷移する（A案）。
-   * 既定: true
-   *
-   * NOTE:
-   * useRunToResultButton 側に autoNavigateOnComplete が無い版でも動くよう、
-   * ここでは phase === "ready" を監視して遷移する。
-   */
   autoNavigateOnComplete?: boolean;
 };
 
 type Props = {
   onAdd: (type: CommandType) => void;
-
-  /**
-   * + Add command の横に A案対応 Run（実行→結果へ）を置くための設定。
-   * 未指定の場合、Run ボタン自体を出さない（ノイズ回避）。
-   */
   runButton?: RunButtonConfig;
 };
 
@@ -55,6 +28,8 @@ export function CommandPalette(props: Props) {
   const { onAdd, runButton } = props;
 
   const router = useRouter();
+  const mode = useUiModeStore((s) => s.mode);
+  const isBeginner = mode === "beginner";
 
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
@@ -64,15 +39,20 @@ export function CommandPalette(props: Props) {
     if (!query) return COMMAND_CATALOG;
 
     return COMMAND_CATALOG.filter((x) => {
+      const extra = (x.beginnerSearchKeywords ?? []).join(" ").toLowerCase();
+      const beginnerText =
+        `${x.beginnerLabel ?? ""} ${x.beginnerDescription ?? ""}`.toLowerCase();
+
       return (
         x.type.toLowerCase().includes(query) ||
         x.label.toLowerCase().includes(query) ||
-        x.unixHint.toLowerCase().includes(query)
+        x.unixHint.toLowerCase().includes(query) ||
+        beginnerText.includes(query) ||
+        extra.includes(query)
       );
     });
   }, [q]);
 
-  // Run ボタンは「設定がある時だけ」表示（非活性ボタンのノイズを出さない）
   const run = runButton
     ? useRunToResultButton({
         taskId: runButton.taskId,
@@ -80,13 +60,12 @@ export function CommandPalette(props: Props) {
         getSubmittedProgram: runButton.getSubmittedProgram,
         userId: runButton.userId,
         navigateTo: runButton.navigateTo ?? "/result",
-      } as any) // 旧版 hook との互換を保つため any
+      } as any)
     : null;
 
   const autoNavigateOnComplete = runButton?.autoNavigateOnComplete ?? true;
   const navigateTo = runButton?.navigateTo ?? "/result";
 
-  // A案: 判定が終わったら自動で結果へ（hook 側が未対応でもここで担保）
   React.useEffect(() => {
     if (!runButton) return;
     if (!autoNavigateOnComplete) return;
@@ -102,7 +81,7 @@ export function CommandPalette(props: Props) {
         data-testid="cb-add-open"
         onClick={() => setOpen((v) => !v)}
       >
-        + Add command
+        {isBeginner ? "コマンドを追加" : "+ Add command"}
       </button>
 
       {runButton?.taskId ? (
@@ -114,17 +93,21 @@ export function CommandPalette(props: Props) {
           disabled={!run || run.disabled}
           title={run?.title ?? "Run"}
         >
-          {run?.label ?? "実行"}
+          {isBeginner ? "実行する" : (run?.label ?? "Run")}
         </button>
       ) : null}
 
       {open && (
         <div className="relative">
-          <div className="absolute z-50 mt-2 w-[360px] rounded border bg-background p-2 shadow">
+          <div className="absolute z-50 mt-2 w-[380px] rounded border bg-background p-2 shadow">
             <div className="flex items-center gap-2">
               <input
                 className="w-full rounded border px-2 py-1 text-sm"
-                placeholder="Search (e.g. sort, grep, output)"
+                placeholder={
+                  isBeginner
+                    ? "さがす（例: ならべる / 合計 / 足す）"
+                    : "Search (e.g. sort, grep, output)"
+                }
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 data-testid="cb-search"
@@ -135,7 +118,7 @@ export function CommandPalette(props: Props) {
                 onClick={() => setOpen(false)}
                 data-testid="cb-close"
               >
-                Close
+                {isBeginner ? "とじる" : "Close"}
               </button>
             </div>
 
@@ -153,17 +136,40 @@ export function CommandPalette(props: Props) {
                   }}
                 >
                   <div className="min-w-0">
-                    <div className="font-mono text-sm">{x.type}</div>
-                    <div className="text-xs text-muted-foreground">{x.unixHint}</div>
+                    <div
+                      className={
+                        isBeginner ? "text-sm font-medium" : "font-mono text-sm"
+                      }
+                    >
+                      {isBeginner ? (x.beginnerLabel ?? x.label) : x.type}
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      {isBeginner
+                        ? (x.beginnerDescription ?? x.unixHint)
+                        : x.unixHint}
+                    </div>
+
+                    {isBeginner ? (
+                      <div className="mt-1 font-mono text-[11px] text-muted-foreground/80">
+                        {x.type}
+                      </div>
+                    ) : null}
                   </div>
+
                   {!!x.params?.length && (
                     <span className="shrink-0 rounded border px-2 py-0.5 text-[11px] text-muted-foreground">
-                      params
+                      {isBeginner ? "設定あり" : "params"}
                     </span>
                   )}
                 </button>
               ))}
-              {items.length === 0 && <div className="px-2 py-4 text-sm text-muted-foreground">No commands.</div>}
+
+              {items.length === 0 && (
+                <div className="px-2 py-4 text-sm text-muted-foreground">
+                  {isBeginner ? "見つからないよ" : "No commands."}
+                </div>
+              )}
             </div>
           </div>
         </div>

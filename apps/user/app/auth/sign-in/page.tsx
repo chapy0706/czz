@@ -1,53 +1,105 @@
 // apps/user/app/auth/sign-in/page.tsx
 import Link from "next/link";
-import { redirect } from "next/navigation";
-
-export const dynamic = "force-dynamic";
-
-type SearchParams = Record<string, string | string[] | undefined>;
 
 type Props = {
-  // Next 16+ では searchParams が Promise 扱いになるケースがある
-  searchParams?: SearchParams | Promise<SearchParams>;
+  searchParams?: { [key: string]: string | string[] | undefined };
 };
 
-export default async function SignInPage({ searchParams }: Props) {
-  const sp = (await Promise.resolve(searchParams ?? {})) as SearchParams;
-  const error = typeof sp.error === "string" ? sp.error : undefined;
+function pickSafeReturnTo(v: unknown): string | null {
+  const s = typeof v === "string" ? v : null;
+  if (!s) return null;
 
-  // 通常の導線は「即 Google OAuth へ」
-  if (!error) {
-    redirect("/auth/google?returnTo=/account/settings");
+  if (!s.startsWith("/")) return null;
+  if (s.startsWith("//")) return null;
+  if (s.includes("\n") || s.includes("\r")) return null;
+
+  return s;
+}
+
+function getError(sp?: Props["searchParams"]): string | null {
+  const v = sp?.error;
+  if (typeof v === "string") return v;
+  return null;
+}
+
+function errorMessage(code: string): { title: string; body: string } {
+  switch (code) {
+    case "oauth":
+      return {
+        title: "Googleログインが完了しなかったみたい",
+        body: "ブラウザ設定や通信状況で起きることがあるよ。別の方法を試すか、もう一度だけ試してみてね。",
+      };
+    case "loop":
+      return {
+        title: "ログインが繰り返されてしまった",
+        body: "無限ループ防止のため、ここで止めたよ。別の方法を選んでね。",
+      };
+    case "stuck":
+      return {
+        title: "遷移が止まったかもしれない",
+        body: "いったん戻って、もう一度試すか別の方法に切り替えてね。",
+      };
+    default:
+      return {
+        title: "ログインできなかったみたい",
+        body: "もう一度試すか、別の方法を選んでね。",
+      };
   }
+}
 
-  // error がある時だけ “止まる” （無限ループ防止）
+export default function Page({ searchParams }: Props) {
+  const error = getError(searchParams);
+  const returnTo =
+    pickSafeReturnTo(searchParams?.returnTo) ?? "/account/settings";
+
+  const googleHref = `/auth/google?returnTo=${encodeURIComponent(returnTo)}`;
+
   return (
-    <main className="mx-auto max-w-xl space-y-4 p-6">
-      <h1 className="text-lg font-semibold">サインインに失敗したみたい</h1>
-
-      <div className="rounded border bg-card p-4 text-sm">
-        <p className="text-muted-foreground">
-          もう一度 Google でサインインを試してね。
-        </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          error: <code>{error}</code>
+    <main className="mx-auto max-w-xl space-y-6 p-6">
+      <div className="space-y-1">
+        <h1 className="text-xl font-semibold">サインイン</h1>
+        <p className="text-sm text-muted-foreground">
+          ログイン方法を選んでね。
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      {error ? (
+        <div className="rounded-md border p-4">
+          <div className="font-medium">{errorMessage(error).title}</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            {errorMessage(error).body}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="space-y-3">
         <Link
-          href="/auth/google?returnTo=/account/settings"
-          className="inline-flex rounded-md border px-3 py-2 text-sm hover:bg-muted"
+          href={googleHref}
+          className="inline-flex w-full items-center justify-center rounded-md border px-3 py-2 text-sm hover:bg-muted"
         >
-          Google で再試行
+          Googleでログイン
         </Link>
+
+        <button
+          type="button"
+          className="inline-flex w-full items-center justify-center rounded-md border px-3 py-2 text-sm opacity-60"
+          disabled
+          title="将来のフォールバック用（必要なら実装）"
+        >
+          メールでログイン（準備中）
+        </button>
 
         <Link
           href="/"
-          className="inline-flex rounded-md border px-3 py-2 text-sm hover:bg-muted"
+          className="inline-flex w-full items-center justify-center rounded-md border px-3 py-2 text-sm hover:bg-muted"
         >
-          トップへ戻る
+          戻る
         </Link>
+      </div>
+
+      <div className="text-xs text-muted-foreground">
+        iPhone Safari でログインが不安定な場合は、Chrome
+        など別ブラウザを試すと改善することがあるよ。
       </div>
     </main>
   );

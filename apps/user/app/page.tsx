@@ -1,8 +1,8 @@
 // apps/user/app/page.tsx
 
 import { UiModeToggle } from "@/components/beginner/ui-mode-toggle";
+import { TopCtasWithSfx } from "@/components/top/top-ctas-with-sfx";
 import { TopIntro } from "@/components/top/top-intro";
-import Link from "next/link";
 
 export default function Page() {
   return (
@@ -10,23 +10,7 @@ export default function Page() {
       <div className="space-y-4" data-testid="top-page">
         <TopIntro />
 
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Link
-            href="/tasks"
-            className="rounded border bg-accent px-4 py-2 text-sm hover:opacity-90"
-            data-testid="top-cta-tasks"
-          >
-            はじめる（課題一覧）
-          </Link>
-
-          <Link
-            href="/result"
-            className="rounded border bg-background px-4 py-2 text-sm hover:bg-accent"
-            data-testid="top-cta-latest-result"
-          >
-            直近のリザルト
-          </Link>
-        </div>
+        <TopCtasWithSfx />
 
         <div className="pt-6 text-xs text-muted-foreground">
           ヒント：まずは 1 つだけコマンドを置いて、動作を観察すると理解が速い。

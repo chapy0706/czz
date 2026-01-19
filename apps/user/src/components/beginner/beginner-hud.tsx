@@ -12,8 +12,12 @@ import { cn } from "@/lib/utils";
  * 初心者モード専用のHUD（小さな操作パネル）
  *
  * - 初心者モード時のみ表示
- * - モバイルでは「BGM ON/OFF」だけにして、画面占有を最小化
- * - sm以上では音量スライダーも表示
+ * - 画面が「横長・低身長（スマホ横向き）」のときはコンパクト表示を優先し、画面占有を最小化
+ * - 高さが十分あるときだけ、音量スライダー付きの通常表示にする
+ *
+ * 注意:
+ * - 位置固定（fixed / bottom-* / right-* など）は BeginnerBottomDock が担当する
+ * - このコンポーネントは “中身だけ” を返す
  */
 export function BeginnerHud() {
   const mode = useUiModeStore((s) => s.mode);
@@ -35,15 +39,13 @@ export function BeginnerHud() {
     />
   );
 
+  // “通常表示” は「幅 >= 640px かつ 高さ >= 520px」のときだけ有効にする
+  // - スマホ横向きは width は大きくても height が小さいので、ここでコンパクトに倒れる
+  const desktopQuery = "[@media(min-width:640px)_and_(min-height:520px)]";
+
   return (
     <div
-      className={cn(
-        "fixed z-50",
-        // モバイルは右下に小さく。sm以上は従来の左下に。
-        "bottom-3 right-3 sm:bottom-4 sm:left-4 sm:right-auto",
-        // モバイルは自動幅。sm以上は少し幅を確保。
-        "w-auto sm:w-[min(92vw,360px)]",
-      )}
+      className={cn("w-auto", "sm:w-[min(92vw,360px)]")}
       role="region"
       aria-label="初心者モード 操作パネル"
     >
@@ -53,8 +55,10 @@ export function BeginnerHud() {
           "p-2 sm:p-4",
         )}
       >
-        {/* ===== モバイル（〜sm）: 小さくON/OFFだけ ===== */}
-        <div className="flex items-center gap-3 sm:hidden">
+        {/* ===== コンパクト表示（スマホ縦 / スマホ横） ===== */}
+        <div
+          className={cn("flex items-center gap-3", `${desktopQuery}:hidden`)}
+        >
           <div className="flex items-center gap-2">
             <div className="text-xs font-semibold">BGM</div>
             <div className="text-[11px] text-muted-foreground">
@@ -89,8 +93,8 @@ export function BeginnerHud() {
           </div>
         </div>
 
-        {/* ===== デスクトップ（sm以上）: 従来どおり ===== */}
-        <div className="hidden sm:block">
+        {/* ===== 通常表示（高さが十分あるときだけ） ===== */}
+        <div className={cn("hidden", `${desktopQuery}:block`)}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold">BGM</div>

@@ -9,6 +9,7 @@ import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 
 import { AuthUserBadge } from "@/components/auth/auth-user-badge";
 import { BeginnerBgmController } from "@/components/beginner/beginner-bgm-controller";
+import { BeginnerBottomDock } from "@/components/beginner/beginner-bottom-dock";
 import { BeginnerHud } from "@/components/beginner/beginner-hud";
 import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
 
@@ -28,9 +29,11 @@ export default function RootLayout({
               {/* logged-in badge */}
               <AuthUserBadge />
 
-              {/* beginner mode UI */}
-              <BeginnerMascotDock />
-              <BeginnerHud />
+              {/* beginner mode UI (dock manages fixed + pointer-events) */}
+              <BeginnerBottomDock
+                left={<BeginnerMascotDock />}
+                right={<BeginnerHud />}
+              />
               <BeginnerBgmController />
             </UiModeProvider>
           </NeonAuthProvider>

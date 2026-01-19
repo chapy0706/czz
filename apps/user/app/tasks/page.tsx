@@ -1,6 +1,7 @@
 // apps/user/app/tasks/page.tsx
 "use client";
 
+import { BeginnerIndicatingMascot } from "@/components/beginner/beginner-indicating-mascot";
 import Link from "next/link";
 import useSWR from "swr";
 
@@ -29,8 +30,56 @@ function normalizeTasks(data: unknown): AnyTask[] {
 
 export default function TasksPage() {
   const { data, error, isLoading } = useSWR("/api/tasks", fetcher);
-
   const tasks = normalizeTasks(data);
+
+  const content = isLoading ? (
+    <div className="rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
+      読み込み中…
+    </div>
+  ) : error ? (
+    <div className="rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
+      課題の取得に失敗した。DB起動や seed 状態を確認してね。
+    </div>
+  ) : tasks.length === 0 ? (
+    <div className="rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
+      公開済みの課題が見つからない。管理画面 or seed を確認してね。
+    </div>
+  ) : (
+    <ul className="grid gap-3 sm:grid-cols-2">
+      {tasks.map((t) => (
+        <li
+          key={String(t.id)}
+          className="rounded border bg-background p-4"
+          data-testid="task-card"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="text-sm font-semibold">
+                {t.title ?? `Task ${t.id}`}
+              </div>
+              {t.description ? (
+                <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                  {t.description}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  (no description)
+                </p>
+              )}
+            </div>
+
+            <Link
+              href={`/tasks/${t.id}`}
+              className="shrink-0 rounded border bg-accent px-3 py-2 text-xs hover:opacity-90"
+              data-testid="task-open"
+            >
+              開く
+            </Link>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10" data-testid="tasks-page">
@@ -46,59 +95,26 @@ export default function TasksPage() {
           href="/"
           className="text-sm text-muted-foreground hover:underline"
           data-testid="tasks-back-top"
+          onClick={() => {}}
         >
           TOPへ
         </Link>
       </div>
 
-      {isLoading ? (
-        <div className="mt-6 rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
-          読み込み中…
-        </div>
-      ) : error ? (
-        <div className="mt-6 rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
-          課題の取得に失敗した。DB起動や seed 状態を確認してね。
-        </div>
-      ) : tasks.length === 0 ? (
-        <div className="mt-6 rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
-          公開済みの課題が見つからない。管理画面 or seed を確認してね。
-        </div>
-      ) : (
-        <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-          {tasks.map((t) => (
-            <li
-              key={String(t.id)}
-              className="rounded border bg-background p-4"
-              data-testid="task-card"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="text-sm font-semibold">
-                    {t.title ?? `Task ${t.id}`}
-                  </div>
-                  {t.description ? (
-                    <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                      {t.description}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      (no description)
-                    </p>
-                  )}
-                </div>
+      {/* モバイル: リスト上の“余白”に軽く配置 / PC: 右カラムに固定 */}
+      <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-start">
+        <div className="min-w-0 flex-1 space-y-6">
+          <div className="flex justify-center md:hidden">
+            <BeginnerIndicatingMascot className="opacity-90" size={140} />
+          </div>
 
-                <Link
-                  href={`/tasks/${t.id}`}
-                  className="shrink-0 rounded border bg-accent px-3 py-2 text-xs hover:opacity-90"
-                  data-testid="task-open"
-                >
-                  開く
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+          {content}
+        </div>
+
+        <aside className="hidden w-[220px] md:block">
+          <BeginnerIndicatingMascot className="sticky top-24" size={200} />
+        </aside>
+      </div>
     </main>
   );
 }

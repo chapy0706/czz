@@ -1,5 +1,4 @@
 // apps/user/src/components/beginner/beginner-indicating-mascot.tsx
-
 "use client";
 
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
@@ -27,11 +26,10 @@ export function BeginnerIndicatingMascot({
   return (
     <div className={className} data-testid={dataTestId} aria-hidden="true">
       <Image
-        src="/assets/characters/indicatinggif.gif"
+        src="/assets/characters/indicating.gif"
         alt=""
         width={size}
         height={size}
-        priority={false}
         unoptimized
       />
     </div>

@@ -12,26 +12,36 @@ import { cn } from "@/lib/utils";
  * 初心者モード専用のHUD（小さな操作パネル）
  *
  * - 初心者モード時のみ表示
- * - 画面が「横長・低身長（スマホ横向き）」のときはコンパクト表示を優先し、画面占有を最小化
- * - 高さが十分あるときだけ、音量スライダー付きの通常表示にする
+ * - モバイル/横向きではコンパクト（トグル中心）
+ * - 高さが十分あるときだけ音量スライダー表示
  *
  * 注意:
- * - 位置固定（fixed / bottom-* / right-* など）は BeginnerBottomDock が担当する
- * - このコンポーネントは “中身だけ” を返す
+ * - 位置固定（fixed / bottom-* / right-* など）は Dock 側が担当
+ * - ここは “中身だけ”
  */
 export function BeginnerHud() {
   const mode = useUiModeStore((s) => s.mode);
 
   const bgmEnabled = useAudioSettingsStore((s) => s.bgmEnabled);
-  const volume = useAudioSettingsStore((s) => s.volume);
+  const bgmVolume = useAudioSettingsStore((s) => s.volume);
   const setBgmEnabled = useAudioSettingsStore((s) => s.setBgmEnabled);
-  const setVolume = useAudioSettingsStore((s) => s.setVolume);
+  const setBgmVolume = useAudioSettingsStore((s) => s.setVolume);
+
+  const sfxEnabled = useAudioSettingsStore((s) => s.sfxEnabled);
+  const sfxVolume = useAudioSettingsStore((s) => s.sfxVolume);
+  const setSfxEnabled = useAudioSettingsStore((s) => s.setSfxEnabled);
+  const setSfxVolume = useAudioSettingsStore((s) => s.setSfxVolume);
 
   if (mode !== "beginner") return null;
 
-  const percent = Math.round(volume * 100);
+  const bgmPercent = Math.round(bgmVolume * 100);
+  const sfxPercent = Math.round(sfxVolume * 100);
 
-  const switchEl = (
+  // “通常表示” は「幅 >= 640px かつ 高さ >= 520px」のときだけ有効にする
+  // - スマホ横向きは width は大きくても height が小さいので、ここでコンパクトに倒れる
+  const desktopQuery = "[@media(min-width:640px)_and_(min-height:520px)]";
+
+  const bgmSwitch = (
     <Switch
       checked={bgmEnabled}
       onCheckedChange={(v) => setBgmEnabled(Boolean(v))}
@@ -39,13 +49,17 @@ export function BeginnerHud() {
     />
   );
 
-  // “通常表示” は「幅 >= 640px かつ 高さ >= 520px」のときだけ有効にする
-  // - スマホ横向きは width は大きくても height が小さいので、ここでコンパクトに倒れる
-  const desktopQuery = "[@media(min-width:640px)_and_(min-height:520px)]";
+  const sfxSwitch = (
+    <Switch
+      checked={sfxEnabled}
+      onCheckedChange={(v) => setSfxEnabled(Boolean(v))}
+      aria-label={sfxEnabled ? "効果音をオフにする" : "効果音をオンにする"}
+    />
+  );
 
   return (
     <div
-      className={cn("w-auto", "sm:w-[min(92vw,360px)]")}
+      className={cn("w-auto", "sm:w-[min(92vw,380px)]")}
       role="region"
       aria-label="初心者モード 操作パネル"
     >
@@ -64,9 +78,16 @@ export function BeginnerHud() {
             <div className="text-[11px] text-muted-foreground">
               {bgmEnabled ? "ON" : "OFF"}
             </div>
+            {bgmSwitch}
           </div>
 
-          {switchEl}
+          <div className="flex items-center gap-2">
+            <div className="text-xs font-semibold">SE</div>
+            <div className="text-[11px] text-muted-foreground">
+              {sfxEnabled ? "ON" : "OFF"}
+            </div>
+            {sfxSwitch}
+          </div>
 
           <div className="ml-auto flex items-center gap-2">
             <Link
@@ -95,22 +116,22 @@ export function BeginnerHud() {
 
         {/* ===== 通常表示（高さが十分あるときだけ） ===== */}
         <div className={cn("hidden", `${desktopQuery}:block`)}>
+          {/* --- BGM --- */}
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold">BGM</div>
               <div className="text-xs text-muted-foreground">
-                BGMは初心者モードだけ
+                初心者モードだけ
               </div>
             </div>
-
-            {switchEl}
+            {bgmSwitch}
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3">
             <div className="flex items-center justify-between">
               <div className="text-xs text-muted-foreground">音量</div>
               <div className="text-xs tabular-nums text-muted-foreground">
-                {bgmEnabled ? `${percent}%` : "OFF"}
+                {bgmEnabled ? `${bgmPercent}%` : "OFF"}
               </div>
             </div>
 
@@ -119,8 +140,8 @@ export function BeginnerHud() {
               min={0}
               max={100}
               step={1}
-              value={Math.round(volume * 100)}
-              onChange={(e) => setVolume(Number(e.target.value) / 100)}
+              value={Math.round(bgmVolume * 100)}
+              onChange={(e) => setBgmVolume(Number(e.target.value) / 100)}
               disabled={!bgmEnabled}
               className={cn(
                 "mt-2 w-full",
@@ -129,34 +150,73 @@ export function BeginnerHud() {
               )}
               aria-label="BGM音量"
             />
+          </div>
 
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <Link
-                href="/account/settings"
-                className={cn(
-                  "rounded-xl border px-3 py-2 text-xs font-medium",
-                  "hover:bg-muted",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                )}
-              >
-                マイページ
-              </Link>
+          <div className="my-4 border-t" />
 
-              <Link
-                href="/credits"
-                className={cn(
-                  "rounded-xl border px-3 py-2 text-xs font-medium",
-                  "hover:bg-muted",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                )}
-              >
-                クレジット
-              </Link>
+          {/* --- SE --- */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">SE</div>
+              <div className="text-xs text-muted-foreground">
+                ボタン操作などの効果音
+              </div>
+            </div>
+            {sfxSwitch}
+          </div>
+
+          <div className="mt-3">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-muted-foreground">音量</div>
+              <div className="text-xs tabular-nums text-muted-foreground">
+                {sfxEnabled ? `${sfxPercent}%` : "OFF"}
+              </div>
             </div>
 
-            <div className="mt-3 text-xs text-muted-foreground">
-              ※ BGMが鳴らないときは、画面を1回タップ or クリック
-            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(sfxVolume * 100)}
+              onChange={(e) => setSfxVolume(Number(e.target.value) / 100)}
+              disabled={!sfxEnabled}
+              className={cn(
+                "mt-2 w-full",
+                "accent-primary",
+                !sfxEnabled && "opacity-50",
+              )}
+              aria-label="効果音の音量"
+            />
+          </div>
+
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <Link
+              href="/account/settings"
+              className={cn(
+                "rounded-xl border px-3 py-2 text-xs font-medium",
+                "hover:bg-muted",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              )}
+            >
+              マイページ
+            </Link>
+
+            <Link
+              href="/credits"
+              className={cn(
+                "rounded-xl border px-3 py-2 text-xs font-medium",
+                "hover:bg-muted",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              )}
+            >
+              クレジット
+            </Link>
+          </div>
+
+          <div className="mt-3 text-xs text-muted-foreground">
+            ※ 音が鳴らないときは、画面を1回タップ or
+            クリック（自動再生規制のため）
           </div>
         </div>
       </div>

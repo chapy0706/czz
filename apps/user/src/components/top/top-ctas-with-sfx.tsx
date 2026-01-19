@@ -1,11 +1,12 @@
 // apps/user/src/components/top/top-ctas-with-sfx.tsx
-
 "use client";
 
-import { useSfx } from "@/lib/audio/useSfx";
-import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import Link from "next/link";
 import * as React from "react";
+
+import { useAudioSettingsStore } from "@/lib/audio/audioSettingsStore";
+import { useSfx } from "@/lib/audio/useSfx";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type Props = {
   className?: string;
@@ -14,18 +15,23 @@ type Props = {
 /**
  * TOP の CTA。
  * - 初心者モード時のみ「push.mp3」を鳴らす
- * - Link の onClick はクライアントコンポーネントで扱う
+ * - 音量/ONOFF は audioSettingsStore の SE 設定に従う
  */
 export function TopCtasWithSfx({ className }: Props) {
   const mode = useUiModeStore((s) => s.mode);
   const isBeginner = mode === "beginner";
 
-  const { play } = useSfx("/audio/sfx/push.mp3", { volume: 1 });
+  const sfxEnabled = useAudioSettingsStore((s) => s.sfxEnabled);
+  const sfxVolume = useAudioSettingsStore((s) => s.sfxVolume);
+
+  const { play } = useSfx("/audio/sfx/push.mp3", {
+    enabled: isBeginner && sfxEnabled,
+    volume: sfxVolume,
+  });
 
   const handleClick = React.useCallback(() => {
-    if (!isBeginner) return;
     void play();
-  }, [isBeginner, play]);
+  }, [play]);
 
   return (
     <div

@@ -1,9 +1,12 @@
 // apps/user/app/tasks/page.tsx
 "use client";
 
-import { BeginnerIndicatingMascot } from "@/components/beginner/beginner-indicating-mascot";
 import Link from "next/link";
 import useSWR from "swr";
+
+import { BeginnerIndicatingMascot } from "@/components/beginner/beginner-indicating-mascot";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
+import { cn } from "@/lib/utils";
 
 type AnyTask = {
   id: string | number;
@@ -29,6 +32,9 @@ function normalizeTasks(data: unknown): AnyTask[] {
 }
 
 export default function TasksPage() {
+  const mode = useUiModeStore((s) => s.mode);
+  const isBeginner = mode === "beginner";
+
   const { data, error, isLoading } = useSWR("/api/tasks", fetcher);
   const tasks = normalizeTasks(data);
 
@@ -82,8 +88,16 @@ export default function TasksPage() {
   );
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10" data-testid="tasks-page">
-      <div className="flex items-baseline justify-between gap-3">
+    <main
+      className={cn(
+        "mx-auto max-w-5xl px-6 py-10",
+        // 初心者モード時の固定UI（HUD/キャラ）が下に被るので、下余白を確保してタップ可能域を守る
+        isBeginner && "pb-[calc(240px+env(safe-area-inset-bottom))] md:pb-10",
+      )}
+      data-testid="tasks-page"
+    >
+      {/* AuthUserBadge が右上固定なので、ページ側の「TOPへ」は右上に置かない（干渉回避） */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">課題一覧</h1>
           <p className="text-sm text-muted-foreground">
@@ -93,26 +107,27 @@ export default function TasksPage() {
 
         <Link
           href="/"
-          className="text-sm text-muted-foreground hover:underline"
+          className={cn(
+            "text-sm text-muted-foreground hover:underline",
+            "self-start sm:self-auto",
+            // モバイルは“右上”に行かないように軽く位置をずらす
+            "sm:mt-0 mt-1",
+          )}
           data-testid="tasks-back-top"
-          onClick={() => {}}
         >
           TOPへ
         </Link>
       </div>
 
-      {/* モバイル: リスト上の“余白”に軽く配置 / PC: 右カラムに固定 */}
+      {/* 右側の余白（md+）にだけ案内キャラ。モバイルは余白が無いので出さない */}
       <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-start">
-        <div className="min-w-0 flex-1 space-y-6">
-          <div className="flex justify-center md:hidden">
-            <BeginnerIndicatingMascot className="opacity-90" size={140} />
-          </div>
+        <div className="min-w-0 flex-1">{content}</div>
 
-          {content}
-        </div>
-
-        <aside className="hidden w-[220px] md:block">
-          <BeginnerIndicatingMascot className="sticky top-24" size={200} />
+        <aside className="hidden w-[200px] md:block">
+          <BeginnerIndicatingMascot
+            className="sticky top-24 pointer-events-none opacity-90"
+            size={180}
+          />
         </aside>
       </div>
     </main>

@@ -12,6 +12,7 @@ import { BeginnerBgmController } from "@/components/beginner/beginner-bgm-contro
 import { BeginnerBottomDock } from "@/components/beginner/beginner-bottom-dock";
 import { BeginnerHud } from "@/components/beginner/beginner-hud";
 import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
+import { GlobalBreadcrumbs } from "@/components/nav/global-breadcrumbs";
 
 export default function RootLayout({
   children,
@@ -24,12 +25,15 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <NeonAuthProvider>
             <UiModeProvider>
+              {/* 常時表示（Linux風のパス表現） */}
+              <GlobalBreadcrumbs />
+
               {children}
 
-              {/* logged-in badge */}
+              {/* 右上：ログイン中バッジ（ドラッグで移動可） */}
               <AuthUserBadge />
 
-              {/* beginner mode UI (dock manages fixed + pointer-events) */}
+              {/* 初心者モード：固定UIはドックで集約して干渉を防ぐ */}
               <BeginnerBottomDock
                 left={<BeginnerMascotDock />}
                 right={<BeginnerHud />}

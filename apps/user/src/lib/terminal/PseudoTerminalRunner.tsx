@@ -1,351 +1,470 @@
 // apps/user/src/lib/terminal/PseudoTerminalRunner.tsx
 "use client";
 
-import { evaluateTask } from "@/lib/terminal/evaluateClient";
-import { ResultPanel } from "@/lib/terminal/ResultPanel";
-import { useTerminalHistoryStore } from "@/lib/terminal/terminalStore";
-import { useRouter } from "next/navigation";
 import * as React from "react";
 
-type TerminalEntry = {
-  id: string;
-  kind: "prompt" | "stdout" | "stderr" | "meta";
-  text: string;
-  ts: number;
-};
-
-type UiResultStatus = "success" | "failure";
-type UiResult = {
-  status: UiResultStatus;
-  outputText: string;
-  expectedText?: string;
-  hint?: { title?: string; detail: string };
-};
+import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
+import { evaluateTask } from "@/lib/terminal/evaluateClient";
+import type { EvaluateResponse } from "@/lib/terminal/evaluateContract";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
+import {
+  formatNumberSeries,
+  formatOutputHuman,
+} from "@/lib/utils/formatOutput";
 
 type Props = {
   taskId: string;
   userId?: string;
 
   /**
-   * true の場合、Run 後に /result へ遷移する（結果は localStorage へ保存して復元可能）
-   * 既存の「同画面で結果表示」は維持しつつ、導線だけ追加するためのスイッチ。
+   * 互換のため残している（旧: 実行後に /result へ遷移）
+   * Playground では常に遷移しない。
    */
   navigateOnRun?: boolean;
 };
 
-const LAST_RESULT_STORAGE_KEY = "czz-terminal-last-result";
+type PresetKey =
+  | "ascending"
+  | "descending"
+  | "random"
+  | "duplicates"
+  | "negatives"
+  | "almostSorted"
+  | "single"
+  | "empty";
 
-function uid() {
-  return Math.random().toString(36).slice(2);
+type PlaygroundState =
+  | { status: "idle" }
+  | { status: "running" }
+  | { status: "done"; outputText: string; meta?: string }
+  | { status: "error"; message: string; meta?: string };
+
+type EvaluateErr = Extract<EvaluateResponse, { ok: false }>;
+
+function isEvaluateErr(res: EvaluateResponse): res is EvaluateErr {
+  // TSの判定が環境によって弱くなることがあるので、型ガードで確実に絞る
+  return res.ok === false;
 }
 
-function safeStringify(x: unknown): string {
-  try {
-    return JSON.stringify(x, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 0);
-  } catch {
-    return "";
+function clampInt(x: number, min: number, max: number): number {
+  const n = Number.isFinite(x) ? Math.trunc(x) : min;
+  return Math.min(max, Math.max(min, n));
+}
+
+function randInt(min: number, max: number): number {
+  const a = Math.min(min, max);
+  const b = Math.max(min, max);
+  return Math.floor(Math.random() * (b - a + 1)) + a;
+}
+
+function generatePreset(
+  preset: PresetKey,
+  len: number,
+  min: number,
+  max: number,
+): number[] {
+  const L = clampInt(len, 0, 50);
+  const mn = clampInt(min, -999, 999);
+  const mx = clampInt(max, -999, 999);
+
+  if (preset === "empty") return [];
+  if (preset === "single") return [randInt(mn, mx)];
+
+  const base = Array.from({ length: L }, () => randInt(mn, mx));
+
+  switch (preset) {
+    case "ascending":
+      return base.slice().sort((a, b) => a - b);
+
+    case "descending":
+      return base.slice().sort((a, b) => b - a);
+
+    case "duplicates": {
+      const tightMin = clampInt(mn, -9, 9);
+      const tightMax = clampInt(mx, -9, 9);
+      return Array.from({ length: L }, () => randInt(tightMin, tightMax));
+    }
+
+    case "negatives": {
+      const negMin = Math.min(mn, -1);
+      const negMax = Math.max(mx, 9);
+      return Array.from({ length: L }, () => randInt(negMin, negMax));
+    }
+
+    case "almostSorted": {
+      const sorted = base.slice().sort((a, b) => a - b);
+      if (sorted.length < 4) return sorted;
+      const i = randInt(0, sorted.length - 2);
+      const j = randInt(i + 1, sorted.length - 1);
+      const a = sorted.slice();
+      [a[i], a[j]] = [a[j], a[i]];
+      return a;
+    }
+
+    case "random":
+    default:
+      return base;
   }
 }
 
-function persistLastResult(taskId: string, response: unknown): boolean {
-  if (typeof window === "undefined") return false;
+function describeCommandsForBeginner(submittedProgram: unknown): string[] {
+  const commands: any[] = Array.isArray(submittedProgram)
+    ? (submittedProgram as any[])
+    : typeof submittedProgram === "object" &&
+        submittedProgram &&
+        Array.isArray((submittedProgram as any).commands)
+      ? (submittedProgram as any).commands
+      : [];
 
-  const payload = {
-    savedAt: Date.now(),
-    meta: { taskId },
-    response,
-  };
+  const lines: string[] = [];
 
-  const json = safeStringify(payload);
-  if (!json) return false;
+  for (const c of commands) {
+    const type = typeof c?.type === "string" ? c.type : "";
+    if (!type) continue;
 
-  try {
-    localStorage.setItem(LAST_RESULT_STORAGE_KEY, json);
-    return true;
-  } catch {
-    return false;
+    const n =
+      typeof c?.n === "number"
+        ? c.n
+        : typeof c?.value === "number"
+          ? c.value
+          : typeof c?.amount === "number"
+            ? c.amount
+            : undefined;
+
+    if (type === "MAP_ADD" && typeof n === "number") {
+      lines.push(`各要素に +${n} する`);
+      continue;
+    }
+    if (type === "MAP_SUB" && typeof n === "number") {
+      lines.push(`各要素から -${n} する`);
+      continue;
+    }
+    if (type === "MAP_MUL" && typeof n === "number") {
+      lines.push(`各要素を ×${n} する`);
+      continue;
+    }
+    if (
+      (type === "FILTER_GT" || type === "FILTER_GREATER_THAN") &&
+      typeof n === "number"
+    ) {
+      lines.push(`${n} より大きいものだけ残す`);
+      continue;
+    }
+    if (
+      (type === "FILTER_LT" || type === "FILTER_LESS_THAN") &&
+      typeof n === "number"
+    ) {
+      lines.push(`${n} より小さいものだけ残す`);
+      continue;
+    }
+    if (type === "FILTER_EQ" && typeof n === "number") {
+      lines.push(`${n} と等しいものだけ残す`);
+      continue;
+    }
+    if (type === "SORT_ASC") {
+      lines.push("小さい順に並べる");
+      continue;
+    }
+    if (type === "SORT_DESC") {
+      lines.push("大きい順に並べる");
+      continue;
+    }
+
+    lines.push(`コマンド: ${type}`);
   }
-}
 
-function summarizeZod(message: string): string {
-  if (message.includes("Expected array") && message.includes("received object")) {
-    return "ZOD: Expected array, received object (input must be an array)";
-  }
-  if (message.toLowerCase().includes("enum")) {
-    return "ZOD: Invalid command type (typo or doc mismatch)";
-  }
-  return `ZOD: ${message}`;
-}
-
-function asText(value: unknown): string {
-  if (value == null) return "";
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
+  return lines;
 }
 
 export function PseudoTerminalRunner(props: Props) {
-  const { taskId, userId, navigateOnRun = false } = props;
-  const router = useRouter();
+  const { taskId, userId } = props;
 
-  const history = useTerminalHistoryStore((s) => s.history);
-  const pushHistory = useTerminalHistoryStore((s) => s.pushHistory);
+  const uiMode = useUiModeStore((s) => s.mode);
+  const isBeginner = uiMode === "beginner";
 
-  const [entries, setEntries] = React.useState<TerminalEntry[]>([]);
-  const [input, setInput] = React.useState("");
-  const [running, setRunning] = React.useState(false);
+  const serializeProgram = useCommandBuilderStore((s) => s.serializeProgram);
+  const commands = useCommandBuilderStore((s) => s.commands);
+  const commandCount = commands.length;
 
-  const [historyIndex, setHistoryIndex] = React.useState<number | null>(null);
-  const draftRef = React.useRef<string>("");
+  const [preset, setPreset] = React.useState<PresetKey>("ascending");
+  const [len, setLen] = React.useState(10);
+  const [min, setMin] = React.useState(0);
+  const [max, setMax] = React.useState(20);
+  const [inputArr, setInputArr] = React.useState<number[]>(() =>
+    generatePreset("ascending", 10, 0, 20),
+  );
 
-  const [lastResult, setLastResult] = React.useState<UiResult | null>(null);
-  const [hasPersisted, setHasPersisted] = React.useState(false);
+  const [state, setState] = React.useState<PlaygroundState>({ status: "idle" });
 
-  const bottomRef = React.useRef<HTMLDivElement | null>(null);
-  React.useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [entries.length, lastResult]);
+  const submittedProgram = React.useMemo(
+    () => serializeProgram(),
+    [serializeProgram, commands],
+  );
+  const beginnerHints = React.useMemo(
+    () => (isBeginner ? describeCommandsForBeginner(submittedProgram) : []),
+    [isBeginner, submittedProgram],
+  );
 
-  const prompt = "czz$ ";
-
-  function append(kind: TerminalEntry["kind"], text: string) {
-    setEntries((prev) => [...prev, { id: uid(), kind, text, ts: Date.now() }]);
+  function regenerate() {
+    const next = generatePreset(preset, len, min, max);
+    setInputArr(next);
+    setState({ status: "idle" });
   }
 
-  function clear() {
-    setEntries([]);
-    setLastResult(null);
-    setHasPersisted(false);
+  async function runDebug() {
+    if (!taskId) return;
+    if (commandCount === 0) return;
+
+    setState({ status: "running" });
+
+    const safeInput = inputArr
+      .slice(0, 50)
+      .map((n) => (Number.isFinite(n) ? Math.trunc(n) : 0));
+
+    const submittedProgramNow = serializeProgram();
+
+    const res = await evaluateTask({
+      taskId,
+      userId,
+      submittedProgram: submittedProgramNow,
+      debugInput: safeInput,
+      dryRun: true,
+      purpose: "debug",
+    });
+
+    if (isEvaluateErr(res)) {
+      const msg =
+        res.error.message || (isBeginner ? "失敗しました" : "Debug run failed");
+      const meta =
+        typeof res.passed === "number" && typeof res.total === "number"
+          ? `(${res.passed}/${res.total})`
+          : undefined;
+
+      setState({ status: "error", message: msg, meta });
+      return;
+    }
+
+    const meta = `(${res.passed}/${res.total})`;
+    const out = res.output ?? null;
+    const outputText = out == null ? "" : formatOutputHuman(out);
+
+    const fallback =
+      outputText.trim().length > 0
+        ? outputText
+        : isBeginner
+          ? "出力がありません（またはサーバーが debugInput に未対応です）"
+          : "No output (or server does not support debugInput yet).";
+
+    setState({ status: "done", outputText: fallback, meta });
   }
 
-  async function execute(raw: string) {
-    const cmd = raw.trim();
-    if (!cmd || running) return;
-
-    pushHistory(cmd);
-    setHistoryIndex(null);
-
-    append("prompt", `${prompt}${cmd}`);
-
-    if (cmd === ":clear") {
-      clear();
-      return;
-    }
-
-    let submittedProgram: unknown;
-    try {
-      submittedProgram = JSON.parse(cmd);
-    } catch {
-      const msg = 'ERR: input must be JSON (submittedProgram). Example: [{"type":"FILTER_GT",...}]';
-      append("stderr", msg);
-      append("meta", "exit 1");
-      return;
-    }
-
-    setRunning(true);
-    try {
-      const result: any = await evaluateTask({ taskId, userId, submittedProgram });
-
-      // 直打ち(/result)やリロードでも見れるように保存（失敗してもUIは維持）
-      const saved = persistLastResult(taskId, result);
-      setHasPersisted(saved);
-
-      const total = typeof result?.total === "number" ? result.total : undefined;
-      const passed = typeof result?.passed === "number" ? result.passed : undefined;
-
-      const hasError = result && typeof result === "object" && "error" in result;
-      const failedByScore = typeof total === "number" && typeof passed === "number" && passed < total;
-
-      if (hasError || failedByScore) {
-        const passLine =
-          typeof passed === "number" && typeof total === "number" ? `FAIL (${passed}/${total})` : "FAIL";
-
-        const errObj = result?.error;
-        const errText =
-          errObj?.kind === "ZOD"
-            ? summarizeZod(String(errObj?.message ?? ""))
-            : errObj?.message
-              ? `ERR: ${String(errObj.message)}`
-              : "ERR: evaluation failed";
-
-        append("stdout", passLine);
-        append("stderr", errText);
-        append("meta", "exit 1");
-
-        const maybeOutput = result?.output ?? result?.stdout ?? result?.runOutput ?? result?.data?.output ?? undefined;
-        const outText = maybeOutput ? `\n\n--- output ---\n${asText(maybeOutput)}` : "";
-
-        setLastResult({
-          status: "failure",
-          outputText: `${passLine}\n${errText}${outText}`,
-          hint: { title: errObj?.kind === "ZOD" ? "Validation" : "Error", detail: errText },
-        });
-
-        if (navigateOnRun) {
-          router.push("/result");
-          return;
-        }
-      } else {
-        const okLine =
-          typeof passed === "number" && typeof total === "number" ? `PASS (${passed}/${total})` : "PASS";
-
-        const maybeOutput = result?.output ?? result?.stdout ?? result?.runOutput ?? result?.data?.output ?? undefined;
-        const outText = maybeOutput ? `\n\n--- output ---\n${asText(maybeOutput)}` : "";
-
-        append("stdout", okLine);
-        if (outText) append("stdout", outText);
-        append("meta", "exit 0");
-
-        setLastResult({ status: "success", outputText: `${okLine}${outText}` });
-
-        if (navigateOnRun) {
-          router.push("/result");
-          return;
-        }
-      }
-    } finally {
-      setRunning(false);
-    }
-  }
-
-  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
-      e.preventDefault();
-      clear();
-      return;
-    }
-
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (history.length === 0) return;
-
-      if (historyIndex === null) {
-        draftRef.current = input;
-        setHistoryIndex(0);
-        setInput(history[0] ?? "");
-      } else {
-        const next = Math.min(historyIndex + 1, history.length - 1);
-        setHistoryIndex(next);
-        setInput(history[next] ?? "");
-      }
-      return;
-    }
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (history.length === 0) return;
-      if (historyIndex === null) return;
-
-      const next = historyIndex - 1;
-      if (next < 0) {
-        setHistoryIndex(null);
-        setInput(draftRef.current);
-      } else {
-        setHistoryIndex(next);
-        setInput(history[next] ?? "");
-      }
-      return;
-    }
-
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void execute(input);
-      setInput("");
-    }
-  }
-
-  const canRun = !running && input.trim().length > 0;
+  const title = isBeginner ? "デバッグ（練習）" : "Debug Playground";
+  const desc = isBeginner
+    ? "入力を選んで、いまのコマンド列で実行する。結果画面へは移動しない。"
+    : "Run current commands with a safe input preset. No navigation to /result.";
 
   return (
-    <section data-testid="pseudo-terminal" className="flex h-full flex-col rounded-lg border bg-background">
-      <header className="flex items-center justify-between gap-2 border-b px-3 py-2">
-        <div className="font-mono text-sm">Pseudo Terminal</div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="rounded border px-2 py-1 text-sm disabled:opacity-50"
-            onClick={() => {
-              void execute(input);
-              setInput("");
-            }}
-            disabled={!canRun}
-            data-testid="terminal-run"
-            title="Run (Enter)"
-          >
-            Run
-          </button>
-
-          <button
-            type="button"
-            className="rounded border px-2 py-1 text-sm disabled:opacity-50"
-            onClick={() => clear()}
-            disabled={running}
-            title="Ctrl+L"
-          >
-            Clear
-          </button>
-
-          <button
-            type="button"
-            className="rounded border px-2 py-1 text-sm disabled:opacity-50"
-            onClick={() => router.push("/result")}
-            disabled={running || !hasPersisted}
-            data-testid="terminal-open-result"
-            title={hasPersisted ? "Open last result" : "No persisted result yet"}
-          >
-            Result
-          </button>
+    <section
+      data-testid="debug-playground"
+      className="rounded-lg border bg-background"
+    >
+      <header className="flex items-start justify-between gap-3 border-b px-3 py-2">
+        <div className="space-y-1">
+          <div className="text-sm font-semibold">{title}</div>
+          <div className="text-xs text-muted-foreground">{desc}</div>
         </div>
+
+        <button
+          type="button"
+          className="shrink-0 rounded border px-3 py-2 text-sm disabled:opacity-50"
+          onClick={() => void runDebug()}
+          disabled={state.status === "running" || commandCount === 0}
+          title={commandCount === 0 ? "コマンドを1つ以上置いてから" : "実行"}
+          data-testid="debug-run"
+        >
+          {state.status === "running"
+            ? isBeginner
+              ? "実行中…"
+              : "Running…"
+            : isBeginner
+              ? "実行"
+              : "Run"}
+        </button>
       </header>
 
-      <div className="flex-1 overflow-auto px-3 py-2 font-mono text-sm leading-6">
-        {entries.map((x) => (
-          <div
-            key={x.id}
-            className={x.kind === "stderr" ? "text-destructive" : x.kind === "meta" ? "text-muted-foreground" : ""}
-          >
-            {x.text}
+      <div className="grid gap-3 p-3 md:grid-cols-2">
+        <div className="rounded border bg-card p-3">
+          <div className="mb-2 text-xs font-semibold">
+            {isBeginner ? "入力" : "Input"}
           </div>
-        ))}
-        <div ref={bottomRef} />
 
-        {lastResult ? (
-          <ResultPanel
-            status={lastResult.status}
-            outputText={lastResult.outputText}
-            expectedText={lastResult.expectedText}
-            hint={lastResult.hint}
-            onRetry={
-              running
-                ? undefined
-                : () => {
-                    const el = document.querySelector<HTMLTextAreaElement>('[data-testid="terminal-input"]');
-                    el?.focus();
+          <div className="grid gap-2">
+            <label className="grid gap-1 text-xs">
+              <span className="text-muted-foreground">
+                {isBeginner ? "プリセット" : "Preset"}
+              </span>
+              <select
+                className="rounded border bg-background px-2 py-2 text-sm"
+                value={preset}
+                onChange={(e) => setPreset(e.target.value as PresetKey)}
+              >
+                <option value="ascending">
+                  {isBeginner ? "昇順" : "Ascending"}
+                </option>
+                <option value="descending">
+                  {isBeginner ? "降順" : "Descending"}
+                </option>
+                <option value="random">
+                  {isBeginner ? "ランダム" : "Random"}
+                </option>
+                <option value="duplicates">
+                  {isBeginner ? "重複多め" : "Duplicates"}
+                </option>
+                <option value="negatives">
+                  {isBeginner ? "負数あり" : "Negatives"}
+                </option>
+                <option value="almostSorted">
+                  {isBeginner ? "ほぼ整列" : "Almost sorted"}
+                </option>
+                <option value="single">
+                  {isBeginner ? "1要素" : "Single"}
+                </option>
+                <option value="empty">{isBeginner ? "空配列" : "Empty"}</option>
+              </select>
+            </label>
+
+            <div className="grid grid-cols-3 gap-2">
+              <label className="grid gap-1 text-xs">
+                <span className="text-muted-foreground">
+                  {isBeginner ? "長さ" : "Length"}
+                </span>
+                <input
+                  type="number"
+                  className="rounded border bg-background px-2 py-2 text-sm"
+                  value={len}
+                  min={0}
+                  max={50}
+                  onChange={(e) =>
+                    setLen(clampInt(Number(e.target.value), 0, 50))
                   }
-            }
-          />
-        ) : null}
-      </div>
+                />
+              </label>
 
-      <div className="border-t px-3 py-2">
-        <textarea
-          data-testid="terminal-input"
-          className="w-full resize-none rounded border bg-background px-2 py-2 font-mono text-sm"
-          rows={1}
-          placeholder='Paste submittedProgram JSON here. (":clear" to clear)'
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          disabled={running}
-        />
-        <div className="mt-1 text-xs text-muted-foreground">
-          Enter: run / Shift+Enter: newline / ↑↓: history / Ctrl+L: clear
+              <label className="grid gap-1 text-xs">
+                <span className="text-muted-foreground">min</span>
+                <input
+                  type="number"
+                  className="rounded border bg-background px-2 py-2 text-sm"
+                  value={min}
+                  min={-999}
+                  max={999}
+                  onChange={(e) =>
+                    setMin(clampInt(Number(e.target.value), -999, 999))
+                  }
+                />
+              </label>
+
+              <label className="grid gap-1 text-xs">
+                <span className="text-muted-foreground">max</span>
+                <input
+                  type="number"
+                  className="rounded border bg-background px-2 py-2 text-sm"
+                  value={max}
+                  min={-999}
+                  max={999}
+                  onChange={(e) =>
+                    setMax(clampInt(Number(e.target.value), -999, 999))
+                  }
+                />
+              </label>
+            </div>
+
+            <button
+              type="button"
+              className="rounded border px-3 py-2 text-sm"
+              onClick={() => regenerate()}
+              data-testid="debug-generate"
+            >
+              {isBeginner ? "入力を生成" : "Generate"}
+            </button>
+
+            <div className="rounded border bg-background px-3 py-2 font-mono text-sm">
+              {inputArr.length === 0
+                ? isBeginner
+                  ? "(空)"
+                  : "(empty)"
+                : formatNumberSeries(inputArr)}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded border bg-card p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="text-xs font-semibold">
+              {isBeginner ? "出力" : "Output"}
+            </div>
+            {"meta" in state && state.meta ? (
+              <div className="text-xs text-muted-foreground">{state.meta}</div>
+            ) : null}
+          </div>
+
+          {state.status === "idle" ? (
+            <div className="text-sm text-muted-foreground">
+              {isBeginner
+                ? "入力を作って、右上の「実行」を押してね。"
+                : "Generate an input and press Run."}
+            </div>
+          ) : state.status === "running" ? (
+            <div className="text-sm text-muted-foreground">
+              {isBeginner ? "実行中…" : "Running…"}
+            </div>
+          ) : state.status === "error" ? (
+            <div className="space-y-2">
+              <div className="text-sm text-destructive">
+                {isBeginner ? "失敗：" : "Error: "} {state.message}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {isBeginner
+                  ? "サーバー側が debugInput / dryRun に未対応の場合もあるよ。"
+                  : "Server may not support debugInput/dryRun yet."}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {isBeginner && beginnerHints.length > 0 ? (
+                <div className="rounded border bg-background px-3 py-2 text-sm">
+                  <div className="mb-1 text-xs font-semibold text-muted-foreground">
+                    やっていること（目安）
+                  </div>
+                  <ul className="list-disc space-y-1 pl-5">
+                    {beginnerHints.slice(0, 6).map((x, i) => (
+                      <li key={i}>{x}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              <div className="rounded border bg-background px-3 py-2 font-mono text-sm whitespace-pre-wrap">
+                {state.outputText}
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                {isBeginner
+                  ? "ここは結果画面へ行かず、確認だけする場所。テストは「実行」ボタンで倒そう。"
+                  : "This is a local check. Use the main Run to clear test cases."}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      <footer className="border-t px-3 py-2 text-xs text-muted-foreground">
+        {isBeginner ? (
+          <>コマンドが0個だと実行できないよ。まずは1つ置いてみてね。</>
+        ) : (
+          <>Need at least one command to run.</>
+        )}
+      </footer>
     </section>
   );
 }

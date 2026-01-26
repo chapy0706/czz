@@ -11,14 +11,12 @@ export async function evaluateTask(params: {
   submittedProgram: unknown;
 
   /**
-   * Debug/Playground 用の入力（自由テキスト禁止前提）
-   * サーバー側で厳密にバリデーションすること。
+   * Playground 用：数列入力（自由入力は禁止。UI側で安全に作る）
    */
   debugInput?: number[];
 
   /**
-   * true の場合、結果の永続化（results保存など）を行わない実行を要求する。
-   * ※サーバー側が対応している場合のみ有効
+   * Playground 用：永続化しない “試運転” を要求する（サーバー側対応時のみ有効）
    */
   dryRun?: boolean;
 
@@ -32,9 +30,8 @@ export async function evaluateTask(params: {
 
   try {
     const body: Record<string, unknown> = { submittedProgram };
-
     if (userId) body.userId = userId;
-    if (Array.isArray(debugInput)) body.debugInput = debugInput;
+    if (debugInput) body.debugInput = debugInput;
     if (typeof dryRun === "boolean") body.dryRun = dryRun;
     if (purpose) body.purpose = purpose;
 
@@ -46,7 +43,6 @@ export async function evaluateTask(params: {
 
     const data = await res.json().catch(() => null);
 
-    // HTTPエラーでも、契約型に合わせて返す（API側が整っていればここでOKになる）
     const parsed = EvaluateResponseSchema.safeParse(data);
     if (parsed.success) return parsed.data;
 

@@ -239,22 +239,45 @@ export function PseudoTerminalRunner(props: Props) {
     setLastResult(null);
   }
 
-  const canRun = React.useMemo(() => {
-    if (running) return false;
-
-    const program = (getSubmittedProgram?.() ??
-      serializeProgram?.()) as unknown;
-    const count = guessCommandCount(program);
-    const n = typeof count === "number" ? count : commandsLen;
-
-    return n > 0;
-  }, [running, getSubmittedProgram, serializeProgram, commandsLen]);
+  // 以前は commands が0の時にボタンを disabled にしていたが、
+  // 端末/描画状況によって『ずっと非活性』に見えることがあった。
+  // 押せる状態にして、実行時に理由を返す方がUXが良い。
+  const canRun = !running;
 
   async function runOnce() {
     if (!canRun) return;
 
+    // コマンドが無い場合でも、押せて理由が出るようにする
+    if (commandsLen <= 0) {
+      const msg =
+        uiMode === "beginner"
+          ? "コマンドがまだない。上でコマンドを追加してから実行してね。"
+          : "No commands yet. Add commands first.";
+      append("stderr", msg);
+      setLastResult({
+        status: "failure",
+        outputText: msg,
+        hint: { title: "NO_COMMANDS", detail: msg },
+      });
+      return;
+    }
+
     const program = getSubmittedProgram?.() ?? serializeProgram?.();
     const cmdCount = guessCommandCount(program) ?? commandsLen;
+
+    if (!program || cmdCount <= 0) {
+      const msg =
+        uiMode === "beginner"
+          ? "submittedProgram が作れなかったみたい。画面をリロードしてもう一度試してね。"
+          : "Failed to build submittedProgram. Try reloading the page.";
+      append("stderr", msg);
+      setLastResult({
+        status: "failure",
+        outputText: msg,
+        hint: { title: "PROGRAM", detail: msg },
+      });
+      return;
+    }
 
     append(
       "prompt",
@@ -340,7 +363,8 @@ export function PseudoTerminalRunner(props: Props) {
         outputText: `Error: ${message}`,
         hint: {
           title: "NETWORK",
-          detail: "通信に失敗した。ネットワークを確認して再実行してね。",
+          detail:
+            uiMode === "beginner" ? "通信に失敗したよ。" : "Network error.",
         },
       });
       append("stderr", `ERR: ${message}`);
@@ -514,7 +538,11 @@ export function PseudoTerminalRunner(props: Props) {
           </span>
         </div>
 
-        {!canRun ? (
+        <div className="mt-2 text-xs text-muted-foreground font-mono">
+          commands={commandsLen}
+        </div>
+
+        {commandsLen <= 0 ? (
           <div className="mt-2 text-xs text-destructive">
             {uiMode === "beginner"
               ? "コマンドがまだない。上でコマンドを追加してから実行してね。"

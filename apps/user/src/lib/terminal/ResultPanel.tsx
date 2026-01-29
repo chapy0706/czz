@@ -43,7 +43,10 @@ type Props = {
   maxPreviewLines?: number; // default: 12
 };
 
-function takeFirstLines(text: string, maxLines: number): { preview: string; omitted: number } {
+function takeFirstLines(
+  text: string,
+  maxLines: number,
+): { preview: string; omitted: number } {
   const normalized = text.replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
   const head = lines.slice(0, maxLines);
@@ -64,13 +67,13 @@ export function ResultPanel(props: Props) {
 
   const { preview: outPreview, omitted: outOmitted } = React.useMemo(
     () => takeFirstLines(outputText ?? "", maxPreviewLines),
-    [outputText, maxPreviewLines]
+    [outputText, maxPreviewLines],
   );
 
   const expected = expectedText ?? "";
   const { preview: expPreview, omitted: expOmitted } = React.useMemo(
     () => takeFirstLines(expected, maxPreviewLines),
-    [expected, maxPreviewLines]
+    [expected, maxPreviewLines],
   );
 
   const isSuccess = status === "success";
@@ -130,10 +133,11 @@ export function ResultPanel(props: Props) {
 
       {/* ヒント（最初の不一致など） */}
       {hint?.detail ? (
-        <div className="mt-3 rounded border bg-muted/30 p-3" data-testid="result-hint">
-          <div className="text-xs font-semibold">
-            {hint.title ?? "Hint"}
-          </div>
+        <div
+          className="mt-3 rounded border bg-muted/30 p-3"
+          data-testid="result-hint"
+        >
+          <div className="text-xs font-semibold">{hint.title ?? "Hint"}</div>
           <div className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">
             {hint.detail}
           </div>
@@ -154,7 +158,7 @@ export function ResultPanel(props: Props) {
           className="mt-2 max-h-[280px] overflow-auto rounded border bg-background p-3 text-xs leading-5"
           data-testid="result-output"
         >
-{outPreview.length > 0 ? outPreview : "(empty)"}
+          {outPreview.length > 0 ? outPreview : "(empty)"}
         </pre>
       </div>
 
@@ -173,7 +177,7 @@ export function ResultPanel(props: Props) {
             className="mt-2 max-h-[280px] overflow-auto rounded border bg-background p-3 text-xs leading-5"
             data-testid="result-expected"
           >
-{expPreview.length > 0 ? expPreview : "(empty)"}
+            {expPreview.length > 0 ? expPreview : "(empty)"}
           </pre>
         </div>
       ) : null}

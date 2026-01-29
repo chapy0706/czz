@@ -11,56 +11,45 @@ export async function evaluateTask(params: {
   submittedProgram: unknown;
 
   /**
-   * Playground 用：数列入力（自由入力は禁止。UI側で安全に作る）
+   * Playground 用：安全に組み立てた数列入力
    */
   debugInput?: number[];
 
   /**
-   * Playground 用：永続化しない “試運転” を要求する（サーバー側対応時のみ有効）
+   * Playground 用：永続化しない試運転（サーバーが対応していれば）
    */
   dryRun?: boolean;
 
   /**
-   * 実行の意図（サーバー側で分岐したい場合に使う）
+   * Playground 用：サーバー側で簡易実行に切り替えるスイッチ
    */
   purpose?: "evaluate" | "debug";
 }): Promise<EvaluateResponse> {
-  const { taskId, userId, submittedProgram, debugInput, dryRun, purpose } =
-    params;
-
   try {
-    const body: Record<string, unknown> = { submittedProgram };
-    if (userId) body.userId = userId;
-    if (debugInput) body.debugInput = debugInput;
-    if (typeof dryRun === "boolean") body.dryRun = dryRun;
-    if (purpose) body.purpose = purpose;
-
-    const res = await fetch(`/api/tasks/${taskId}/evaluate`, {
+    const res = await fetch(`/api/tasks/${params.taskId}/evaluate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        userId: params.userId,
+        submittedProgram: params.submittedProgram,
+        debugInput: params.debugInput,
+        dryRun: params.dryRun,
+        purpose: params.purpose,
+      }),
     });
 
-    const data = await res.json().catch(() => null);
-
-    const parsed = EvaluateResponseSchema.safeParse(data);
-    if (parsed.success) return parsed.data;
-
-    const message = !res.ok
-      ? `HTTP ${res.status}`
-      : "Invalid API response shape";
-    return {
-      ok: false,
-      error: { kind: "UNKNOWN", message, details: data },
-    };
+    const json = await res.json();
+    const parsed = EvaluateResponseSchema.parse(json);
+    return parsed;
   } catch (e) {
-    return {
+    const response: EvaluateResponse = {
       ok: false,
       error: {
         kind: "NETWORK",
-        message: "Network error (failed to reach API)",
-        details: String(e),
+        message: "Network error",
+        details: e,
       },
     };
+    return response;
   }
 }

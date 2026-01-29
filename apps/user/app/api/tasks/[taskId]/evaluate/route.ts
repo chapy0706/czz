@@ -1,157 +1,136 @@
-// apps/user/src/app/api/tasks/[taskId]/evaluate/route.ts
+// apps/user/app/api/tasks/[taskId]/evaluate/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import {
-  EvaluateRequestSchema,
-  EvaluateResponseSchema,
-  type EvaluateResponse,
-} from "@/lib/terminal/evaluateContract";
+import { EvaluateResponseSchema } from "@/lib/terminal/evaluateContract";
 import { EvaluateTaskUseCase } from "@/usecases/evaluateTask";
 
 // infra
 import { DrizzleResultRepository } from "@infra/drizzle/repositories/resultRepository";
 import { DrizzleTaskRepository } from "@infra/drizzle/repositories/taskRepository";
 
-const paramsSchema = z.object({ taskId: z.string().uuid() });
+const ParamsSchema = z.object({
+  taskId: z.string().min(1),
+});
 
-function toZodErrorResponse(e: z.ZodError) {
-  const res: EvaluateResponse = {
-    ok: false,
-    error: { kind: "ZOD", message: "Bad Request", details: e.flatten() },
-  };
-  return NextResponse.json(res, { status: 400 });
+const BodySchema = z.object({
+  userId: z.string().min(1).optional(),
+  submittedProgram: z.unknown(),
+});
+
+function countPassed(results: unknown[]): number {
+  // dsl-core の TestCaseResult は { passed: boolean, ... } を想定。
+  // ただし将来形が変わっても壊れにくいように “それっぽい” 真偽値を拾う。
+  let passed = 0;
+  for (const r of results) {
+    if (!r || typeof r !== "object") continue;
+    const any = r as any;
+    if (any.passed === true) passed++;
+    else if (any.ok === true) passed++;
+  }
+  return passed;
 }
 
-function toUnknownErrorResponse(
-  message: string,
-  details?: unknown,
-  status = 500,
-) {
-  const res: EvaluateResponse = {
-    ok: false,
-    error: { kind: "UNKNOWN", message, details },
-  };
-  return NextResponse.json(res, { status });
+function pickOutputFromResults(results: unknown[]): unknown | undefined {
+  // UI の “ちょい見せ” 用。無いなら undefined でOK。
+  // よくあるキー: output / actual / stdout
+  for (let i = results.length - 1; i >= 0; i--) {
+    const r = results[i];
+    if (!r || typeof r !== "object") continue;
+    const any = r as any;
+    if (any.output !== undefined) return any.output;
+    if (any.actual !== undefined) return any.actual;
+    if (any.stdout !== undefined) return any.stdout;
+  }
+  return undefined;
 }
 
-export async function POST(
-  req: Request,
-  ctx: { params: Promise<{ taskId: string }> },
-) {
+export async function POST(req: Request, ctx: { params: unknown }) {
+  const paramsParsed = ParamsSchema.safeParse((ctx as any)?.params);
+  if (!paramsParsed.success) {
+    return NextResponse.json(
+      EvaluateResponseSchema.parse({
+        ok: false,
+        error: {
+          kind: "ZOD",
+          message: "Invalid route params",
+          details: paramsParsed.error.flatten(),
+        },
+      }),
+      { status: 400 },
+    );
+  }
+
+  const json = await req.json().catch(() => null);
+  const bodyParsed = BodySchema.safeParse(json);
+  if (!bodyParsed.success) {
+    return NextResponse.json(
+      EvaluateResponseSchema.parse({
+        ok: false,
+        error: {
+          kind: "ZOD",
+          message: "Invalid request body",
+          details: bodyParsed.error.flatten(),
+        },
+      }),
+      { status: 400 },
+    );
+  }
+
+  const { taskId } = paramsParsed.data;
+  const { userId, submittedProgram } = bodyParsed.data;
+
   try {
-    const { taskId } = paramsSchema.parse(await ctx.params);
-
-    const body = await req.json().catch(() => null);
-    const parsed = EvaluateRequestSchema.parse(body);
-
     const usecase = new EvaluateTaskUseCase({
       taskRepository: new DrizzleTaskRepository(),
       resultRepository: new DrizzleResultRepository(),
     });
 
-    // 既存UseCaseが debugInput/dryRun/purpose を受け取れる場合は活かす。
-    // 受け取れない場合でも、as any でコンパイルを通しつつ挙動は従来のまま。
-    const result = await usecase.execute({
+    const testCasesResult = await usecase.execute({
       taskId,
-      userId: parsed.userId,
-      submittedProgram: parsed.submittedProgram,
+      userId,
+      submittedProgram,
+    });
 
-      debugInput: parsed.debugInput,
-      dryRun: parsed.dryRun,
-      purpose: parsed.purpose,
-    } as any);
+    // dsl-core: { allPassed: boolean, results: TestCaseResult[] }
+    const any = testCasesResult as any;
+    const results: unknown[] = Array.isArray(any?.results) ? any.results : [];
+    const total = results.length;
+    const passed = countPassed(results);
+    const output = pickOutputFromResults(results);
 
-    // ---------- Debug/Playground モード ----------
-    // 現時点ではサーバー実装が未対応でも UI が動くように、最低限の shape を返す。
-    // 実際に debugInput で実行する処理は、UseCase/DSL実行部分の拡張で行う（次ステップ）。
-    if (parsed.purpose === "debug" || parsed.dryRun === true) {
-      const any = result as any;
-      const results = Array.isArray(any?.results) ? any.results : null;
+    return NextResponse.json(
+      EvaluateResponseSchema.parse({
+        ok: true,
+        passed,
+        total,
+        ...(output !== undefined ? { output } : {}),
+      }),
+    );
+  } catch (e: any) {
+    // ZodError もここに来る可能性があるので、内容は details に落とす
+    const isZod =
+      e &&
+      typeof e === "object" &&
+      (e.name === "ZodError" || typeof e.issues === "object");
 
-      // 可能なら debugOutput / output を優先、無ければ「最後の actual」を拾う（暫定）
-      const output =
-        any?.debugOutput ??
-        any?.output ??
-        (results && results.length > 0
-          ? results[results.length - 1]?.actual
-          : undefined);
+    const kind = isZod ? "ZOD" : "UNKNOWN";
+    const message = isZod
+      ? "Submitted program is invalid"
+      : (e?.message ?? "Unknown error");
 
-      const response = { ok: true, passed: 0, total: 0, output } as const;
-      const normalized = EvaluateResponseSchema.safeParse(response);
-      if (!normalized.success) {
-        return toUnknownErrorResponse(
-          "Invalid API response shape (debug)",
-          normalized.error.flatten(),
-          500,
-        );
-      }
-      return NextResponse.json(normalized.data, { status: 200 });
-    }
-
-    // ---------- 通常モード（テスト判定） ----------
-    const any = result as any;
-    const results = Array.isArray(any?.results) ? any.results : null;
-    const total = results ? results.length : NaN;
-    const passed = results
-      ? results.filter((r: any) => r && r.passed === true).length
-      : NaN;
-
-    const allPassed =
-      typeof any?.allPassed === "boolean"
-        ? any.allPassed
-        : results
-          ? passed === total
-          : false;
-
-    // “出力” は DSL の性質上いろいろありうるので、まずは「最後の actual」を採用
-    const output =
-      results && results.length > 0
-        ? results[results.length - 1]?.actual
-        : undefined;
-
-    if (
-      !results ||
-      !Number.isFinite(passed) ||
-      !Number.isFinite(total) ||
-      passed < 0 ||
-      total < 0
-    ) {
-      return toUnknownErrorResponse(
-        "Invalid runTestCases result shape",
-        result,
-        500,
-      );
-    }
-
-    const response = allPassed
-      ? ({ ok: true, passed, total, output } as const)
-      : ({
-          ok: false,
-          passed,
-          total,
-          error: {
-            kind: "TEST",
-            message: "Some test cases failed",
-            details: { result },
-          },
-        } as const);
-
-    const normalized = EvaluateResponseSchema.safeParse(response);
-    if (!normalized.success) {
-      return toUnknownErrorResponse(
-        "Invalid API response shape",
-        normalized.error.flatten(),
-        500,
-      );
-    }
-
-    return NextResponse.json(normalized.data, { status: 200 });
-  } catch (e) {
-    if (e instanceof z.ZodError) return toZodErrorResponse(e);
-
-    const message = e instanceof Error ? e.message : "Unknown error";
-    const status = message === "Task not found" ? 404 : 500;
-    return toUnknownErrorResponse(message, undefined, status);
+    return NextResponse.json(
+      EvaluateResponseSchema.parse({
+        ok: false,
+        error: {
+          kind,
+          message,
+          details: isZod
+            ? ((e as any).flatten?.() ?? (e as any).issues ?? e)
+            : String(e),
+        },
+      }),
+      { status: 500 },
+    );
   }
 }

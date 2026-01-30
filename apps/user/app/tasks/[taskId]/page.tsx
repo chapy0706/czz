@@ -126,6 +126,17 @@ function TaskPageClient({ taskId }: { taskId: string }) {
     };
   }, [taskId]);
 
+  const taskForBuilder = useMemo(
+    () => ({
+      id: meta?.id ?? taskId,
+      title: meta?.title ?? "読み込み中…",
+      description: meta?.description ?? "読み込み中…",
+      // 公開/非公開の情報はここでは使わないので固定でOK（必要ならAPIレスポンスに寄せる）
+      isPublished: true,
+    }),
+    [meta, taskId],
+  );
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6">
       <div className="mb-4 rounded-2xl border bg-card p-4">
@@ -148,7 +159,8 @@ function TaskPageClient({ taskId }: { taskId: string }) {
         </div>
       </div>
 
-      <CommandBuilder taskId={taskId} />
+      {/* CommandBuilder は taskId ではなく task を受け取る契約 */}
+      <CommandBuilder task={taskForBuilder} userId={userId} />
 
       {!isBeginner ? (
         <details

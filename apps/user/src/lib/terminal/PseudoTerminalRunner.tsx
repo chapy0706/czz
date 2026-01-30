@@ -1,196 +1,166 @@
 // apps/user/src/lib/terminal/PseudoTerminalRunner.tsx
 "use client";
 
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
-import { formatNumberList } from "@/lib/terminal/formatOutput";
-import { runPlayground } from "@/lib/terminal/playgroundClient";
+import { evaluateTask } from "@/lib/terminal/evaluateClient";
+import { ResultPanel } from "@/lib/terminal/ResultPanel";
 
 type Props = {
   /**
-   * CommandBuilder の serializeProgram() を渡す想定
-   * 例: { commands: [...] }
+   * 互換のため、taskId / task のどちらでも受け取れるようにする。
+   * - 従来: <PseudoTerminalRunner taskId="..." />
+   * - 新:   <PseudoTerminalRunner task={{ id: "..." }} />
    */
-  submittedProgram: unknown;
+  taskId?: string;
+  task?: { id: string };
+
+  userId?: string;
 
   /**
-   * 見た目上の無効化（タスク未ロードなど）
+   * true の場合、Run 後に /result へ遷移する
    */
-  disabled?: boolean;
+  navigateOnRun?: boolean;
 };
 
-type PresetId =
-  | "random5"
-  | "random8"
-  | "ascending5"
-  | "descending5"
-  | "duplicates7"
-  | "smallMix";
+type UiResultStatus = "success" | "failure";
+type UiResult = {
+  status: UiResultStatus;
+  outputText: string;
+  expectedText?: string;
+  hint?: { title?: string; detail: string };
+};
 
-function makePreset(id: PresetId): number[] {
-  switch (id) {
-    case "random5":
-      return makeRandomIntList(5, 0, 9);
-    case "random8":
-      return makeRandomIntList(8, 0, 20);
-    case "ascending5":
-      return [0, 2, 3, 5, 7];
-    case "descending5":
-      return [9, 7, 5, 3, 1];
-    case "duplicates7":
-      return [2, 2, 3, 5, 5, 7, 0];
-    case "smallMix":
-    default:
-      return [2, 3, 5, 7, 0];
+function formatHumanReadable(value: unknown): string {
+  // JSON ベタ表示を避け、配列は "a, b, c" で見せる
+  if (Array.isArray(value)) return value.map((v) => String(v)).join(", ");
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
   }
 }
 
-function makeRandomIntList(len: number, min: number, max: number): number[] {
-  const out: number[] = [];
-  const n = Math.max(0, Math.min(50, Math.trunc(len)));
-  const lo = Math.trunc(min);
-  const hi = Math.max(lo, Math.trunc(max));
-  for (let i = 0; i < n; i++) {
-    const v = lo + Math.floor(Math.random() * (hi - lo + 1));
-    out.push(v);
-  }
-  return out;
-}
-
-export function PseudoTerminalRunner(props: Props) {
-  const { submittedProgram, disabled } = props;
-
-  const [preset, setPreset] = React.useState<PresetId>("smallMix");
-  const [input, setInput] = React.useState<number[]>(() =>
-    makePreset("smallMix"),
-  );
+export function PseudoTerminalRunner({
+  taskId,
+  task,
+  userId,
+  navigateOnRun,
+}: Props) {
+  const resolvedTaskId = taskId ?? task?.id;
+  const router = useRouter();
 
   const [running, setRunning] = React.useState(false);
-  const [output, setOutput] = React.useState<number[] | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
+  const [inputText, setInputText] = React.useState<string>("2, 3, 5, 7, 0");
+  const [outputText, setOutputText] = React.useState<string>("");
+  const [uiResult, setUiResult] = React.useState<UiResult | null>(null);
 
-  function applyPreset(next: PresetId) {
-    setPreset(next);
-    setInput(makePreset(next));
-    setOutput(null);
-    setError(null);
-  }
+  const onClear = React.useCallback(() => {
+    setOutputText("");
+    setUiResult(null);
+  }, []);
 
-  function reroll() {
-    // “ランダム” 系だけ再生成
-    if (preset === "random5") setInput(makePreset("random5"));
-    else if (preset === "random8") setInput(makePreset("random8"));
-    else setInput(makeRandomIntList(input.length || 5, 0, 9));
-    setOutput(null);
-    setError(null);
-  }
-
-  async function run() {
-    if (running) return;
-    if (disabled) return;
+  const onRun = React.useCallback(async () => {
+    if (!resolvedTaskId) return;
 
     setRunning(true);
-    setError(null);
+    setUiResult(null);
 
-    const res = await runPlayground({
-      debugInput: input,
-      submittedProgram,
-    });
+    const res = await evaluateTask({
+      taskId: resolvedTaskId,
+      userId,
+      submittedProgram: undefined,
+      // debugInput / dryRun がサーバ未対応でも落とさない（未対応なら error 側でメッセージ表示）
+      debugInput: inputText,
+      dryRun: true,
+    } as any);
 
-    if (!res.ok) {
-      setOutput(null);
-      setError(res.error.message);
-      setRunning(false);
+    setRunning(false);
+
+    // ok が boolean に広がる実装差分があっても壊れないように、存在判定で分岐する
+    if ("error" in res) {
+      const msg =
+        (res as any).error && typeof (res as any).error.message === "string"
+          ? (res as any).error.message
+          : "Unknown error";
+
+      setOutputText(`Error: ${msg}`);
+      setUiResult({
+        status: "failure",
+        outputText: `Error: ${msg}`,
+        hint: { detail: "Server may not support debugInput/dryRun yet." },
+      });
       return;
     }
 
-    setOutput(res.output);
-    setRunning(false);
+    const text = formatHumanReadable((res as any).output);
+    setOutputText(text);
+    setUiResult({ status: "success", outputText: text });
+
+    if (navigateOnRun) {
+      router.push("/result");
+    }
+  }, [resolvedTaskId, userId, navigateOnRun, router, inputText]);
+
+  if (!resolvedTaskId) {
+    return (
+      <div className="rounded-2xl border bg-card p-4 text-sm">
+        Task ID is missing. (taskId / task.id)
+      </div>
+    );
   }
 
   return (
-    <section
-      className="space-y-3"
-      data-testid="playground-panel"
-      aria-label="playground panel"
-    >
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold">Playground</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            入力セットを選んで、いま組んだコマンド列の “出力だけ” を確認する。
-          </div>
-        </div>
-
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">Playground</div>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="rounded border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
-            onClick={run}
-            disabled={disabled || running}
-            data-testid="playground-run"
+            className="rounded-md border px-3 py-1 text-xs"
+            onClick={onClear}
+            disabled={running}
           >
-            {running ? "実行中…" : "実行"}
+            Clear
+          </button>
+          <button
+            type="button"
+            className="rounded-md border px-3 py-1 text-xs"
+            onClick={onRun}
+            disabled={running}
+          >
+            {running ? "Running..." : "Run"}
           </button>
         </div>
-      </header>
-
-      <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold" htmlFor="playground-preset">
-            入力セット
-          </label>
-          <select
-            id="playground-preset"
-            className="w-full rounded border bg-background px-3 py-2 text-sm"
-            value={preset}
-            onChange={(e) => applyPreset(e.target.value as PresetId)}
-            disabled={disabled}
-          >
-            <option value="smallMix">2, 3, 5, 7, 0（混在）</option>
-            <option value="ascending5">0, 2, 3, 5, 7（昇順済み）</option>
-            <option value="descending5">9, 7, 5, 3, 1（降順）</option>
-            <option value="duplicates7">2, 2, 3, 5, 5, 7, 0（重複あり）</option>
-            <option value="random5">ランダム 5 個（0..9）</option>
-            <option value="random8">ランダム 8 個（0..20）</option>
-          </select>
-        </div>
-
-        <button
-          type="button"
-          className="rounded border px-3 py-2 text-xs hover:bg-accent disabled:opacity-50"
-          onClick={reroll}
-          disabled={disabled}
-          data-testid="playground-reroll"
-        >
-          もう一回（ランダム）
-        </button>
       </div>
 
-      <div className="rounded-lg border bg-card p-3">
-        <div className="text-xs font-semibold">Input</div>
-        <div className="mt-1 font-mono text-sm" data-testid="playground-input">
-          {formatNumberList(input)}
+      <div className="rounded-2xl border bg-card p-3">
+        <div className="text-xs text-muted-foreground">Input</div>
+        <input
+          className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-sm"
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          disabled={running}
+        />
+        <div className="mt-3 text-xs text-muted-foreground">Output</div>
+        <div className="mt-1 whitespace-pre-wrap rounded-md border bg-background px-2 py-2 text-sm">
+          {outputText || "—"}
         </div>
-
-        <div className="mt-3 text-xs font-semibold">Output</div>
-        <div className="mt-1 font-mono text-sm" data-testid="playground-output">
-          {output ? formatNumberList(output) : "(not run yet)"}
-        </div>
-
-        {error ? (
-          <div
-            className="mt-3 rounded border bg-muted/30 p-2 text-xs text-muted-foreground"
-            data-testid="playground-error"
-          >
-            Error: {error}
-          </div>
-        ) : null}
       </div>
 
-      <footer className="text-xs text-muted-foreground">
-        ※ 判定（正解/不正解）はここでは出さない。出力の変化だけを見る場所。
-      </footer>
-    </section>
+      {uiResult ? (
+        <ResultPanel
+          status={uiResult.status}
+          outputText={uiResult.outputText}
+          expectedText={uiResult.expectedText}
+          hint={uiResult.hint}
+          onRetry={onRun}
+        />
+      ) : null}
+    </div>
   );
 }

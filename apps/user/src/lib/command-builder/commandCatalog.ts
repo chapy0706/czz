@@ -312,6 +312,12 @@ export function getCatalogItem(
   return COMMAND_CATALOG.find((x) => x.type === type);
 }
 
+export function isCommandType(value: unknown): value is CommandType {
+  return (
+    typeof value === "string" && COMMAND_CATALOG.some((x) => x.type === value)
+  );
+}
+
 export function createDefaultCommandValue(type: CommandType): unknown {
   const item = getCatalogItem(type);
   const value: Record<string, unknown> = { type };

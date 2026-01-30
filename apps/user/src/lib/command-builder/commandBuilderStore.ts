@@ -1,8 +1,15 @@
 // apps/user/src/lib/command-builder/commandBuilderStore.ts
 import {
   createDefaultCommandValue,
+  isCommandType,
   type CommandType,
 } from "@/lib/command-builder/commandCatalog";
+import {
+  DEFAULT_RUNNER_IO,
+  type RunnerInputPreset,
+  type RunnerIo,
+  type RunnerOutputPreset,
+} from "@/lib/command-builder/runnerIo";
 import { create } from "zustand";
 
 export type CommandDraft = {
@@ -14,76 +21,15 @@ function uid() {
   return Math.random().toString(36).slice(2);
 }
 
-/**
- * サーバー側のZodで `value: number` を期待しているコマンドがあるのに、
- * UI入力の都合で `"3"` のような string が混ざることがある。
- * ここで「数値として解釈できる文字列」だけを number に寄せて送る。
- *
- * - 例: "003" / "-2" / "10" / "3.14" は number に変換
- * - 例: "" / "abc" / "1,2" は変換しない
- */
-function coerceNumericString(v: unknown): unknown {
-  if (typeof v !== "string") return v;
-
-  const s = v.trim();
-  if (!s) return v;
-
-  // 純粋に数値っぽい文字列だけ変換する（文字混じりはNG）
-  if (!/^[+-]?\d+(\.\d+)?$/.test(s)) return v;
-
-  const n = Number(s);
-  if (!Number.isFinite(n)) return v;
-
-  return n;
-}
-
-const NUMERIC_KEYS = new Set([
-  "value",
-  "n",
-  "amount",
-  "count",
-  "limit",
-  "index",
-  "start",
-  "end",
-  "from",
-  "to",
-  "threshold",
-]);
-
-function normalizeCommandPayload(raw: unknown): unknown {
-  if (Array.isArray(raw)) {
-    const next = raw.map(normalizeCommandPayload);
-    const changed = next.some((v, i) => v !== raw[i]);
-    return changed ? next : raw;
-  }
-
-  if (!raw || typeof raw !== "object") return raw;
-
-  const obj = raw as Record<string, unknown>;
-  let changed = false;
-  const out: Record<string, unknown> = {};
-
-  for (const [k, v] of Object.entries(obj)) {
-    let nv: unknown = v;
-
-    if (NUMERIC_KEYS.has(k)) {
-      nv = coerceNumericString(v);
-    } else if (v && typeof v === "object") {
-      nv = normalizeCommandPayload(v);
-    }
-
-    if (nv !== v) changed = true;
-    out[k] = nv;
-  }
-
-  return changed ? out : raw;
-}
-
 type State = {
   commands: CommandDraft[];
+
+  // 選択（ハイライト）と編集（シート）
   selectedId: string | null;
   editingId: string | null;
+
+  // Runner I/O（cat input.csv / >> output.csv 等）
+  runnerIo: RunnerIo;
 
   initForTask: (taskId: string) => void;
 
@@ -91,13 +37,18 @@ type State = {
   openEditor: (id: string) => void;
   closeEditor: () => void;
 
-  add: (type: CommandType) => void;
+  add: (type: CommandType | string) => void;
   remove: (id: string) => void;
   move: (fromIndex: number, toIndex: number) => void;
   clear: () => void;
 
   updateCommandJson: (id: string, next: unknown) => void;
 
+  setRunnerInput: (preset: RunnerInputPreset) => void;
+  setRunnerOutput: (preset: RunnerOutputPreset) => void;
+  resetRunnerIo: () => void;
+
+  // evaluate API にはまだ渡さない（dslProgramSchema が {commands} 前提のため）
   serializeProgram: () => { commands: unknown[] };
 };
 
@@ -106,7 +57,11 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
   selectedId: null,
   editingId: null,
 
-  initForTask: (_taskId) => {},
+  runnerIo: DEFAULT_RUNNER_IO,
+
+  initForTask: (_taskId) => {
+    // 既存の初期化があるならここに寄せる。今回は noop でもOK。
+  },
 
   select: (id) => set({ selectedId: id }),
 
@@ -114,10 +69,15 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
   closeEditor: () => set({ editingId: null }),
 
   add: (type) => {
+    // UI 側で string になっても落とさない（安全にガード）
+    if (!isCommandType(type)) return;
+
     const next: CommandDraft = {
       id: uid(),
       value: createDefaultCommandValue(type),
     };
+
+    // 追加したら “選択” は移すが、編集シートは開かない
     set((s) => ({
       commands: [...s.commands, next],
       selectedId: next.id,
@@ -133,6 +93,9 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
       const nextCommands = s.commands.filter((c) => c.id !== id);
       const nextEditingId = s.editingId === id ? null : s.editingId;
 
+      // 削除後の選択を “迷子” にしない:
+      // - 削除対象が選択中なら、同じ位置（末尾ならひとつ前）を選ぶ
+      // - 選択中でないなら、基本は維持（念のため存在チェック）
       let nextSelectedId = s.selectedId;
 
       if (s.selectedId === id) {
@@ -170,7 +133,13 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
     });
   },
 
-  clear: () => set({ commands: [], selectedId: null, editingId: null }),
+  clear: () =>
+    set({
+      commands: [],
+      selectedId: null,
+      editingId: null,
+      runnerIo: DEFAULT_RUNNER_IO,
+    }),
 
   updateCommandJson: (id, next) => {
     set((s) => ({
@@ -180,8 +149,14 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
     }));
   },
 
+  setRunnerInput: (preset) =>
+    set((s) => ({ runnerIo: { ...s.runnerIo, input: preset } })),
+  setRunnerOutput: (preset) =>
+    set((s) => ({ runnerIo: { ...s.runnerIo, output: preset } })),
+  resetRunnerIo: () => set({ runnerIo: DEFAULT_RUNNER_IO }),
+
   serializeProgram: () => {
-    const cmds = get().commands.map((c) => normalizeCommandPayload(c.value));
+    const cmds = get().commands.map((c) => c.value);
     return { commands: cmds };
   },
 }));

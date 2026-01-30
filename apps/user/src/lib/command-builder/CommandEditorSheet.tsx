@@ -1,13 +1,14 @@
 // apps/user/src/lib/command-builder/CommandEditorSheet.tsx
 "use client";
 
+import * as React from "react";
+
 import type { CommandDraft } from "@/lib/command-builder/commandBuilderStore";
 import {
   getCatalogItem,
   type CommandType,
 } from "@/lib/command-builder/commandCatalog";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
-import * as React from "react";
 
 type Props = {
   selected: CommandDraft | null;
@@ -24,7 +25,6 @@ function extractType(value: unknown): string {
 }
 
 function asObject(value: unknown): Record<string, unknown> {
-  // ✅ spread エラー対策：object 以外は空オブジェクトに落とす
   if (value && typeof value === "object")
     return value as Record<string, unknown>;
   return {};
@@ -47,17 +47,20 @@ export function CommandEditorSheet(props: Props) {
     const typeRaw = extractType(selected.value);
     const cat = getCatalogItem(typeRaw as CommandType);
 
-    setMode(isBeginner ? "basic" : "basic");
+    // 初心者モードでは advanced は見せない想定（切替 UI も消してる）
+    setMode("basic");
     setAdvancedJson(JSON.stringify(selected.value ?? {}, null, 2));
 
     const init: Record<string, unknown> = {};
     const obj = asObject(selected.value);
+
     for (const p of cat?.params ?? []) {
       init[p.key] = (obj as any)[p.key] ?? "";
     }
+
     setBasicValues(init);
     setError(null);
-  }, [selected, isBeginner]);
+  }, [selected]);
 
   if (!selected) return null;
 
@@ -81,9 +84,10 @@ export function CommandEditorSheet(props: Props) {
     const next: Record<string, unknown> = { ...base, type: typeRaw };
 
     for (const p of cat?.params ?? []) {
-      const v = basicValues[p.key];
+      const raw = basicValues[p.key];
 
-      if (p.required && (v === "" || v === undefined || v === null)) {
+      // required チェック（空文字も未入力扱い）
+      if (p.required && (raw === "" || raw === undefined || raw === null)) {
         setError(
           isBeginner
             ? `「${p.beginnerLabel ?? p.label}」は必須だよ。`
@@ -91,7 +95,25 @@ export function CommandEditorSheet(props: Props) {
         );
         return;
       }
-      next[p.key] = v;
+
+      // 未入力（任意）ならフィールド自体を持たないようにしておく
+      if (!p.required && (raw === "" || raw === undefined || raw === null)) {
+        delete next[p.key];
+        continue;
+      }
+
+      // ✅ schema で安全に型を確定して保存する（number でも string のまま送らない）
+      const parsed = p.schema.safeParse(raw);
+      if (!parsed.success) {
+        setError(
+          isBeginner
+            ? `「${p.beginnerLabel ?? p.label}」の値が変だよ。入力例を参考にしてね。`
+            : `${p.key} is invalid`,
+        );
+        return;
+      }
+
+      next[p.key] = parsed.data;
     }
 
     onSave(next);
@@ -100,6 +122,7 @@ export function CommandEditorSheet(props: Props) {
 
   function onSubmitAdvanced() {
     setError(null);
+
     try {
       const parsed = JSON.parse(advancedJson);
       if (!parsed || typeof parsed !== "object") {
@@ -204,7 +227,7 @@ export function CommandEditorSheet(props: Props) {
               ) : null}
 
               {cat?.params?.map((p) => {
-                const label = isBeginner
+                const fieldLabel = isBeginner
                   ? (p.beginnerLabel ?? p.label)
                   : p.label;
                 const placeholder = isBeginner
@@ -215,13 +238,14 @@ export function CommandEditorSheet(props: Props) {
                 return (
                   <div key={p.key} className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <div className="text-sm font-medium">{label}</div>
+                      <div className="text-sm font-medium">{fieldLabel}</div>
                       {p.required ? (
                         <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                           {isBeginner ? "必須" : "required"}
                         </span>
                       ) : null}
                     </div>
+
                     <input
                       value={String(v)}
                       onChange={(e) =>
@@ -233,6 +257,12 @@ export function CommandEditorSheet(props: Props) {
                       className="w-full rounded-xl border px-3 py-2 text-sm"
                       placeholder={placeholder}
                     />
+
+                    {isBeginner && p.beginnerHelp ? (
+                      <div className="text-xs text-muted-foreground">
+                        {p.beginnerHelp}
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}

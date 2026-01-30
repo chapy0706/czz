@@ -1,48 +1,54 @@
 // apps/user/src/lib/terminal/evaluateClient.ts
-
 import {
   EvaluateResponseSchema,
   type EvaluateResponse,
 } from "@/lib/terminal/evaluateContract";
+import type { RunnerIo } from "@/lib/terminal/runnerIo";
 
-export async function evaluateTask(params: {
+type Params = {
   taskId: string;
   userId?: string;
   submittedProgram: unknown;
 
-  /**
-   * Playground 用：安全に組み立てた数列入力
-   */
-  debugInput?: number[];
+  // Runner の入出力（“両端□”）
+  runnerIo?: RunnerIo;
 
-  /**
-   * Playground 用：永続化しない試運転（サーバーが対応していれば）
-   */
+  // 将来/別用途用（Playground 等はここを使っても evaluate API と分離できる）
+  debugInput?: unknown;
   dryRun?: boolean;
-
-  /**
-   * Playground 用：サーバー側で簡易実行に切り替えるスイッチ
-   */
   purpose?: "evaluate" | "debug";
-}): Promise<EvaluateResponse> {
+};
+
+export async function evaluateTask(params: Params): Promise<EvaluateResponse> {
   try {
     const res = await fetch(`/api/tasks/${params.taskId}/evaluate`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId: params.userId,
         submittedProgram: params.submittedProgram,
+        runnerIo: params.runnerIo,
         debugInput: params.debugInput,
         dryRun: params.dryRun,
         purpose: params.purpose,
       }),
     });
 
-    const json = await res.json();
-    const parsed = EvaluateResponseSchema.parse(json);
-    return parsed;
+    const json = await res.json().catch(() => null);
+
+    const parsed = EvaluateResponseSchema.safeParse(json);
+    if (parsed.success) return parsed.data;
+
+    return {
+      ok: false,
+      error: {
+        kind: "UNKNOWN",
+        message: "Invalid response shape",
+        details: parsed.error.flatten(),
+      },
+    };
   } catch (e) {
-    const response: EvaluateResponse = {
+    return {
       ok: false,
       error: {
         kind: "NETWORK",
@@ -50,6 +56,5 @@ export async function evaluateTask(params: {
         details: e,
       },
     };
-    return response;
   }
 }

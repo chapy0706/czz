@@ -7,6 +7,9 @@ import { NeonAuthProvider } from "@/components/providers/neon-auth-ui-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 
+import { jaJP } from "@clerk/localizations";
+import { ClerkProvider } from "@clerk/nextjs";
+
 import { AuthUserBadge } from "@/components/auth/auth-user-badge";
 import { BeginnerBgmController } from "@/components/beginner/beginner-bgm-controller";
 import { BeginnerBottomDock } from "@/components/beginner/beginner-bottom-dock";
@@ -22,26 +25,30 @@ export default function RootLayout({
   return (
     <html lang="ja" suppressHydrationWarning>
       <body>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          <NeonAuthProvider>
-            <UiModeProvider>
-              {/* 常時表示（Linux風のパス表現） */}
-              <GlobalBreadcrumbs />
+        {/* Clerk のUIを日本語化 */}
+        <ClerkProvider localization={jaJP}>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+            {/* NeonAuth は移行中なら残してOK。ただし最終的にはClerkへ寄せると混乱が減る */}
+            <NeonAuthProvider>
+              <UiModeProvider>
+                {/* 常時表示（Linux風のパス表現） */}
+                <GlobalBreadcrumbs />
 
-              {children}
+                {children}
 
-              {/* 右上：ログイン中バッジ（ドラッグで移動可） */}
-              <AuthUserBadge />
+                {/* 右上：ログイン中バッジ（ドラッグで移動可） */}
+                <AuthUserBadge />
 
-              {/* 初心者モード：固定UIはドックで集約して干渉を防ぐ */}
-              <BeginnerBottomDock
-                left={<BeginnerMascotDock />}
-                right={<BeginnerHud />}
-              />
-              <BeginnerBgmController />
-            </UiModeProvider>
-          </NeonAuthProvider>
-        </ThemeProvider>
+                {/* 初心者モード：固定UIはドックで集約して干渉を防ぐ */}
+                <BeginnerBottomDock
+                  left={<BeginnerMascotDock />}
+                  right={<BeginnerHud />}
+                />
+                <BeginnerBgmController />
+              </UiModeProvider>
+            </NeonAuthProvider>
+          </ThemeProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

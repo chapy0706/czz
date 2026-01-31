@@ -3,6 +3,8 @@
 
 import Link from "next/link";
 
+import { useUser } from "@clerk/nextjs";
+
 import { Switch } from "@/components/ui/switch";
 import { useAudioSettingsStore } from "@/lib/audio/audioSettingsStore";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
@@ -15,12 +17,20 @@ import { cn } from "@/lib/utils";
  * - モバイル/横向きではコンパクト（トグル中心）
  * - 高さが十分あるときだけ音量スライダー表示
  *
+ * 認証について:
+ * - このHUDから「ログインUI」は出さない（初心者が怖がりやすい）
+ * - マイページ導線は「ログイン済みのときだけ」表示
+ * - ログイン/ログアウト導線は右上のユーザーバッジに集約
+ *
  * 注意:
  * - 位置固定（fixed / bottom-* / right-* など）は Dock 側が担当
  * - ここは “中身だけ”
  */
 export function BeginnerHud() {
   const mode = useUiModeStore((s) => s.mode);
+
+  // Clerk（ログイン状態）
+  const { isLoaded: isAuthLoaded, isSignedIn } = useUser();
 
   const bgmEnabled = useAudioSettingsStore((s) => s.bgmEnabled);
   const bgmVolume = useAudioSettingsStore((s) => s.volume);
@@ -33,6 +43,9 @@ export function BeginnerHud() {
   const setSfxVolume = useAudioSettingsStore((s) => s.setSfxVolume);
 
   if (mode !== "beginner") return null;
+
+  // 未ログイン時は、HUD内にログイン導線を出さず、マイページも出さない
+  const showAccountLinks = isAuthLoaded && isSignedIn;
 
   const bgmPercent = Math.round(bgmVolume * 100);
   const sfxPercent = Math.round(sfxVolume * 100);
@@ -90,16 +103,18 @@ export function BeginnerHud() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <Link
-              href="/account/settings"
-              className={cn(
-                "rounded-full border px-2 py-1.5 text-[11px] font-medium",
-                "hover:bg-muted",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              )}
-            >
-              アカウント
-            </Link>
+            {showAccountLinks ? (
+              <Link
+                href="/account/settings"
+                className={cn(
+                  "rounded-full border px-2 py-1.5 text-[11px] font-medium",
+                  "hover:bg-muted",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                )}
+              >
+                アカウント
+              </Link>
+            ) : null}
 
             <Link
               href="/credits"
@@ -191,16 +206,18 @@ export function BeginnerHud() {
           </div>
 
           <div className="mt-4 flex items-center justify-end gap-2">
-            <Link
-              href="/account/settings"
-              className={cn(
-                "rounded-xl border px-3 py-2 text-xs font-medium",
-                "hover:bg-muted",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              )}
-            >
-              マイページ
-            </Link>
+            {showAccountLinks ? (
+              <Link
+                href="/account/settings"
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-xs font-medium",
+                  "hover:bg-muted",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                )}
+              >
+                マイページ
+              </Link>
+            ) : null}
 
             <Link
               href="/credits"

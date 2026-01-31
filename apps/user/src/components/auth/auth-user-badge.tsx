@@ -2,120 +2,138 @@
 
 "use client";
 
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import {
+  SignInButton,
+  SignOutButton,
+  SignedIn,
+  SignedOut,
+  useUser,
+} from "@clerk/nextjs";
+import Link from "next/link";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Pos = { x: number; y: number };
+function pickDisplayName(user: ReturnType<typeof useUser>["user"]): string {
+  if (!user) return "ゲスト";
 
-const STORAGE_KEY = "czz.authUserBadge.pos";
+  const meta = user.unsafeMetadata as
+    | Record<string, unknown>
+    | null
+    | undefined;
+  const metaName = meta?.displayName;
+  if (typeof metaName === "string" && metaName.trim().length > 0)
+    return metaName.trim();
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
+  if (user.fullName && user.fullName.trim().length > 0) return user.fullName;
+  if (user.firstName && user.firstName.trim().length > 0) return user.firstName;
+
+  const email =
+    user.primaryEmailAddress?.emailAddress ??
+    user.emailAddresses?.[0]?.emailAddress ??
+    null;
+  if (email) return email.split("@")[0] ?? email;
+
+  return "ユーザー";
 }
 
-function loadPos(): Pos {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { x: 0, y: 0 };
-    const obj = JSON.parse(raw);
-    if (
-      typeof obj === "object" &&
-      obj &&
-      typeof obj.x === "number" &&
-      typeof obj.y === "number"
-    ) {
-      return { x: obj.x, y: obj.y };
-    }
-  } catch {
-    // ignore
-  }
-  return { x: 0, y: 0 };
-}
+function pickAvatarSrc(
+  user: ReturnType<typeof useUser>["user"],
+): string | null {
+  if (!user) return null;
 
-function savePos(pos: Pos) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
-  } catch {
-    // ignore
-  }
+  const meta = user.unsafeMetadata as
+    | Record<string, unknown>
+    | null
+    | undefined;
+  const metaAvatar = meta?.avatar;
+  if (typeof metaAvatar === "string" && metaAvatar.startsWith("/"))
+    return metaAvatar;
+
+  // fallback: Clerkのプロフィール画像
+  if (typeof user.imageUrl === "string" && user.imageUrl.length > 0)
+    return user.imageUrl;
+
+  return null;
 }
 
 export function AuthUserBadge() {
-  const ref = React.useRef<HTMLDivElement | null>(null);
-  const dragging = React.useRef(false);
-  const last = React.useRef<{ x: number; y: number } | null>(null);
+  const { isLoaded, isSignedIn, user } = useUser();
 
-  const [pos, setPos] = React.useState<Pos>({ x: 0, y: 0 });
-  const [mounted, setMounted] = React.useState(false);
+  const name = React.useMemo(() => pickDisplayName(user), [user]);
+  const avatarSrc = React.useMemo(() => pickAvatarSrc(user), [user]);
 
-  React.useEffect(() => {
-    setMounted(true);
-    setPos(loadPos());
-  }, []);
-
-  React.useEffect(() => {
-    if (!mounted) return;
-    savePos(pos);
-  }, [mounted, pos]);
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (!ref.current) return;
-    dragging.current = true;
-    last.current = { x: e.clientX, y: e.clientY };
-    ref.current.setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging.current || !last.current) return;
-
-    const dx = e.clientX - last.current.x;
-    const dy = e.clientY - last.current.y;
-    last.current = { x: e.clientX, y: e.clientY };
-
-    const nextX = clamp(pos.x + dx, -120, 120);
-    const nextY = clamp(pos.y + dy, -120, 120);
-
-    setPos({ x: nextX, y: nextY });
-  };
-
-  const onPointerUp = () => {
-    dragging.current = false;
-    last.current = null;
-  };
-
+  // layout.tsx 側で position を決めてる想定でも、単体でも崩れないように控えめにスタイルする
   return (
     <div
-      ref={ref}
       className={cn(
         "rounded-full border bg-background/80 backdrop-blur px-2 py-1 shadow-sm",
-        "select-none touch-none",
+        "flex items-center gap-2",
+        "max-w-[260px]",
       )}
-      style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      title="ドラッグで移動できるよ"
+      aria-label="ユーザー状態"
     >
-      <SignedIn>
-        <UserButton
-          appearance={{
-            elements: {
-              avatarBox: "h-7 w-7",
-            },
-          }}
-        />
-      </SignedIn>
-      <SignedOut>
-        <SignInButton>
-          <Button size="sm" variant="outline">
-            ログイン
-          </Button>
-        </SignInButton>
-      </SignedOut>
+      {!isLoaded ? (
+        <span className="text-xs text-muted-foreground">Loading…</span>
+      ) : (
+        <>
+          <div className="h-7 w-7 overflow-hidden rounded-full border bg-muted shrink-0">
+            {avatarSrc ? (
+              // next/image を使わない：外部URL/設定で詰まらないようにする
+              <img
+                src={avatarSrc}
+                alt="avatar"
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : null}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-sm font-medium">{name}</span>
+              <span
+                className={cn(
+                  "inline-block h-2 w-2 rounded-full",
+                  isSignedIn ? "bg-emerald-500" : "bg-slate-400",
+                )}
+                aria-hidden
+              />
+            </div>
+            <div className="text-[11px] leading-tight text-muted-foreground">
+              {isSignedIn ? "ログイン中" : "未ログイン"}
+            </div>
+          </div>
+
+          <SignedOut>
+            <SignInButton fallbackRedirectUrl="/">
+              <Button size="sm" variant="outline">
+                ログイン
+              </Button>
+            </SignInButton>
+          </SignedOut>
+
+          <SignedIn>
+            <div className="flex items-center gap-1">
+              <Link
+                href="/account/settings"
+                className="text-xs underline underline-offset-4 hover:opacity-80"
+              >
+                設定
+              </Link>
+              <SignOutButton redirectUrl="/">
+                <button
+                  type="button"
+                  className="text-xs underline underline-offset-4 hover:opacity-80"
+                >
+                  ログアウト
+                </button>
+              </SignOutButton>
+            </div>
+          </SignedIn>
+        </>
+      )}
     </div>
   );
 }

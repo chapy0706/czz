@@ -1,45 +1,48 @@
 // apps/user/app/layout.tsx
 
-import type { Metadata } from "next";
+import * as React from "react";
 import "./globals.css";
 
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { AuthUserBadge } from "@/components/auth/auth-user-badge";
-import { ModeToggle } from "@/components/providers/mode-toggle";
-import { ThemeProvider } from "@/components/providers/theme-provider";
-import { UiModeProvider } from "@/components/providers/ui-mode-provider";
+import { GlobalBreadcrumbs } from "@/components/nav/global-breadcrumbs";
 
-export const metadata: Metadata = {
-  title: "czz",
-  description: "Instruction Builder Game",
-};
+import { BeginnerBgmController } from "@/components/beginner/beginner-bgm-controller";
+import { BeginnerBottomDock } from "@/components/beginner/beginner-bottom-dock";
+import { BeginnerHud } from "@/components/beginner/beginner-hud";
+import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <ClerkProvider>
-      <html lang="ja" suppressHydrationWarning>
-        <body>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-          >
+    <html lang="ja" suppressHydrationWarning>
+      <body>
+        <ClerkProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
             <UiModeProvider>
-              <div className="fixed top-3 right-3 z-40 flex gap-2">
-                <ModeToggle />
-                <AuthUserBadge />
-              </div>
+              <GlobalBreadcrumbs />
+
               {children}
+
+              {/* 右上：ログイン状態/ログアウト導線 */}
+              <AuthUserBadge />
+
+              {/* 初心者モード系UI（音量・クレジット・アカウント導線がここにぶら下がってる想定） */}
+              <BeginnerBottomDock
+                left={<BeginnerMascotDock />}
+                right={<BeginnerHud />}
+              />
+              <BeginnerBgmController />
             </UiModeProvider>
           </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }

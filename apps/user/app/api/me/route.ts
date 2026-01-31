@@ -6,11 +6,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 type MeResponse =
-  | {
-      ok: true;
-      isSignedIn: false;
-      user: null;
-    }
+  | { ok: true; isSignedIn: false; user: null }
   | {
       ok: true;
       isSignedIn: true;
@@ -19,14 +15,13 @@ type MeResponse =
         email: string | null;
         fullName: string | null;
         displayName: string | null;
-        avatarUrl: string | null;
+        avatarUrl: string | null; // ← ここが「選んだ画像」を返す
       };
     };
 
 export async function GET() {
-  const { isAuthenticated, userId } = await auth(); // ← ここがポイント :contentReference[oaicite:1]{index=1}
+  const { isAuthenticated, userId } = await auth();
 
-  // ゲスト（未ログイン）は 200 で返す（UX優先）
   if (!isAuthenticated || !userId) {
     const body: MeResponse = { ok: true, isSignedIn: false, user: null };
     return NextResponse.json(body, {
@@ -35,8 +30,7 @@ export async function GET() {
     });
   }
 
-  // 必要な情報だけ返す（userオブジェクト全部は返さない）
-  const user = await currentUser(); // :contentReference[oaicite:2]{index=2}
+  const user = await currentUser();
 
   const email =
     user?.primaryEmailAddress?.emailAddress ??
@@ -48,6 +42,12 @@ export async function GET() {
       ? user.unsafeMetadata.displayName
       : null;
 
+  const avatarFromMeta =
+    typeof user?.unsafeMetadata?.avatar === "string" &&
+    user.unsafeMetadata.avatar.startsWith("/")
+      ? user.unsafeMetadata.avatar
+      : null;
+
   const body: MeResponse = {
     ok: true,
     isSignedIn: true,
@@ -56,7 +56,7 @@ export async function GET() {
       email,
       fullName: user?.fullName ?? null,
       displayName,
-      avatarUrl: user?.imageUrl ?? null,
+      avatarUrl: avatarFromMeta ?? user?.imageUrl ?? null,
     },
   };
 

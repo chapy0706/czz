@@ -1,5 +1,5 @@
 // apps/user/app/auth/sign-in/page.tsx
-import Link from "next/link";
+import { SfxLink as Link } from "@/components/ui/SfxLink";
 
 type Props = {
   searchParams?: { [key: string]: string | string[] | undefined };

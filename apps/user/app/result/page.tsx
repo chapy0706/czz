@@ -1,13 +1,13 @@
 // apps/user/app/result/page.tsx
 "use client";
 
+import { SfxLink as Link } from "@/components/ui/SfxLink";
 import { ResultPanel } from "@/lib/terminal/ResultPanel";
 import {
   EvaluateResponseSchema,
   type EvaluateResponse,
 } from "@/lib/terminal/evaluateContract";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 

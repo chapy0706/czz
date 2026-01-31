@@ -8,6 +8,11 @@ type Options = {
   enabled?: boolean;
   /** 0.0 - 1.0 */
   volume?: number;
+  /**
+   * 連打抑止（ms）
+   * - 例: 120
+   */
+  throttleMs?: number;
 };
 
 /**
@@ -15,9 +20,11 @@ type Options = {
  * - SSR では何もしない
  * - 連打でも「先頭から再生」を優先
  * - 再生失敗（自動再生規制など）は握りつぶす
+ * - throttleMs があれば連打を抑える
  */
 export function useSfx(src: string, options?: Options) {
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const lastPlayedAtRef = React.useRef<number>(-Infinity);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -37,6 +44,16 @@ export function useSfx(src: string, options?: Options) {
 
     if (options?.enabled === false) return;
 
+    const throttleMs =
+      typeof options?.throttleMs === "number" ? options.throttleMs : 0;
+
+    if (throttleMs > 0) {
+      const now =
+        typeof performance !== "undefined" ? performance.now() : Date.now();
+      if (now - lastPlayedAtRef.current < throttleMs) return;
+      lastPlayedAtRef.current = now;
+    }
+
     if (typeof options?.volume === "number") {
       audio.volume = clamp01(options.volume);
     }
@@ -45,9 +62,9 @@ export function useSfx(src: string, options?: Options) {
       audio.currentTime = 0;
       await audio.play();
     } catch {
-      // 自動再生規制などで失敗する場合がある。UX を壊さないため握りつぶす。
+      // noop
     }
-  }, [options?.enabled, options?.volume]);
+  }, [options?.enabled, options?.throttleMs, options?.volume]);
 
   return { play };
 }

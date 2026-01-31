@@ -1,6 +1,6 @@
 // apps/user/app/credits/page.tsx
 
-import Link from "next/link";
+import { SfxLink as Link } from "@/components/ui/SfxLink";
 
 type CreditItem = {
   label: string;

@@ -1,7 +1,7 @@
 // apps/user/app/account/settings/page.tsx
 "use client";
 
-import Link from "next/link";
+import { SfxLink as Link } from "@/components/ui/SfxLink";
 import * as React from "react";
 
 import { authClient } from "@/lib/auth/client";

@@ -11,6 +11,7 @@
     "@czz/domain": "workspace:^",
     "@czz/dsl-core": "workspace:*",
     "@neondatabase/auth": "0.1.0-beta.21",
+    "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.6",
     "autoprefixer": "^10.4.20",
     "drizzle-orm": "^0.33.0",

@@ -1,7 +1,7 @@
 // apps/user/app/tasks/page.tsx
 "use client";
 
-import Link from "next/link";
+import { SfxLink as Link } from "@/components/ui/SfxLink";
 import useSWR from "swr";
 
 import { BeginnerIndicatingMascot } from "@/components/beginner/beginner-indicating-mascot";

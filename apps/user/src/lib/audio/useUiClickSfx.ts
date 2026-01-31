@@ -25,7 +25,9 @@ export function useUiClickSfx(options?: UseUiClickSfxOptions) {
   const mode = useUiModeStore((s) => s.mode);
   const isBeginnerMode = mode === "beginner";
 
+  // click.mp3 が存在しない事故を避けるため、存在する push.mp3 をデフォルトにする
   const src = options?.src ?? "/audio/sfx/push.mp3";
+
   const excludeTaskPlayRoute = options?.excludeTaskPlayRoute ?? true;
 
   const canPlayByMode = options?.beginnerOnly === true ? isBeginnerMode : true;

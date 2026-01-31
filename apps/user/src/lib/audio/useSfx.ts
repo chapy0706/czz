@@ -4,24 +4,11 @@
 import * as React from "react";
 
 type Options = {
-  /** false なら鳴らさない */
   enabled?: boolean;
-  /** 0.0 - 1.0 */
   volume?: number;
-  /**
-   * 連打抑止（ms）
-   * - 例: 120
-   */
   throttleMs?: number;
 };
 
-/**
- * 効果音(SFX)を安全に再生する最小フック。
- * - SSR では何もしない
- * - 連打でも「先頭から再生」を優先
- * - 再生失敗（自動再生規制など）は握りつぶす
- * - throttleMs があれば連打を抑える
- */
 export function useSfx(src: string, options?: Options) {
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const lastPlayedAtRef = React.useRef<number>(-Infinity);
@@ -33,7 +20,17 @@ export function useSfx(src: string, options?: Options) {
     audio.preload = "auto";
     audioRef.current = audio;
 
+    // 開発時だけ「音源が死んでる」系を気づけるようにする
+    const onError = () => {
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.warn(`[SFX] failed to load/play: ${src}`);
+      }
+    };
+    audio.addEventListener("error", onError);
+
     return () => {
+      audio.removeEventListener("error", onError);
       audioRef.current = null;
     };
   }, [src]);
@@ -62,7 +59,7 @@ export function useSfx(src: string, options?: Options) {
       audio.currentTime = 0;
       await audio.play();
     } catch {
-      // noop
+      // 自動再生規制などで失敗する場合がある。UX を壊さないため握りつぶす。
     }
   }, [options?.enabled, options?.throttleMs, options?.volume]);
 

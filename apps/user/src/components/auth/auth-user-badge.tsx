@@ -51,11 +51,23 @@ function pickAvatarSrc(
   if (typeof metaAvatar === "string" && metaAvatar.startsWith("/"))
     return metaAvatar;
 
-  // fallback: Clerkのプロフィール画像
   if (typeof user.imageUrl === "string" && user.imageUrl.length > 0)
     return user.imageUrl;
 
   return null;
+}
+
+type DragState = {
+  dragging: boolean;
+  startClientX: number;
+  startClientY: number;
+  startX: number;
+  startY: number;
+  pointerId: number | null;
+};
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
 }
 
 export function AuthUserBadge() {
@@ -64,28 +76,142 @@ export function AuthUserBadge() {
   const name = React.useMemo(() => pickDisplayName(user), [user]);
   const avatarSrc = React.useMemo(() => pickAvatarSrc(user), [user]);
 
-  // layout.tsx 側で position を決めてる想定でも、単体でも崩れないように控えめにスタイルする
+  // 右上基準の transform（xは左方向がマイナス、yは下方向がプラス）
+  // リロードで戻したいので localStorage に保存しない。
+  const [pos, setPos] = React.useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const dragRef = React.useRef<DragState>({
+    dragging: false,
+    startClientX: 0,
+    startClientY: 0,
+    startX: 0,
+    startY: 0,
+    pointerId: null,
+  });
+
+  const computeBounds = React.useCallback(() => {
+    const el = containerRef.current;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const rect = el?.getBoundingClientRect();
+    const w = rect?.width ?? 260;
+    const h = rect?.height ?? 44;
+
+    // CSS: top/right に 12px（= top-3 / right-3 相当）
+    const margin = 12;
+
+    // 右上固定からの移動範囲（画面内に収める）
+    // x: 右へは出さない（x <= 0）。左へは左端marginまで。
+    const minX = margin * 2 + w - vw; // 負になりやすい
+    const maxX = 0;
+
+    // y: 上へは出さない（y >= 0）。下へは下端marginまで。
+    const minY = 0;
+    const maxY = Math.max(0, vh - h - margin * 2);
+
+    return { minX, maxX, minY, maxY };
+  }, []);
+
+  const onPointerDownHandle = (e: React.PointerEvent) => {
+    // ドラッグ開始（アバター部分だけをドラッグハンドルにする）
+    const el = containerRef.current;
+    if (!el) return;
+
+    dragRef.current = {
+      dragging: true,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startX: pos.x,
+      startY: pos.y,
+      pointerId: e.pointerId,
+    };
+
+    // iOS Safari含め安定する
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMoveHandle = (e: React.PointerEvent) => {
+    const st = dragRef.current;
+    if (!st.dragging) return;
+
+    const dx = e.clientX - st.startClientX;
+    const dy = e.clientY - st.startClientY;
+
+    const nextX = st.startX + dx;
+    const nextY = st.startY + dy;
+
+    const { minX, maxX, minY, maxY } = computeBounds();
+
+    setPos({
+      x: clamp(nextX, minX, maxX),
+      y: clamp(nextY, minY, maxY),
+    });
+  };
+
+  const endDrag = () => {
+    dragRef.current.dragging = false;
+    dragRef.current.pointerId = null;
+  };
+
+  const onPointerUpHandle = () => endDrag();
+  const onPointerCancelHandle = () => endDrag();
+
+  // 画面回転/リサイズ時に画面外へ出ないように補正
+  React.useEffect(() => {
+    const onResize = () => {
+      const { minX, maxX, minY, maxY } = computeBounds();
+      setPos((p) => ({
+        x: clamp(p.x, minX, maxX),
+        y: clamp(p.y, minY, maxY),
+      }));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [computeBounds]);
+
   return (
     <div
+      ref={containerRef}
       className={cn(
-        "rounded-full border bg-background/80 backdrop-blur px-2 py-1 shadow-sm",
-        "flex items-center gap-2",
-        "max-w-[260px]",
+        // 右上固定。ここで固定するので layout 側の配置に依存しない
+        "fixed top-3 right-3 z-[60]",
+        "rounded-full border bg-background/80 backdrop-blur shadow-sm",
+        "flex items-center gap-2 px-2 py-1",
+        "max-w-[280px]",
       )}
+      style={{ transform: `translate3d(${pos.x}px, ${pos.y}px, 0)` }}
       aria-label="ユーザー状態"
     >
       {!isLoaded ? (
         <span className="text-xs text-muted-foreground">Loading…</span>
       ) : (
         <>
-          <div className="h-7 w-7 overflow-hidden rounded-full border bg-muted shrink-0">
+          {/* ドラッグハンドル（アバター部分だけ） */}
+          <div
+            className={cn(
+              "h-7 w-7 overflow-hidden rounded-full border bg-muted shrink-0",
+              "cursor-grab active:cursor-grabbing",
+              "touch-none select-none",
+            )}
+            onPointerDown={onPointerDownHandle}
+            onPointerMove={onPointerMoveHandle}
+            onPointerUp={onPointerUpHandle}
+            onPointerCancel={onPointerCancelHandle}
+            title="ここをドラッグで移動"
+            aria-label="ドラッグして移動"
+          >
             {avatarSrc ? (
-              // next/image を使わない：外部URL/設定で詰まらないようにする
               <img
                 src={avatarSrc}
                 alt="avatar"
                 className="h-full w-full object-cover"
                 referrerPolicy="no-referrer"
+                draggable={false}
               />
             ) : null}
           </div>
@@ -115,7 +241,7 @@ export function AuthUserBadge() {
           </SignedOut>
 
           <SignedIn>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <Link
                 href="/account/settings"
                 className="text-xs underline underline-offset-4 hover:opacity-80"

@@ -125,4 +125,74 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* --- czz loading overlay (RSC) --- */
+  @keyframes czzFadeInInstant {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* 200ms待ってから“スッ”と出す（チラつき防止） */
+  .czz-load-fadein {
+    opacity: 0;
+    animation-name: czzFadeInInstant;
+    animation-duration: 1ms;
+    animation-fill-mode: forwards;
+  }
+
+  @keyframes czzBarFill {
+    from {
+      width: 0%;
+    }
+    to {
+      width: 100%;
+    }
+  }
+
+  /* ASCIIの“埋め”側の幅をstepsで段階的に増やす */
+  .czz-load-bar-fill {
+    width: 0%;
+    animation-name: czzBarFill;
+    animation-duration: 1200ms;
+    animation-iteration-count: infinite;
+    animation-direction: normal;
+  }
+
+  /* 1.5秒まで補助文は隠しておく */
+  @keyframes czzHelperShow {
+    from {
+      opacity: 0;
+      transform: translateY(2px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .czz-load-helper {
+    opacity: 0;
+    animation-name: czzHelperShow;
+    animation-duration: 180ms;
+    animation-fill-mode: forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .czz-load-fadein {
+      opacity: 1;
+      animation: none;
+    }
+    .czz-load-bar-fill {
+      width: 50%;
+      animation: none;
+    }
+    .czz-load-helper {
+      opacity: 1;
+      animation: none;
+    }
+  }
 }

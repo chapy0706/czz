@@ -1,6 +1,6 @@
 // apps/user/app/loading.tsx
-import { LoadingOverlay } from "@/components/loading/LoadingOverlay";
+import { LoadingOverlayRsc } from "@/components/loading/LoadingOverlayRsc";
 
 export default function Loading() {
-  return <LoadingOverlay />;
+  return <LoadingOverlayRsc />;
 }

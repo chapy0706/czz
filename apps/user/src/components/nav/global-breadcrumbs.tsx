@@ -56,7 +56,7 @@ function mapSegmentLabelByMode(
   };
 
   const mapBeginner: Record<string, string> = {
-    tasks: "課題",
+    tasks: "課題一覧",
     task: "課題",
     result: "結果",
     results: "結果一覧",
@@ -96,10 +96,10 @@ export function GlobalBreadcrumbs({
   const uiMode = useUiModeStore((s) => s.mode);
   const mode = toBreadcrumbMode(uiMode);
 
-  // ✅ ここで判定は作るが、return は Hook の後ろへ
+  // ここで判定は作るが、return は Hook の後ろへ
   const hidden = isHidden(pathname, hiddenPathPrefixes);
 
-  // ✅ Hook は常に同じ回数・同じ順で呼ぶ
+  // Hook は常に同じ回数・同じ順で呼ぶ
   const segments = React.useMemo(
     () => pathname.split("/").filter(Boolean),
     [pathname],
@@ -117,10 +117,10 @@ export function GlobalBreadcrumbs({
     return items;
   }, [segments, mode]);
 
-  // ✅ ここで return（Hookの後）なら安全
+  // ここで return（Hookの後）なら安全
   if (hidden) return null;
 
-  const homeLabel = mode === "beginner" ? "ホーム(~)" : "~";
+  const homeLabel = mode === "beginner" ? "ホーム" : "~";
 
   return (
     <div

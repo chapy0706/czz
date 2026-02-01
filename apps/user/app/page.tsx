@@ -11,10 +11,6 @@ export default function Page() {
         <TopIntro />
 
         <TopCtasWithSfx />
-
-        <div className="pt-6 text-xs text-muted-foreground">
-          ヒント：まずは 1 つだけコマンドを置いて、動作を観察すると理解が速い。
-        </div>
       </div>
 
       <UiModeToggle className="mt-6" />

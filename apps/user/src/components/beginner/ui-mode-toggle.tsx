@@ -29,7 +29,7 @@ export function UiModeToggle({ className }: Props) {
         <div className="leading-tight">
           <div className="text-sm font-medium">初心者モード</div>
           <div className="text-xs text-muted-foreground">
-            日本語でわかりやすく表示する
+            最初はここで流れを理解しよう
           </div>
         </div>
       </div>

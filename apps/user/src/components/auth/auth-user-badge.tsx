@@ -9,6 +9,7 @@ import {
   SignedOut,
   useUser,
 } from "@clerk/nextjs";
+import { Settings } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
@@ -23,8 +24,9 @@ function pickDisplayName(user: ReturnType<typeof useUser>["user"]): string {
     | null
     | undefined;
   const metaName = meta?.displayName;
-  if (typeof metaName === "string" && metaName.trim().length > 0)
+  if (typeof metaName === "string" && metaName.trim().length > 0) {
     return metaName.trim();
+  }
 
   if (user.fullName && user.fullName.trim().length > 0) return user.fullName;
   if (user.firstName && user.firstName.trim().length > 0) return user.firstName;
@@ -33,6 +35,7 @@ function pickDisplayName(user: ReturnType<typeof useUser>["user"]): string {
     user.primaryEmailAddress?.emailAddress ??
     user.emailAddresses?.[0]?.emailAddress ??
     null;
+
   if (email) return email.split("@")[0] ?? email;
 
   return "ユーザー";
@@ -107,7 +110,7 @@ export function AuthUserBadge() {
 
     // 右上固定からの移動範囲（画面内に収める）
     // x: 右へは出さない（x <= 0）。左へは左端marginまで。
-    const minX = margin * 2 + w - vw; // 負になりやすい
+    const minX = margin * 2 + w - vw;
     const maxX = 0;
 
     // y: 上へは出さない（y >= 0）。下へは下端marginまで。
@@ -118,7 +121,6 @@ export function AuthUserBadge() {
   }, []);
 
   const onPointerDownHandle = (e: React.PointerEvent) => {
-    // ドラッグ開始（アバター部分だけをドラッグハンドルにする）
     const el = containerRef.current;
     if (!el) return;
 
@@ -131,7 +133,6 @@ export function AuthUserBadge() {
       pointerId: e.pointerId,
     };
 
-    // iOS Safari含め安定する
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
@@ -161,7 +162,6 @@ export function AuthUserBadge() {
   const onPointerUpHandle = () => endDrag();
   const onPointerCancelHandle = () => endDrag();
 
-  // 画面回転/リサイズ時に画面外へ出ないように補正
   React.useEffect(() => {
     const onResize = () => {
       const { minX, maxX, minY, maxY } = computeBounds();
@@ -178,7 +178,6 @@ export function AuthUserBadge() {
     <div
       ref={containerRef}
       className={cn(
-        // 右上固定。ここで固定するので layout 側の配置に依存しない
         "fixed top-3 right-3 z-[60]",
         "rounded-full border bg-background/80 backdrop-blur shadow-sm",
         "flex items-center gap-2 px-2 py-1",
@@ -248,17 +247,23 @@ export function AuthUserBadge() {
             <div className="flex items-center gap-2">
               <Link
                 href="/account/settings"
-                className="text-xs underline underline-offset-4 hover:opacity-80"
+                aria-label="設定"
+                title="設定"
+                data-testid="settings-button"
+                className={cn(
+                  "inline-flex h-8 w-8 items-center justify-center rounded-full",
+                  "text-muted-foreground hover:text-foreground",
+                  "hover:bg-muted/70",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                )}
               >
-                設定
+                <Settings className="h-4 w-4" aria-hidden />
               </Link>
+
               <SignOutButton redirectUrl="/">
-                <button
-                  type="button"
-                  className="text-xs underline underline-offset-4 hover:opacity-80"
-                >
+                <Button size="sm" variant="outline">
                   ログアウト
-                </button>
+                </Button>
               </SignOutButton>
             </div>
           </SignedIn>

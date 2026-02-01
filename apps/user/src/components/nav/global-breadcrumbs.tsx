@@ -41,7 +41,6 @@ function mapSegmentLabelByMode(
 ): string {
   const prev = index > 0 ? segments[index - 1] : null;
 
-  // 静的セグメントの表示名
   const mapNormal: Record<string, string> = {
     tasks: "tasks",
     task: "task",
@@ -73,7 +72,6 @@ function mapSegmentLabelByMode(
   const m = mode === "beginner" ? mapBeginner : mapNormal;
   if (m[segment]) return m[segment];
 
-  // IDっぽいセグメント（/tasks/[taskId], /results/[resultId] 等）
   const looksLikeId = segment.length >= 8 && /^[a-zA-Z0-9_-]+$/.test(segment);
 
   if (looksLikeId && prev === "tasks") {
@@ -86,7 +84,6 @@ function mapSegmentLabelByMode(
     return mode === "beginner" ? `結果:${short}` : `result-${short}`;
   }
 
-  // それ以外は素直に（長いものは短縮）
   if (segment.length >= 16) return `${segment.slice(0, 8)}…`;
   return segment;
 }
@@ -99,8 +96,10 @@ export function GlobalBreadcrumbs({
   const uiMode = useUiModeStore((s) => s.mode);
   const mode = toBreadcrumbMode(uiMode);
 
-  if (isHidden(pathname, hiddenPathPrefixes)) return null;
+  // ✅ ここで判定は作るが、return は Hook の後ろへ
+  const hidden = isHidden(pathname, hiddenPathPrefixes);
 
+  // ✅ Hook は常に同じ回数・同じ順で呼ぶ
   const segments = React.useMemo(
     () => pathname.split("/").filter(Boolean),
     [pathname],
@@ -117,6 +116,9 @@ export function GlobalBreadcrumbs({
     }
     return items;
   }, [segments, mode]);
+
+  // ✅ ここで return（Hookの後）なら安全
+  if (hidden) return null;
 
   const homeLabel = mode === "beginner" ? "ホーム(~)" : "~";
 

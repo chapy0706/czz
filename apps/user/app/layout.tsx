@@ -3,9 +3,10 @@
 import * as React from "react";
 import "./globals.css";
 
+import { ClerkProvider } from "@clerk/nextjs";
+
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UiModeProvider } from "@/components/providers/ui-mode-provider";
-import { ClerkProvider } from "@clerk/nextjs";
 
 import { AuthUserBadge } from "@/components/auth/auth-user-badge";
 import { GlobalBreadcrumbs } from "@/components/nav/global-breadcrumbs";
@@ -33,11 +34,12 @@ export default function RootLayout({
               {/* 右上：ログイン状態/ログアウト導線 */}
               <AuthUserBadge />
 
-              {/* 初心者モード系UI（音量・クレジット・アカウント導線がここにぶら下がってる想定） */}
+              {/* 初心者モード系UI（表示条件は各コンポーネント側で制御） */}
               <BeginnerBottomDock
                 left={<BeginnerMascotDock />}
                 right={<BeginnerHud />}
               />
+
               <BeginnerBgmController />
             </UiModeProvider>
           </ThemeProvider>

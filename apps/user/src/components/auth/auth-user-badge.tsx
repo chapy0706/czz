@@ -233,7 +233,11 @@ export function AuthUserBadge() {
           </div>
 
           <SignedOut>
-            <SignInButton fallbackRedirectUrl="/">
+            <SignInButton
+              mode="redirect"
+              oauthFlow="redirect"
+              forceRedirectUrl="/"
+            >
               <Button size="sm" variant="outline">
                 ログイン
               </Button>

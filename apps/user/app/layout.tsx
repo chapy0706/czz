@@ -3,6 +3,7 @@
 import * as React from "react";
 import "./globals.css";
 
+import { jaJP } from "@clerk/localizations";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -16,33 +17,65 @@ import { BeginnerBottomDock } from "@/components/beginner/beginner-bottom-dock";
 import { BeginnerHud } from "@/components/beginner/beginner-hud";
 import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
 
+const FEATURES = {
+  themeProvider: true,
+  uiModeProvider: true,
+
+  breadcrumbs: true,
+  authUserBadge: true,
+
+  beginnerDock: true,
+  beginnerBgm: true,
+} as const;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const app = (
+    <>
+      {FEATURES.breadcrumbs ? <GlobalBreadcrumbs /> : null}
+
+      {children}
+
+      {FEATURES.authUserBadge ? <AuthUserBadge /> : null}
+
+      {FEATURES.beginnerDock ? (
+        <BeginnerBottomDock
+          left={<BeginnerMascotDock />}
+          right={<BeginnerHud />}
+        />
+      ) : null}
+
+      {FEATURES.beginnerBgm ? <BeginnerBgmController /> : null}
+    </>
+  );
+
+  const withUiMode = FEATURES.uiModeProvider ? (
+    <UiModeProvider>{app}</UiModeProvider>
+  ) : (
+    app
+  );
+
+  const withTheme = FEATURES.themeProvider ? (
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      {withUiMode}
+    </ThemeProvider>
+  ) : (
+    withUiMode
+  );
+
   return (
     <html lang="ja" suppressHydrationWarning>
       <body>
-        <ClerkProvider>
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-            <UiModeProvider>
-              <GlobalBreadcrumbs />
-
-              {children}
-
-              {/* 右上：ログイン状態/ログアウト導線 */}
-              <AuthUserBadge />
-
-              {/* 初心者モード系UI（表示条件は各コンポーネント側で制御） */}
-              <BeginnerBottomDock
-                left={<BeginnerMascotDock />}
-                right={<BeginnerHud />}
-              />
-
-              <BeginnerBgmController />
-            </UiModeProvider>
-          </ThemeProvider>
+        <ClerkProvider
+          localization={jaJP}
+          signInUrl="/auth/sign-in"
+          signUpUrl="/auth/sign-up"
+          afterSignOutUrl="/"
+        >
+          {withTheme}
         </ClerkProvider>
       </body>
     </html>

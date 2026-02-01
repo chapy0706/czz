@@ -21,7 +21,7 @@ export function TopTitle() {
       className="text-3xl font-bold tracking-tight"
       data-testid="top-title-advanced"
     >
-      小さな命令をつないで、課題を解く
+      Command Liner
     </h1>
   );
 }

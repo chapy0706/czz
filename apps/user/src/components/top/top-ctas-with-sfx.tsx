@@ -45,7 +45,7 @@ export function TopCtasWithSfx({ className }: Props) {
         className="rounded border bg-accent px-4 py-2 text-sm hover:opacity-90"
         data-testid="top-cta-tasks"
       >
-        はじめる（課題一覧）
+        スタート
       </Link>
 
       <Link

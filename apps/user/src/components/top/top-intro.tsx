@@ -11,11 +11,6 @@ export function TopIntro() {
 
   return (
     <>
-      <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="rounded border bg-background px-2 py-1">czz</span>
-        {!isBeginner && <span>指示厨が課題を解決するゲーム</span>}
-      </div>
-
       <TopTitle />
 
       {!isBeginner && (

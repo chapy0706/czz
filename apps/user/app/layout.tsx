@@ -17,6 +17,8 @@ import { BeginnerBottomDock } from "@/components/beginner/beginner-bottom-dock";
 import { BeginnerHud } from "@/components/beginner/beginner-hud";
 import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
 
+import { DebugPanelGate } from "@/components/providers/DebugPanelGate";
+
 const FEATURES = {
   themeProvider: true,
   uiModeProvider: true,
@@ -38,6 +40,8 @@ export default function RootLayout({
       {FEATURES.breadcrumbs ? <GlobalBreadcrumbs /> : null}
 
       {children}
+
+      <DebugPanelGate />
 
       {FEATURES.authUserBadge ? <AuthUserBadge /> : null}
 

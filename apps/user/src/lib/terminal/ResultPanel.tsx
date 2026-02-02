@@ -3,6 +3,8 @@
 
 import * as React from "react";
 
+import { debugRegistry } from "@/components/debug/debugRegistry";
+
 type ResultStatus = "success" | "failure";
 
 type Props = {
@@ -55,6 +57,12 @@ function takeFirstLines(
 }
 
 export function ResultPanel(props: Props) {
+  // Debug: rendered marker（Hook は必ずコンポーネント内）
+  React.useEffect(() => {
+    debugRegistry.markRendered("ResultPanel");
+    return () => debugRegistry.unmarkRendered("ResultPanel");
+  }, []);
+
   const {
     status,
     outputText,
@@ -138,7 +146,7 @@ export function ResultPanel(props: Props) {
           data-testid="result-hint"
         >
           <div className="text-xs font-semibold">{hint.title ?? "Hint"}</div>
-          <div className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">
+          <div className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
             {hint.detail}
           </div>
         </div>

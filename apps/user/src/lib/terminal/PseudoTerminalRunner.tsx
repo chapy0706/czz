@@ -7,6 +7,8 @@ import * as React from "react";
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import { ResultPanel } from "@/lib/terminal/ResultPanel";
 
+import { debugRegistry } from "@/components/debug/debugRegistry";
+
 type Props = {
   /**
    * 互換のため、taskId / task のどちらでも受け取れるようにする。
@@ -51,6 +53,12 @@ export function PseudoTerminalRunner({
   userId,
   navigateOnRun,
 }: Props) {
+  // Debug: rendered marker（Hook は必ずコンポーネント内）
+  React.useEffect(() => {
+    debugRegistry.markRendered("PseudoTerminalRunner");
+    return () => debugRegistry.unmarkRendered("PseudoTerminalRunner");
+  }, []);
+
   const resolvedTaskId = taskId ?? task?.id;
   const router = useRouter();
 

@@ -19,6 +19,8 @@ import {
 } from "@/lib/command-builder/runnerIo";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
 
+import { debugRegistry } from "@/components/debug/debugRegistry";
+
 type UiMode = "beginner" | "normal";
 
 type CommandDraft = {
@@ -93,6 +95,11 @@ type DragState = {
 };
 
 export function PipelinePanel(props: Props) {
+  React.useEffect(() => {
+    debugRegistry.markRendered("PipelinePanel");
+    return () => debugRegistry.unmarkRendered("PipelinePanel");
+  }, []);
+
   const {
     uiMode = "normal",
     commands,

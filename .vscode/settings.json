@@ -1,19 +1,14 @@
 {
-  "files.exclude": {
-    "**/node_modules": true,
-    "**/.next": true,
-    "**/.pnpm-store": true,
-    "**/dist": true,
-    "**/out": true,
-    "**/coverage": true,
-    "**/playwright-report": true
-  },
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit",
-    "source.organizeImports": "explicit"
+    "source.fixAll.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
   },
-  "biome.lint.enable": true,
-  "biome.format.enable": true,
-  "typescript.tsdk": "node_modules/typescript/lib"
+
+  "[javascript]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[typescript]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[javascriptreact]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[typescriptreact]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[json]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[jsonc]": { "editor.defaultFormatter": "biomejs.biome" }
 }

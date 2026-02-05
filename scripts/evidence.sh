@@ -1,54 +1,43 @@
 #!/usr/bin/env bash
-# scripts/evidence.sh
-# Purpose: run verify and persist stdout/stderr into out/evidence/<timestamp>-<sha>.log
-
+# /scripts/evidence.sh
 set -euo pipefail
-set -o pipefail
 
-mode="${1:-local}"
-case "$mode" in
-  local|ci) ;;
-  *)
-    echo "ERROR: mode must be 'local' or 'ci' (got: $mode)" >&2
-    exit 2
-    ;;
-esac
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null || true)"
-if [[ -z "$repo_root" ]]; then
-  repo_root="$(cd "$script_dir/.." && pwd)"
-fi
-cd "$repo_root"
+MODE="${VERIFY_MODE:-local}"
+EVIDENCE_DIR="${EVIDENCE_DIR:-out/evidence}"
 
-evidence_dir="${EVIDENCE_DIR:-out/evidence}"
-mkdir -p "$evidence_dir"
+mkdir -p "$EVIDENCE_DIR"
 
-ts="$(date -u +%Y%m%dT%H%M%SZ)"
-sha="$(git rev-parse --short=12 HEAD 2>/dev/null || echo 'nogit')"
-dirty_suffix=""
-if git status --porcelain >/dev/null 2>&1; then
-  if [[ -n "$(git status --porcelain)" ]]; then
-    dirty_suffix="-dirty"
-  fi
+sha="no-git"
+branch="unknown"
+dirty="unknown"
+
+if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  sha="$(git rev-parse --short HEAD || echo no-git)"
+  branch="$(git rev-parse --abbrev-ref HEAD || echo unknown)"
+  dirty="$(git status --porcelain | wc -l | tr -d ' ')"
 fi
 
-log="${evidence_dir}/${ts}-${sha}${dirty_suffix}.log"
+ts="$(date -u +'%Y%m%dT%H%M%SZ')"
+log="${EVIDENCE_DIR}/${ts}-${sha}.log"
 
-echo "Writing evidence log: $log"
-echo ""
-
-VERIFY_BUILD="${VERIFY_BUILD:-0}" REQUIRE_TYPECHECK="${REQUIRE_TYPECHECK:-0}" \
-  bash scripts/verify.sh "$mode" 2>&1 | tee "$log"
-rc="${PIPESTATUS[0]}"
-
-if [[ "$rc" -ne 0 ]]; then
+{
+  echo "czz.evidence"
+  echo "  ts_utc=${ts}"
+  echo "  sha=${sha}"
+  echo "  branch=${branch}"
+  echo "  dirty=${dirty}"
+  if command -v node >/dev/null 2>&1; then echo "  node=$(node -v)"; fi
+  if command -v pnpm >/dev/null 2>&1; then echo "  pnpm=$(pnpm -v)"; fi
+  if command -v uname >/dev/null 2>&1; then echo "  os=$(uname -a)"; fi
   echo ""
-  echo "== FAILED (exit: $rc) =="
-  echo "Evidence saved: $log"
-  exit "$rc"
-fi
+  VERIFY_MODE="${MODE}" bash "${ROOT_DIR}/scripts/verify.sh"
+} 2>&1 | tee "${log}"
 
-echo ""
-echo "== OK =="
-echo "Evidence saved: $log"
+status="${PIPESTATUS[0]}"
+echo "" | tee -a "${log}" >/dev/null
+echo "log_path=${log}" | tee -a "${log}" >/dev/null
+
+exit "${status}"

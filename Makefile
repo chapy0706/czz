@@ -10,11 +10,14 @@ DB_URL ?= postgres://app:app@localhost:5433/czz_dev
 COMPOSE_FILE ?= infra/docker/docker-compose.dev.yml
 ALLOW_NONLOCAL ?= 0
 
-# Quality gate toggles
+# Quality gate knobs (used by scripts/verify.sh)
+VERIFY_MODE ?= local        # local|ci
+VERIFY_LINT ?= 1
+VERIFY_TYPECHECK ?= 1
+VERIFY_TEST ?= 1
 VERIFY_BUILD ?= 0
-VERIFY_MODE ?= local
+
 EVIDENCE_DIR ?= out/evidence
-REQUIRE_TYPECHECK ?= 0
 
 define assert_safe_db
 	@set -euo pipefail; \
@@ -32,6 +35,11 @@ endef
 help:
 	@echo ""
 	@echo "czz dev commands"
+	@echo ""
+	@echo "Quality gate"
+	@echo "  make verify          Lint/Typecheck/Test (optional Build)"
+	@echo "  make ci              CI-friendly verify (no prompt, stable output)"
+	@echo "  make evidence         Save verify log to out/evidence/<ts>-<sha>.log"
 	@echo ""
 	@echo "DB (docker-compose)"
 	@echo "  make db-up           Start dev DB (docker compose)"
@@ -52,20 +60,50 @@ help:
 	@echo "  make test-user       Run vitest in apps/user"
 	@echo "  make test-dsl        Run vitest in packages/dsl-core"
 	@echo ""
-	@echo "Quality Gate"
-	@echo "  make verify          Run biome check + typecheck (best-effort) + test (+ build if VERIFY_BUILD=1)"
-	@echo "  make ci              CI-friendly verify (non-interactive, stable env)"
-	@echo "  make evidence        Save verify logs to out/evidence/<timestamp>-<sha>.log"
-	@echo ""
-	@echo "Quality Gate options"
-	@echo "  VERIFY_BUILD=1        Include pnpm build"
-	@echo "  REQUIRE_TYPECHECK=1   Fail if typecheck cannot be executed"
-	@echo ""
 	@echo "Override examples"
 	@echo "  VERIFY_BUILD=1 make verify"
-	@echo "  VERIFY_BUILD=1 make evidence"
-	@echo "  REQUIRE_TYPECHECK=1 make verify"
+	@echo "  VERIFY_MODE=ci make ci"
+	@echo "  VERIFY_MODE=ci make evidence"
 	@echo ""
+	@echo "  DB_URL=postgres://app:app@localhost:5433/czz_dev make db-reset"
+	@echo "  DB_URL=postgres://app:app@localhost:5433/czz_dev make db-migrate"
+	@echo "  DB_URL=postgres://app:app@localhost:5433/czz_dev make db-count"
+	@echo "  ALLOW_NONLOCAL=1 DB_URL=postgres://... make db-migrate   # e.g. Neon direct/unpooled"
+	@echo "  ALLOW_NONLOCAL=1 DB_URL=postgres://... make db-count     # NOT recommended"
+	@echo ""
+
+# --- Quality gate -------------------------------------------------------------
+
+.PHONY: verify
+verify:
+	VERIFY_MODE="$(VERIFY_MODE)" \
+	VERIFY_LINT="$(VERIFY_LINT)" \
+	VERIFY_TYPECHECK="$(VERIFY_TYPECHECK)" \
+	VERIFY_TEST="$(VERIFY_TEST)" \
+	VERIFY_BUILD="$(VERIFY_BUILD)" \
+	bash scripts/verify.sh
+
+.PHONY: ci
+ci:
+	CI=1 NO_COLOR=1 FORCE_COLOR=0 TERM=dumb \
+	VERIFY_MODE="ci" \
+	VERIFY_LINT="$(VERIFY_LINT)" \
+	VERIFY_TYPECHECK="$(VERIFY_TYPECHECK)" \
+	VERIFY_TEST="$(VERIFY_TEST)" \
+	VERIFY_BUILD="$(VERIFY_BUILD)" \
+	bash scripts/verify.sh
+
+.PHONY: evidence
+evidence:
+	EVIDENCE_DIR="$(EVIDENCE_DIR)" \
+	VERIFY_MODE="$(VERIFY_MODE)" \
+	VERIFY_LINT="$(VERIFY_LINT)" \
+	VERIFY_TYPECHECK="$(VERIFY_TYPECHECK)" \
+	VERIFY_TEST="$(VERIFY_TEST)" \
+	VERIFY_BUILD="$(VERIFY_BUILD)" \
+	bash scripts/evidence.sh
+
+# --- DB -----------------------------------------------------------------------
 
 .PHONY: db-up
 db-up:
@@ -99,6 +137,8 @@ db-count:
 	$(call assert_safe_db)
 	DB_URL="$(DB_URL)" bash infra/drizzle/scripts/db_count.sh
 
+# --- Apps ---------------------------------------------------------------------
+
 .PHONY: dev-user
 dev-user:
 	pnpm --filter user-app dev
@@ -107,6 +147,8 @@ dev-user:
 dev-admin:
 	pnpm --filter admin-app dev
 
+# --- Tests --------------------------------------------------------------------
+
 .PHONY: test-user
 test-user:
 	pnpm --filter user-app exec vitest
@@ -114,19 +156,3 @@ test-user:
 .PHONY: test-dsl
 test-dsl:
 	pnpm --filter @czz/dsl-core test
-
-.PHONY: verify
-verify:
-	VERIFY_BUILD="$(VERIFY_BUILD)" REQUIRE_TYPECHECK="$(REQUIRE_TYPECHECK)" \
-	bash scripts/verify.sh "$(VERIFY_MODE)"
-
-.PHONY: ci
-ci:
-	CI=1 NO_COLOR=1 FORCE_COLOR=0 TERM=dumb NPM_CONFIG_COLOR=never \
-	VERIFY_BUILD="$(VERIFY_BUILD)" REQUIRE_TYPECHECK="$(REQUIRE_TYPECHECK)" \
-	bash scripts/verify.sh ci
-
-.PHONY: evidence
-evidence:
-	EVIDENCE_DIR="$(EVIDENCE_DIR)" VERIFY_BUILD="$(VERIFY_BUILD)" REQUIRE_TYPECHECK="$(REQUIRE_TYPECHECK)" \
-	bash scripts/evidence.sh "$(VERIFY_MODE)"

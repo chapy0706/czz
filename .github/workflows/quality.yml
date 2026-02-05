@@ -1,0 +1,45 @@
+# /.github/workflows/quality.yml
+name: quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Quality gate (evidence)
+        env:
+          CI: "1"
+          NO_COLOR: "1"
+          FORCE_COLOR: "0"
+          TERM: "dumb"
+          VERIFY_MODE: "ci"
+        run: make evidence
+
+      - name: Upload evidence logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-logs
+          path: out/evidence/*.log

@@ -6,21 +6,19 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "czz Admin",
+	title: "czz Admin",
 };
 
 export default function RootLayout({
-  children,
+	children,
 }: {
-  children: React.ReactNode;
+	children: React.ReactNode;
 }) {
-  return (
-    <html lang="ja" suppressHydrationWarning>
-      <body className="min-h-screen bg-background text-foreground">
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
-      </body>
-    </html>
-  );
+	return (
+		<html lang="ja" suppressHydrationWarning>
+			<body className="min-h-screen bg-background text-foreground">
+				<ThemeProvider>{children}</ThemeProvider>
+			</body>
+		</html>
+	);
 }

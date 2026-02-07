@@ -5,14 +5,14 @@ import { accountViewPaths } from "@neondatabase/auth/react/ui/server";
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return Object.values(accountViewPaths).map((path) => ({ path }));
+	return Object.values(accountViewPaths).map((path) => ({ path }));
 }
 
 export default async function AccountPage({
-  params,
+	params,
 }: {
-  params: Promise<{ path: string }>;
+	params: Promise<{ path: string }>;
 }) {
-  const { path } = await params;
-  return <AccountView pathname={path} />;
+	const { path } = await params;
+	return <AccountView pathname={path} />;
 }

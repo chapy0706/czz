@@ -1,14 +1,14 @@
 {
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "noEmit": true
-  },
-  "include": [
-    "apps/*/src/**/*.ts",
-    "apps/*/src/**/*.tsx",
-    "packages/*/src/**/*.ts",
-    "packages/*/src/**/*.tsx",
-    "infra/**/*.ts"
-  ],
-  "exclude": ["**/node_modules/**", "**/.next/**", "**/dist/**", "**/out/**"]
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"noEmit": true
+	},
+	"include": [
+		"apps/*/src/**/*.ts",
+		"apps/*/src/**/*.tsx",
+		"packages/*/src/**/*.ts",
+		"packages/*/src/**/*.tsx",
+		"infra/**/*.ts"
+	],
+	"exclude": ["**/node_modules/**", "**/.next/**", "**/dist/**", "**/out/**"]
 }

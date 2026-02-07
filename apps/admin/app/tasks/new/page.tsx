@@ -11,11 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMemo, useState } from "react";
 
 type CreateTaskRequest = {
-  title: string;
-  description: string;
-  dslProgram: unknown;
-  testCases: unknown;
-  isPublished: boolean;
+	title: string;
+	description: string;
+	dslProgram: unknown;
+	testCases: unknown;
+	isPublished: boolean;
 };
 
 type CreateTaskSuccess = { ok: true; taskId: string };
@@ -27,221 +27,221 @@ type JsonParseNg = { ok: false; error: string };
 type JsonParseResult = JsonParseOk | JsonParseNg;
 
 const DEFAULT_DSL = {
-  version: 1,
-  commands: [],
+	version: 1,
+	commands: [],
 };
 
 const DEFAULT_TEST_CASES = [
-  {
-    title: "サンプル",
-    inputCsv: "a,b\n1,2\n",
-    expectedCsv: "a,b\n1,2\n",
-  },
+	{
+		title: "サンプル",
+		inputCsv: "a,b\n1,2\n",
+		expectedCsv: "a,b\n1,2\n",
+	},
 ];
 
 function isCreateFailure(r: CreateTaskResponse): r is CreateTaskFailure {
-  return r.ok === false;
+	return r.ok === false;
 }
 
 function isJsonNg(r: JsonParseResult): r is JsonParseNg {
-  return r.ok === false;
+	return r.ok === false;
 }
 
 function safeJsonParse(text: string): JsonParseResult {
-  try {
-    return { ok: true, value: JSON.parse(text) };
-  } catch {
-    return { ok: false, error: "JSONの構文が壊れているよ" };
-  }
+	try {
+		return { ok: true, value: JSON.parse(text) };
+	} catch {
+		return { ok: false, error: "JSONの構文が壊れているよ" };
+	}
 }
 
 export default function Page() {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+	const [title, setTitle] = useState("");
+	const [description, setDescription] = useState("");
 
-  const [dslProgramText, setDslProgramText] = useState(
-    JSON.stringify(DEFAULT_DSL, null, 2),
-  );
-  const [testCasesText, setTestCasesText] = useState(
-    JSON.stringify(DEFAULT_TEST_CASES, null, 2),
-  );
+	const [dslProgramText, setDslProgramText] = useState(
+		JSON.stringify(DEFAULT_DSL, null, 2),
+	);
+	const [testCasesText, setTestCasesText] = useState(
+		JSON.stringify(DEFAULT_TEST_CASES, null, 2),
+	);
 
-  const [isPublished, setIsPublished] = useState(false);
+	const [isPublished, setIsPublished] = useState(false);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<CreateTaskResponse | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [result, setResult] = useState<CreateTaskResponse | null>(null);
 
-  const parsedDsl = useMemo(
-    () => safeJsonParse(dslProgramText),
-    [dslProgramText],
-  );
-  const parsedTests = useMemo(
-    () => safeJsonParse(testCasesText),
-    [testCasesText],
-  );
+	const parsedDsl = useMemo(
+		() => safeJsonParse(dslProgramText),
+		[dslProgramText],
+	);
+	const parsedTests = useMemo(
+		() => safeJsonParse(testCasesText),
+		[testCasesText],
+	);
 
-  const canSubmit =
-    title.trim().length > 0 &&
-    description.trim().length > 0 &&
-    !isJsonNg(parsedDsl) &&
-    !isJsonNg(parsedTests) &&
-    !isSubmitting;
+	const canSubmit =
+		title.trim().length > 0 &&
+		description.trim().length > 0 &&
+		!isJsonNg(parsedDsl) &&
+		!isJsonNg(parsedTests) &&
+		!isSubmitting;
 
-  async function onSubmit() {
-    setIsSubmitting(true);
-    setResult(null);
+	async function onSubmit() {
+		setIsSubmitting(true);
+		setResult(null);
 
-    const dsl = safeJsonParse(dslProgramText);
-    const tests = safeJsonParse(testCasesText);
+		const dsl = safeJsonParse(dslProgramText);
+		const tests = safeJsonParse(testCasesText);
 
-    if (isJsonNg(dsl) || isJsonNg(tests)) {
-      setResult({
-        ok: false,
-        error: "JSONが不正だよ",
-        details: {
-          dsl: isJsonNg(dsl) ? dsl.error : null,
-          testCases: isJsonNg(tests) ? tests.error : null,
-        },
-      });
-      setIsSubmitting(false);
-      return;
-    }
+		if (isJsonNg(dsl) || isJsonNg(tests)) {
+			setResult({
+				ok: false,
+				error: "JSONが不正だよ",
+				details: {
+					dsl: isJsonNg(dsl) ? dsl.error : null,
+					testCases: isJsonNg(tests) ? tests.error : null,
+				},
+			});
+			setIsSubmitting(false);
+			return;
+		}
 
-    const payload: CreateTaskRequest = {
-      title: title.trim(),
-      description: description.trim(),
-      dslProgram: dsl.value,
-      testCases: tests.value,
-      isPublished,
-    };
+		const payload: CreateTaskRequest = {
+			title: title.trim(),
+			description: description.trim(),
+			dslProgram: dsl.value,
+			testCases: tests.value,
+			isPublished,
+		};
 
-    try {
-      const res = await fetch("/api/admin/tasks", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+		try {
+			const res = await fetch("/api/admin/tasks", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(payload),
+			});
 
-      const data = (await res.json().catch(() => null)) as any;
+			const data = (await res.json().catch(() => null)) as any;
 
-      if (!res.ok) {
-        setResult({
-          ok: false,
-          error: data?.error ?? `作成に失敗したよ (HTTP ${res.status})`,
-          details: data,
-        });
-        return;
-      }
+			if (!res.ok) {
+				setResult({
+					ok: false,
+					error: data?.error ?? `作成に失敗したよ (HTTP ${res.status})`,
+					details: data,
+				});
+				return;
+			}
 
-      const taskId =
-        typeof data?.taskId === "string"
-          ? data.taskId
-          : String(data?.taskId ?? "");
-      setResult({ ok: true, taskId });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      setResult({ ok: false, error: message });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+			const taskId =
+				typeof data?.taskId === "string"
+					? data.taskId
+					: String(data?.taskId ?? "");
+			setResult({ ok: true, taskId });
+		} catch (e) {
+			const message = e instanceof Error ? e.message : "Unknown error";
+			setResult({ ok: false, error: message });
+		} finally {
+			setIsSubmitting(false);
+		}
+	}
 
-  return (
-    <main className="mx-auto max-w-3xl p-6 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>課題作成</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="title">タイトル</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="例: sortで昇順にしよう"
-            />
-          </div>
+	return (
+		<main className="mx-auto max-w-3xl p-6 space-y-6">
+			<Card>
+				<CardHeader>
+					<CardTitle>課題作成</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					<div className="space-y-2">
+						<Label htmlFor="title">タイトル</Label>
+						<Input
+							id="title"
+							value={title}
+							onChange={(e) => setTitle(e.target.value)}
+							placeholder="例: sortで昇順にしよう"
+						/>
+					</div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">問題文</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="課題の説明をここに"
-              rows={5}
-            />
-          </div>
+					<div className="space-y-2">
+						<Label htmlFor="description">問題文</Label>
+						<Textarea
+							id="description"
+							value={description}
+							onChange={(e) => setDescription(e.target.value)}
+							placeholder="課題の説明をここに"
+							rows={5}
+						/>
+					</div>
 
-          <div className="flex items-center justify-between rounded-md border p-4">
-            <div className="space-y-1">
-              <div className="font-medium">公開する</div>
-              <div className="text-sm text-muted-foreground">
-                公開するとユーザー側で一覧に出る想定
-              </div>
-            </div>
-            <Switch checked={isPublished} onCheckedChange={setIsPublished} />
-          </div>
+					<div className="flex items-center justify-between rounded-md border p-4">
+						<div className="space-y-1">
+							<div className="font-medium">公開する</div>
+							<div className="text-sm text-muted-foreground">
+								公開するとユーザー側で一覧に出る想定
+							</div>
+						</div>
+						<Switch checked={isPublished} onCheckedChange={setIsPublished} />
+					</div>
 
-          <div className="space-y-2">
-            <Label htmlFor="dslProgram">dslProgram（JSON）</Label>
-            <Textarea
-              id="dslProgram"
-              value={dslProgramText}
-              onChange={(e) => setDslProgramText(e.target.value)}
-              rows={10}
-            />
-            {isJsonNg(parsedDsl) ? (
-              <p className="text-sm text-red-600">{parsedDsl.error}</p>
-            ) : null}
-          </div>
+					<div className="space-y-2">
+						<Label htmlFor="dslProgram">dslProgram（JSON）</Label>
+						<Textarea
+							id="dslProgram"
+							value={dslProgramText}
+							onChange={(e) => setDslProgramText(e.target.value)}
+							rows={10}
+						/>
+						{isJsonNg(parsedDsl) ? (
+							<p className="text-sm text-red-600">{parsedDsl.error}</p>
+						) : null}
+					</div>
 
-          <div className="space-y-2">
-            <Label htmlFor="testCases">testCases（JSON）</Label>
-            <Textarea
-              id="testCases"
-              value={testCasesText}
-              onChange={(e) => setTestCasesText(e.target.value)}
-              rows={10}
-            />
-            {isJsonNg(parsedTests) ? (
-              <p className="text-sm text-red-600">{parsedTests.error}</p>
-            ) : null}
-          </div>
+					<div className="space-y-2">
+						<Label htmlFor="testCases">testCases（JSON）</Label>
+						<Textarea
+							id="testCases"
+							value={testCasesText}
+							onChange={(e) => setTestCasesText(e.target.value)}
+							rows={10}
+						/>
+						{isJsonNg(parsedTests) ? (
+							<p className="text-sm text-red-600">{parsedTests.error}</p>
+						) : null}
+					</div>
 
-          <div className="flex gap-3">
-            <Button onClick={onSubmit} disabled={!canSubmit}>
-              {isSubmitting ? "送信中…" : "作成"}
-            </Button>
-          </div>
+					<div className="flex gap-3">
+						<Button onClick={onSubmit} disabled={!canSubmit}>
+							{isSubmitting ? "送信中…" : "作成"}
+						</Button>
+					</div>
 
-          {result ? (
-            result.ok ? (
-              <Alert>
-                <AlertTitle>作成できたよ</AlertTitle>
-                <AlertDescription>taskId: {result.taskId}</AlertDescription>
-              </Alert>
-            ) : (
-              <Alert>
-                <AlertTitle>失敗したよ</AlertTitle>
-                <AlertDescription>
-                  <div className="space-y-2">
-                    <div>
-                      {isCreateFailure(result) ? result.error : "Unknown error"}
-                    </div>
-                    {isCreateFailure(result) && result.details ? (
-                      <pre className="overflow-auto rounded bg-muted p-3 text-xs">
-                        {JSON.stringify(result.details, null, 2)}
-                      </pre>
-                    ) : null}
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )
-          ) : null}
-        </CardContent>
-      </Card>
-    </main>
-  );
+					{result ? (
+						result.ok ? (
+							<Alert>
+								<AlertTitle>作成できたよ</AlertTitle>
+								<AlertDescription>taskId: {result.taskId}</AlertDescription>
+							</Alert>
+						) : (
+							<Alert>
+								<AlertTitle>失敗したよ</AlertTitle>
+								<AlertDescription>
+									<div className="space-y-2">
+										<div>
+											{isCreateFailure(result) ? result.error : "Unknown error"}
+										</div>
+										{isCreateFailure(result) && result.details ? (
+											<pre className="overflow-auto rounded bg-muted p-3 text-xs">
+												{JSON.stringify(result.details, null, 2)}
+											</pre>
+										) : null}
+									</div>
+								</AlertDescription>
+							</Alert>
+						)
+					) : null}
+				</CardContent>
+			</Card>
+		</main>
+	);
 }

@@ -21,40 +21,40 @@ type Props = { children: React.ReactNode };
 const THEME_BACKUP_KEY = "czz-theme-before-beginner";
 
 function readAppliedTheme(): "dark" | "light" {
-  // next-themes attribute="class" の場合、html に dark が付いているかで「適用中」を判定できる
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+	// next-themes attribute="class" の場合、html に dark が付いているかで「適用中」を判定できる
+	return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
 export function UiModeProvider({ children }: Props) {
-  const mode = useUiModeStore((s) => s.mode);
-  const { setTheme } = useTheme();
+	const mode = useUiModeStore((s) => s.mode);
+	const { setTheme } = useTheme();
 
-  React.useEffect(() => {
-    const root = document.documentElement;
+	React.useEffect(() => {
+		const root = document.documentElement;
 
-    // CSS切替
-    root.dataset.uiMode = mode;
+		// CSS切替
+		root.dataset.uiMode = mode;
 
-    if (mode === "beginner") {
-      // beginner に入った瞬間の「適用中テーマ」を一度だけ退避
-      // (StrictModeでeffectが2回走る場合があるので、上書きしない)
-      if (!window.localStorage.getItem(THEME_BACKUP_KEY)) {
-        window.localStorage.setItem(THEME_BACKUP_KEY, readAppliedTheme());
-      }
+		if (mode === "beginner") {
+			// beginner に入った瞬間の「適用中テーマ」を一度だけ退避
+			// (StrictModeでeffectが2回走る場合があるので、上書きしない)
+			if (!window.localStorage.getItem(THEME_BACKUP_KEY)) {
+				window.localStorage.setItem(THEME_BACKUP_KEY, readAppliedTheme());
+			}
 
-      // beginner は強制ライト（可愛いパステルを崩さない）
-      setTheme("light");
-      return;
-    }
+			// beginner は強制ライト（可愛いパステルを崩さない）
+			setTheme("light");
+			return;
+		}
 
-    // advanced に戻るとき: 退避したテーマへ復帰（なければ dark）
-    const backup = window.localStorage.getItem(THEME_BACKUP_KEY);
-    window.localStorage.removeItem(THEME_BACKUP_KEY);
+		// advanced に戻るとき: 退避したテーマへ復帰（なければ dark）
+		const backup = window.localStorage.getItem(THEME_BACKUP_KEY);
+		window.localStorage.removeItem(THEME_BACKUP_KEY);
 
-    // 要望: beginner解除時はダークへ戻したい → backup が light でも dark へ倒す
-    const next = backup === "dark" ? "dark" : "dark";
-    setTheme(next);
-  }, [mode, setTheme]);
+		// 要望: beginner解除時はダークへ戻したい → backup が light でも dark へ倒す
+		const next = backup === "dark" ? "dark" : "dark";
+		setTheme(next);
+	}, [mode, setTheme]);
 
-  return <>{children}</>;
+	return <>{children}</>;
 }

@@ -9,13 +9,13 @@ type AnyCommand = { value: unknown };
  * （副作用は持たず、UI の resetKey 用に使う）
  */
 export function buildResetKey(
-  commands: AnyCommand[],
-  runnerIo?: RunnerIo,
+	commands: AnyCommand[],
+	runnerIo?: RunnerIo,
 ): string {
-  return (
-    safeJsonCompact({
-      commands: commands.map((c) => c.value),
-      runnerIo: runnerIo ?? null,
-    }) || ""
-  );
+	return (
+		safeJsonCompact({
+			commands: commands.map((c) => c.value),
+			runnerIo: runnerIo ?? null,
+		}) || ""
+	);
 }

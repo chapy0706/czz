@@ -7,16 +7,16 @@ export type AuthUserId = string;
 export type UserRoleFlag = 0 | 1;
 
 export interface User {
-  id: UserId;
-  authUserId: AuthUserId | null;
-  displayName: string;
-  role: UserRoleFlag;
-  createdAt: Date;
-  updatedAt: Date;
+	id: UserId;
+	authUserId: AuthUserId | null;
+	displayName: string;
+	role: UserRoleFlag;
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 export interface NewUser {
-  authUserId: AuthUserId | null;
-  displayName: string;
-  role: UserRoleFlag;
+	authUserId: AuthUserId | null;
+	displayName: string;
+	role: UserRoleFlag;
 }

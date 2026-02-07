@@ -5,15 +5,15 @@ import { TopCtasWithSfx } from "@/components/top/top-ctas-with-sfx";
 import { TopIntro } from "@/components/top/top-intro";
 
 export default function Page() {
-  return (
-    <main className="mx-auto flex min-h-[calc(100vh-64px)] max-w-5xl flex-col justify-center px-6 py-10">
-      <div className="space-y-4" data-testid="top-page">
-        <TopIntro />
+	return (
+		<main className="mx-auto flex min-h-[calc(100vh-64px)] max-w-5xl flex-col justify-center px-6 py-10">
+			<div className="space-y-4" data-testid="top-page">
+				<TopIntro />
 
-        <TopCtasWithSfx />
-      </div>
+				<TopCtasWithSfx />
+			</div>
 
-      <UiModeToggle className="mt-6" />
-    </main>
-  );
+			<UiModeToggle className="mt-6" />
+		</main>
+	);
 }

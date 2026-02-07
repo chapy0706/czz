@@ -9,40 +9,40 @@ const BUILD_FLAG = process.env.NEXT_PUBLIC_DEBUG_PANEL === "1";
 
 // dev + flag の時だけ import（production build で巻き込まれない）
 const LazyDebugPanel =
-  IS_DEV && BUILD_FLAG
-    ? dynamic(
-        () => import("@/components/debug/DebugPanel").then((m) => m.DebugPanel),
-        {
-          ssr: false,
-        },
-      )
-    : null;
+	IS_DEV && BUILD_FLAG
+		? dynamic(
+				() => import("@/components/debug/DebugPanel").then((m) => m.DebugPanel),
+				{
+					ssr: false,
+				},
+			)
+		: null;
 
 function isLocalhostHost(hostname: string) {
-  return (
-    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1"
-  );
+	return (
+		hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1"
+	);
 }
 
 export function DebugPanelGate() {
-  // ✅ 初回レンダーで window を見ない（Hydration対策）
-  const [mounted, setMounted] = React.useState(false);
-  const [isLocalhost, setIsLocalhost] = React.useState(false);
+	// ✅ 初回レンダーで window を見ない（Hydration対策）
+	const [mounted, setMounted] = React.useState(false);
+	const [isLocalhost, setIsLocalhost] = React.useState(false);
 
-  React.useEffect(() => {
-    setMounted(true);
-    setIsLocalhost(isLocalhostHost(window.location.hostname));
-  }, []);
+	React.useEffect(() => {
+		setMounted(true);
+		setIsLocalhost(isLocalhostHost(window.location.hostname));
+	}, []);
 
-  if (!IS_DEV) return null;
-  if (!BUILD_FLAG) return null;
+	if (!IS_DEV) return null;
+	if (!BUILD_FLAG) return null;
 
-  // 初回は必ず null（server/client で一致させる）
-  if (!mounted) return null;
+	// 初回は必ず null（server/client で一致させる）
+	if (!mounted) return null;
 
-  // ローカル専用
-  if (!isLocalhost) return null;
+	// ローカル専用
+	if (!isLocalhost) return null;
 
-  if (!LazyDebugPanel) return null;
-  return <LazyDebugPanel />;
+	if (!LazyDebugPanel) return null;
+	return <LazyDebugPanel />;
 }

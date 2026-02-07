@@ -1,6 +1,6 @@
 // apps/user/app/layout.tsx
 
-import * as React from "react";
+import type * as React from "react";
 import "./globals.css";
 
 import { jaJP } from "@clerk/localizations";
@@ -20,68 +20,68 @@ import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
 import { DebugPanelGate } from "@/components/providers/DebugPanelGate";
 
 const FEATURES = {
-  themeProvider: true,
-  uiModeProvider: true,
+	themeProvider: true,
+	uiModeProvider: true,
 
-  breadcrumbs: true,
-  authUserBadge: true,
+	breadcrumbs: true,
+	authUserBadge: true,
 
-  beginnerDock: true,
-  beginnerBgm: true,
+	beginnerDock: true,
+	beginnerBgm: true,
 } as const;
 
 export default function RootLayout({
-  children,
+	children,
 }: {
-  children: React.ReactNode;
+	children: React.ReactNode;
 }) {
-  const app = (
-    <>
-      {FEATURES.breadcrumbs ? <GlobalBreadcrumbs /> : null}
+	const app = (
+		<>
+			{FEATURES.breadcrumbs ? <GlobalBreadcrumbs /> : null}
 
-      {children}
+			{children}
 
-      <DebugPanelGate />
+			<DebugPanelGate />
 
-      {FEATURES.authUserBadge ? <AuthUserBadge /> : null}
+			{FEATURES.authUserBadge ? <AuthUserBadge /> : null}
 
-      {FEATURES.beginnerDock ? (
-        <BeginnerBottomDock
-          left={<BeginnerMascotDock />}
-          right={<BeginnerHud />}
-        />
-      ) : null}
+			{FEATURES.beginnerDock ? (
+				<BeginnerBottomDock
+					left={<BeginnerMascotDock />}
+					right={<BeginnerHud />}
+				/>
+			) : null}
 
-      {FEATURES.beginnerBgm ? <BeginnerBgmController /> : null}
-    </>
-  );
+			{FEATURES.beginnerBgm ? <BeginnerBgmController /> : null}
+		</>
+	);
 
-  const withUiMode = FEATURES.uiModeProvider ? (
-    <UiModeProvider>{app}</UiModeProvider>
-  ) : (
-    app
-  );
+	const withUiMode = FEATURES.uiModeProvider ? (
+		<UiModeProvider>{app}</UiModeProvider>
+	) : (
+		app
+	);
 
-  const withTheme = FEATURES.themeProvider ? (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      {withUiMode}
-    </ThemeProvider>
-  ) : (
-    withUiMode
-  );
+	const withTheme = FEATURES.themeProvider ? (
+		<ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+			{withUiMode}
+		</ThemeProvider>
+	) : (
+		withUiMode
+	);
 
-  return (
-    <html lang="ja" suppressHydrationWarning>
-      <body>
-        <ClerkProvider
-          localization={jaJP}
-          signInUrl="/auth/sign-in"
-          signUpUrl="/auth/sign-up"
-          afterSignOutUrl="/"
-        >
-          {withTheme}
-        </ClerkProvider>
-      </body>
-    </html>
-  );
+	return (
+		<html lang="ja" suppressHydrationWarning>
+			<body>
+				<ClerkProvider
+					localization={jaJP}
+					signInUrl="/auth/sign-in"
+					signUpUrl="/auth/sign-up"
+					afterSignOutUrl="/"
+				>
+					{withTheme}
+				</ClerkProvider>
+			</body>
+		</html>
+	);
 }

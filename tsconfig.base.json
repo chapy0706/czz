@@ -1,20 +1,20 @@
 {
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "ESNext",
-    "moduleResolution": "Node",
-    "strict": true,
-    "jsx": "preserve",
-    "baseUrl": ".",
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "paths": {
-      "@czz/domain": ["packages/domain/src/index.ts"],
-      "@czz/domain/*": ["packages/domain/src/*"],
-      "@czz/types/*": ["packages/types/src/*"],
-      "@czz/dsl-core": ["packages/dsl-core/src/index.ts"],
-      "@czz/dsl-core/*": ["packages/dsl-core/src/*"],
-      "@infra/*": ["infra/*"]
-    }
-  }
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "ESNext",
+		"moduleResolution": "Node",
+		"strict": true,
+		"jsx": "preserve",
+		"baseUrl": ".",
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"paths": {
+			"@czz/domain": ["packages/domain/src/index.ts"],
+			"@czz/domain/*": ["packages/domain/src/*"],
+			"@czz/types/*": ["packages/types/src/*"],
+			"@czz/dsl-core": ["packages/dsl-core/src/index.ts"],
+			"@czz/dsl-core/*": ["packages/dsl-core/src/*"],
+			"@infra/*": ["infra/*"]
+		}
+	}
 }

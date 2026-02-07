@@ -9,7 +9,7 @@ import { useSfx } from "@/lib/audio/useSfx";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type Props = {
-  className?: string;
+	className?: string;
 };
 
 /**
@@ -18,44 +18,44 @@ type Props = {
  * - 音量/ONOFF は audioSettingsStore の SE 設定に従う
  */
 export function TopCtasWithSfx({ className }: Props) {
-  const mode = useUiModeStore((s) => s.mode);
-  const isBeginner = mode === "beginner";
+	const mode = useUiModeStore((s) => s.mode);
+	const isBeginner = mode === "beginner";
 
-  const sfxEnabled = useAudioSettingsStore((s) => s.sfxEnabled);
-  const sfxVolume = useAudioSettingsStore((s) => s.sfxVolume);
+	const sfxEnabled = useAudioSettingsStore((s) => s.sfxEnabled);
+	const sfxVolume = useAudioSettingsStore((s) => s.sfxVolume);
 
-  const { play } = useSfx("/audio/sfx/push.mp3", {
-    enabled: isBeginner && sfxEnabled,
-    volume: sfxVolume,
-  });
+	const { play } = useSfx("/audio/sfx/push.mp3", {
+		enabled: isBeginner && sfxEnabled,
+		volume: sfxVolume,
+	});
 
-  const handleClick = React.useCallback(() => {
-    void play();
-  }, [play]);
+	const handleClick = React.useCallback(() => {
+		void play();
+	}, [play]);
 
-  return (
-    <div
-      className={["flex flex-wrap gap-2 pt-2", className]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <Link
-        href="/tasks"
-        onClick={handleClick}
-        className="rounded border bg-accent px-4 py-2 text-sm hover:opacity-90"
-        data-testid="top-cta-tasks"
-      >
-        スタート
-      </Link>
+	return (
+		<div
+			className={["flex flex-wrap gap-2 pt-2", className]
+				.filter(Boolean)
+				.join(" ")}
+		>
+			<Link
+				href="/tasks"
+				onClick={handleClick}
+				className="rounded border bg-accent px-4 py-2 text-sm hover:opacity-90"
+				data-testid="top-cta-tasks"
+			>
+				スタート
+			</Link>
 
-      <Link
-        href="/result"
-        onClick={handleClick}
-        className="rounded border bg-background px-4 py-2 text-sm hover:bg-accent"
-        data-testid="top-cta-latest-result"
-      >
-        直近のリザルト
-      </Link>
-    </div>
-  );
+			<Link
+				href="/result"
+				onClick={handleClick}
+				className="rounded border bg-background px-4 py-2 text-sm hover:bg-accent"
+				data-testid="top-cta-latest-result"
+			>
+				直近のリザルト
+			</Link>
+		</div>
+	);
 }

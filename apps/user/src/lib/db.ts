@@ -9,8 +9,8 @@ const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) throw new Error("Missing env: DATABASE_URL");
 
 type GlobalDb = {
-  __czz_sql?: ReturnType<typeof postgres>;
-  __czz_db?: ReturnType<typeof drizzle<typeof schema>>;
+	__czz_sql?: ReturnType<typeof postgres>;
+	__czz_db?: ReturnType<typeof drizzle<typeof schema>>;
 };
 
 const g = globalThis as unknown as GlobalDb;

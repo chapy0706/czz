@@ -10,20 +10,20 @@ type LabelProps = React.LabelHTMLAttributes<HTMLLabelElement>;
  * HTML label として必要十分な挙動を提供する。
  */
 const Label = React.forwardRef<HTMLLabelElement, LabelProps>(function Label(
-  { className, ...props },
-  ref,
+	{ className, ...props },
+	ref,
 ) {
-  return (
-    <label
-      ref={ref}
-      className={cn(
-        "text-sm font-medium leading-none",
-        "peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-        className,
-      )}
-      {...props}
-    />
-  );
+	return (
+		<label
+			ref={ref}
+			className={cn(
+				"text-sm font-medium leading-none",
+				"peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+				className,
+			)}
+			{...props}
+		/>
+	);
 });
 
 export { Label };

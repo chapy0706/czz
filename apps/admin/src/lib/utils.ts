@@ -6,5 +6,5 @@ import { twMerge } from "tailwind-merge";
  * Tailwind のクラス名をいい感じにマージするヘルパー
  */
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+	return twMerge(clsx(inputs));
 }

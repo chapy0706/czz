@@ -9,16 +9,16 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 const isProtectedRoute = createRouteMatcher(["/account(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    await auth.protect();
-  }
+	if (isProtectedRoute(req)) {
+		await auth.protect();
+	}
 });
 
 export const config = {
-  matcher: [
-    // 静的ファイルと _next を除外しつつ、ページとAPIで動かす（Clerk推奨パターン）
-    "/((?!.*\\..*|_next).*)",
-    "/",
-    "/(api|trpc)(.*)",
-  ],
+	matcher: [
+		// 静的ファイルと _next を除外しつつ、ページとAPIで動かす（Clerk推奨パターン）
+		"/((?!.*\\..*|_next).*)",
+		"/",
+		"/(api|trpc)(.*)",
+	],
 };

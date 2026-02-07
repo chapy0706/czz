@@ -6,193 +6,187 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
-  }
+	:root {
+		--background: 0 0% 100%;
+		--foreground: 222.2 84% 4.9%;
+		--card: 0 0% 100%;
+		--card-foreground: 222.2 84% 4.9%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 222.2 84% 4.9%;
+		--primary: 222.2 47.4% 11.2%;
+		--primary-foreground: 210 40% 98%;
+		--secondary: 210 40% 96.1%;
+		--secondary-foreground: 222.2 47.4% 11.2%;
+		--muted: 210 40% 96.1%;
+		--muted-foreground: 215.4 16.3% 46.9%;
+		--accent: 210 40% 96.1%;
+		--accent-foreground: 222.2 47.4% 11.2%;
+		--destructive: 0 84.2% 60.2%;
+		--destructive-foreground: 210 40% 98%;
+		--border: 214.3 31.8% 91.4%;
+		--input: 214.3 31.8% 91.4%;
+		--ring: 222.2 84% 4.9%;
+		--radius: 0.5rem;
+	}
 
-  /* Kanagawa (Dragon-ish) dark mode */
-  .dark {
-    --background: 240 14.3% 11%;
-    --foreground: 51.2 32.7% 79.6%;
+	/* Kanagawa (Dragon-ish) dark mode */
+	.dark {
+		--background: 240 14.3% 11%;
+		--foreground: 51.2 32.7% 79.6%;
 
-    --card: 240 12.7% 13.9%;
-    --card-foreground: 51.2 32.7% 79.6%;
+		--card: 240 12.7% 13.9%;
+		--card-foreground: 51.2 32.7% 79.6%;
 
-    --popover: 240 12.7% 13.9%;
-    --popover-foreground: 51.2 32.7% 79.6%;
+		--popover: 240 12.7% 13.9%;
+		--popover-foreground: 51.2 32.7% 79.6%;
 
-    --primary: 220 53.6% 67.1%;
-    --primary-foreground: 240 13.7% 10%;
+		--primary: 220 53.6% 67.1%;
+		--primary-foreground: 240 13.7% 10%;
 
-    --secondary: 215.4 36.4% 21%;
-    --secondary-foreground: 51.2 32.7% 79.6%;
+		--secondary: 215.4 36.4% 21%;
+		--secondary-foreground: 51.2 32.7% 79.6%;
 
-    --muted: 240 13.4% 19%;
-    --muted-foreground: 257.4 15.3% 60.2%;
+		--muted: 240 13.4% 19%;
+		--muted-foreground: 257.4 15.3% 60.2%;
 
-    --accent: 204.8 39.2% 29%;
-    --accent-foreground: 51.2 32.7% 79.6%;
+		--accent: 204.8 39.2% 29%;
+		--accent-foreground: 51.2 32.7% 79.6%;
 
-    --destructive: 0 81% 52.5%;
-    --destructive-foreground: 51.2 32.7% 79.6%;
+		--destructive: 0 81% 52.5%;
+		--destructive-foreground: 51.2 32.7% 79.6%;
 
-    --border: 240 12.9% 24.3%;
-    --input: 240 12.9% 24.3%;
-    --ring: 220 53.6% 67.1%;
-  }
+		--border: 240 12.9% 24.3%;
+		--input: 240 12.9% 24.3%;
+		--ring: 220 53.6% 67.1%;
+	}
 
-  /* Beginner mode (pastel) — .dark が残っても勝てるように両方指定 */
-  html[data-ui-mode="beginner"],
-  html[data-ui-mode="beginner"].dark {
-    color-scheme: light;
+	/* Beginner mode (pastel) — .dark が残っても勝てるように両方指定 */
+	html[data-ui-mode="beginner"],
+	html[data-ui-mode="beginner"].dark {
+		color-scheme: light;
 
-    /* もう少し「黄色ベース」に寄せて、白っぽさを減らす */
-    --background: 48 100% 94%;
-    --foreground: 230 20% 18%;
+		/* もう少し「黄色ベース」に寄せて、白っぽさを減らす */
+		--background: 48 100% 94%;
+		--foreground: 230 20% 18%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 230 20% 18%;
+		--card: 0 0% 100%;
+		--card-foreground: 230 20% 18%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 230 20% 18%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 230 20% 18%;
 
-    /* 主役は “かわいいピンク” のまま。アクセントで青を効かせる */
-    --primary: 330 80% 62%;
-    --primary-foreground: 0 0% 100%;
+		/* 主役は “かわいいピンク” のまま。アクセントで青を効かせる */
+		--primary: 330 80% 62%;
+		--primary-foreground: 0 0% 100%;
 
-    --secondary: 52 100% 90%;
-    --secondary-foreground: 230 20% 18%;
+		--secondary: 52 100% 90%;
+		--secondary-foreground: 230 20% 18%;
 
-    --muted: 48 100% 88%;
-    --muted-foreground: 230 12% 32%;
+		--muted: 48 100% 88%;
+		--muted-foreground: 230 12% 32%;
 
-    /* 青を「見える」レベルに（薄すぎると白に見える） */
-    --accent: 205 100% 86%;
-    --accent-foreground: 230 20% 18%;
+		/* 青を「見える」レベルに（薄すぎると白に見える） */
+		--accent: 205 100% 86%;
+		--accent-foreground: 230 20% 18%;
 
-    --destructive: 0 80% 60%;
-    --destructive-foreground: 0 0% 100%;
+		--destructive: 0 80% 60%;
+		--destructive-foreground: 0 0% 100%;
 
-    --border: 230 18% 70%;
-    --input: 230 18% 68%;
-    --ring: 205 100% 45%;
+		--border: 230 18% 70%;
+		--input: 230 18% 68%;
+		--ring: 205 100% 45%;
 
-    --radius: 1rem;
-  }
+		--radius: 1rem;
+	}
 
-  /* Beginner mode background: Yellow base + Blue gradient（パステル） */
-  html[data-ui-mode="beginner"] body {
-    background-image:
-      /* 大きいグラデーション（黄 → 青）で“全体の空気”を作る */
-      linear-gradient(
-        135deg,
-        hsl(50 100% 92%) 0%,
-        hsl(54 100% 95%) 35%,
-        hsl(205 100% 92%) 100%
-      ),
-      /* ふわっとした雲みたいな青 */
-        radial-gradient(
-          circle at 85% 20%,
-          hsl(205 100% 88%) 0%,
-          transparent 45%
-        ),
-      /* ほんのりレモン */
-        radial-gradient(circle at 20% 15%, hsl(52 100% 90%) 0%, transparent 45%),
-      /* 下から暖色で支える */
-        radial-gradient(circle at 50% 92%, hsl(48 100% 90%) 0%, transparent 52%);
-    background-attachment: fixed;
-  }
+	/* Beginner mode background: Yellow base + Blue gradient（パステル） */
+	html[data-ui-mode="beginner"] body {
+		/* 大きいグラデーション（黄 → 青）で“全体の空気”を作る */
+		background-image: linear-gradient(
+				135deg,
+				hsl(50 100% 92%) 0%,
+				hsl(54 100% 95%) 35%,
+				hsl(205 100% 92%) 100%
+			), /* ふわっとした雲みたいな青 */
+			radial-gradient(circle at 85% 20%, hsl(205 100% 88%) 0%, transparent 45%),
+			/* ほんのりレモン */
+			radial-gradient(circle at 20% 15%, hsl(52 100% 90%) 0%, transparent 45%),
+			/* 下から暖色で支える */
+			radial-gradient(circle at 50% 92%, hsl(48 100% 90%) 0%, transparent 52%);
+		background-attachment: fixed;
+	}
 
-  body {
-    @apply bg-background text-foreground;
-  }
+	body {
+		@apply bg-background text-foreground;
+	}
 
-  /* --- czz loading overlay (RSC) --- */
-  @keyframes czzFadeInInstant {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
+	/* --- czz loading overlay (RSC) --- */
+	@keyframes czzFadeInInstant {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
 
-  /* 200ms待ってから“スッ”と出す（チラつき防止） */
-  .czz-load-fadein {
-    opacity: 0;
-    animation-name: czzFadeInInstant;
-    animation-duration: 1ms;
-    animation-fill-mode: forwards;
-  }
+	/* 200ms待ってから“スッ”と出す（チラつき防止） */
+	.czz-load-fadein {
+		opacity: 0;
+		animation-name: czzFadeInInstant;
+		animation-duration: 1ms;
+		animation-fill-mode: forwards;
+	}
 
-  @keyframes czzBarFill {
-    from {
-      width: 0%;
-    }
-    to {
-      width: 100%;
-    }
-  }
+	@keyframes czzBarFill {
+		from {
+			width: 0%;
+		}
+		to {
+			width: 100%;
+		}
+	}
 
-  /* ASCIIの“埋め”側の幅をstepsで段階的に増やす */
-  .czz-load-bar-fill {
-    width: 0%;
-    animation-name: czzBarFill;
-    animation-duration: 1200ms;
-    animation-iteration-count: infinite;
-    animation-direction: normal;
-  }
+	/* ASCIIの“埋め”側の幅をstepsで段階的に増やす */
+	.czz-load-bar-fill {
+		width: 0%;
+		animation-name: czzBarFill;
+		animation-duration: 1200ms;
+		animation-iteration-count: infinite;
+		animation-direction: normal;
+	}
 
-  /* 1.5秒まで補助文は隠しておく */
-  @keyframes czzHelperShow {
-    from {
-      opacity: 0;
-      transform: translateY(2px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+	/* 1.5秒まで補助文は隠しておく */
+	@keyframes czzHelperShow {
+		from {
+			opacity: 0;
+			transform: translateY(2px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
 
-  .czz-load-helper {
-    opacity: 0;
-    animation-name: czzHelperShow;
-    animation-duration: 180ms;
-    animation-fill-mode: forwards;
-  }
+	.czz-load-helper {
+		opacity: 0;
+		animation-name: czzHelperShow;
+		animation-duration: 180ms;
+		animation-fill-mode: forwards;
+	}
 
-  @media (prefers-reduced-motion: reduce) {
-    .czz-load-fadein {
-      opacity: 1;
-      animation: none;
-    }
-    .czz-load-bar-fill {
-      width: 50%;
-      animation: none;
-    }
-    .czz-load-helper {
-      opacity: 1;
-      animation: none;
-    }
-  }
+	@media (prefers-reduced-motion: reduce) {
+		.czz-load-fadein {
+			opacity: 1;
+			animation: none;
+		}
+		.czz-load-bar-fill {
+			width: 50%;
+			animation: none;
+		}
+		.czz-load-helper {
+			opacity: 1;
+			animation: none;
+		}
+	}
 }

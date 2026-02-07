@@ -7,53 +7,53 @@ import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { usePathname } from "next/navigation";
 
 type UseUiClickSfxOptions = {
-  src?: string;
-  enabled?: boolean;
-  beginnerOnly?: boolean;
-  excludeTaskPlayRoute?: boolean;
-  throttleMs?: number;
+	src?: string;
+	enabled?: boolean;
+	beginnerOnly?: boolean;
+	excludeTaskPlayRoute?: boolean;
+	throttleMs?: number;
 };
 
 export function useUiClickSfx(options?: UseUiClickSfxOptions) {
-  const pathname = usePathname();
+	const pathname = usePathname();
 
-  const { sfxEnabled, sfxVolume } = useAudioSettingsStore((s) => ({
-    sfxEnabled: s.sfxEnabled,
-    sfxVolume: s.sfxVolume,
-  }));
+	const { sfxEnabled, sfxVolume } = useAudioSettingsStore((s) => ({
+		sfxEnabled: s.sfxEnabled,
+		sfxVolume: s.sfxVolume,
+	}));
 
-  const mode = useUiModeStore((s) => s.mode);
-  const isBeginnerMode = mode === "beginner";
+	const mode = useUiModeStore((s) => s.mode);
+	const isBeginnerMode = mode === "beginner";
 
-  // click.mp3 が存在しない事故を避けるため、存在する push.mp3 をデフォルトにする
-  const src = options?.src ?? "/audio/sfx/push.mp3";
+	// click.mp3 が存在しない事故を避けるため、存在する push.mp3 をデフォルトにする
+	const src = options?.src ?? "/audio/sfx/push.mp3";
 
-  const excludeTaskPlayRoute = options?.excludeTaskPlayRoute ?? true;
+	const excludeTaskPlayRoute = options?.excludeTaskPlayRoute ?? true;
 
-  const canPlayByMode = options?.beginnerOnly === true ? isBeginnerMode : true;
+	const canPlayByMode = options?.beginnerOnly === true ? isBeginnerMode : true;
 
-  const canPlayByRoute = excludeTaskPlayRoute
-    ? !isTaskPlayRouteOnly(pathname)
-    : true;
+	const canPlayByRoute = excludeTaskPlayRoute
+		? !isTaskPlayRouteOnly(pathname)
+		: true;
 
-  const enabled =
-    sfxEnabled && (options?.enabled ?? true) && canPlayByMode && canPlayByRoute;
+	const enabled =
+		sfxEnabled && (options?.enabled ?? true) && canPlayByMode && canPlayByRoute;
 
-  const { play } = useSfx(src, {
-    enabled,
-    volume: sfxVolume,
-    throttleMs: options?.throttleMs ?? 120,
-  });
+	const { play } = useSfx(src, {
+		enabled,
+		volume: sfxVolume,
+		throttleMs: options?.throttleMs ?? 120,
+	});
 
-  return { play };
+	return { play };
 }
 
 function isTaskPlayRouteOnly(pathname: string | null): boolean {
-  if (!pathname) return false;
+	if (!pathname) return false;
 
-  const clean = pathname.split("?")[0].split("#")[0];
-  const parts = clean.split("/").filter(Boolean);
+	const clean = pathname.split("?")[0].split("#")[0];
+	const parts = clean.split("/").filter(Boolean);
 
-  // "/tasks/<taskId>" のときだけ無音
-  return parts.length === 2 && parts[0] === "tasks";
+	// "/tasks/<taskId>" のときだけ無音
+	return parts.length === 2 && parts[0] === "tasks";
 }

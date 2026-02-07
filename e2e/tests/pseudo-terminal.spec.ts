@@ -1,29 +1,34 @@
 // e2e/tests/pseudo-terminal.spec.ts
 import { expect, test } from "@playwright/test";
 
-const TASK_ID = process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
+const TASK_ID =
+	process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
 
-test("pseudo terminal: invalid json shows stderr and exit 1, :clear clears logs", async ({ page }) => {
-  await page.goto(`/tasks/${TASK_ID}`);
+test("pseudo terminal: invalid json shows stderr and exit 1, :clear clears logs", async ({
+	page,
+}) => {
+	await page.goto(`/tasks/${TASK_ID}`);
 
-  // DebugDrawer を開く
-  const drawer = page.getByTestId("debug-drawer");
-  await expect(drawer).toBeVisible();
-  await drawer.locator("summary").click();
+	// DebugDrawer を開く
+	const drawer = page.getByTestId("debug-drawer");
+	await expect(drawer).toBeVisible();
+	await drawer.locator("summary").click();
 
-  // PseudoTerminal が見える
-  await expect(page.getByTestId("pseudo-terminal")).toBeVisible();
-  const input = page.getByTestId("terminal-input");
-  await expect(input).toBeVisible();
+	// PseudoTerminal が見える
+	await expect(page.getByTestId("pseudo-terminal")).toBeVisible();
+	const input = page.getByTestId("terminal-input");
+	await expect(input).toBeVisible();
 
-  await input.fill("{ invalid json");
-  await page.getByTestId("terminal-run").click();
+	await input.fill("{ invalid json");
+	await page.getByTestId("terminal-run").click();
 
-  await expect(page.getByText(/ERR: input must be JSON/i).first()).toBeVisible();
+	await expect(
+		page.getByText(/ERR: input must be JSON/i).first(),
+	).toBeVisible();
 
-  await input.fill(":clear");
-  await page.getByTestId("terminal-run").click();
+	await input.fill(":clear");
+	await page.getByTestId("terminal-run").click();
 
-  // ログがクリアされる（ERR文言が消える）
-  await expect(page.getByText(/ERR: input must be JSON/i)).toHaveCount(0);
+	// ログがクリアされる（ERR文言が消える）
+	await expect(page.getByText(/ERR: input must be JSON/i)).toHaveCount(0);
 });

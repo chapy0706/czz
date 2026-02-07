@@ -2,5 +2,5 @@
 import { LoadingOverlayRsc } from "@/components/loading/LoadingOverlayRsc";
 
 export default function Loading() {
-  return <LoadingOverlayRsc />;
+	return <LoadingOverlayRsc />;
 }

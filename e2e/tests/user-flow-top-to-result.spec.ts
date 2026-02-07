@@ -1,10 +1,10 @@
 // e2e/tests/user-flow-top-to-result.spec.ts
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 const TASK_ID =
 	process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
 
-async function clickIfExists(page: any, testId: string) {
+async function clickIfExists(page: Page, testId: string) {
 	const loc = page.getByTestId(testId);
 	if (await loc.count()) {
 		await loc.first().click();
@@ -13,7 +13,7 @@ async function clickIfExists(page: any, testId: string) {
 	return false;
 }
 
-async function ensureAtLeastOneCommand(page: any) {
+async function ensureAtLeastOneCommand(page: Page) {
 	const existing = page.locator('[data-testid-index="cmd-row-0"]');
 	if (await existing.count()) return;
 
@@ -31,7 +31,7 @@ async function ensureAtLeastOneCommand(page: any) {
 	});
 }
 
-async function clickRunEvenIfOverlay(page: any) {
+async function clickRunEvenIfOverlay(page: Page) {
 	// overlay が残って click を塞ぐことがあるので、最終手段で DOM click
 	await page.evaluate(() => {
 		const el = document.querySelector<HTMLButtonElement>(

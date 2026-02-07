@@ -54,15 +54,6 @@ async function main() {
 		if (!dev.killed) dev.kill("SIGKILL");
 	};
 
-	if (!ATTACH) {
-		log(`starting dev server: apps/user on port ${PORT}`);
-		dev = run("pnpm", ["-C", "apps/user", "dev"], {
-			env: { ...process.env, PORT: String(PORT) },
-		});
-	} else {
-		log(`attach mode: will NOT start dev server (expect already running)`);
-	}
-
 	// すでにサーバが起きてるなら、自動で attach 扱いにする（EADDRINUSE回避）
 	const url = `${BASE_URL}${HEALTH_PATH}`;
 	const alreadyUp = await requestOk(url);
@@ -75,8 +66,8 @@ async function main() {
 		);
 	} else {
 		log(`starting dev server: apps/user on port ${PORT}`);
-		// apps/user 側の dev スクリプトが --port を持ってる前提ならこれでOK
 		dev = run("pnpm", ["-C", "apps/user", "dev"], {
+			// biome-ignore lint/style/useNamingConvention: env var keys are intentionally uppercase (PORT)
 			env: { ...process.env, PORT: String(PORT) },
 		});
 	}
@@ -97,6 +88,7 @@ async function main() {
 
 		log("running playwright tests...");
 		const pw = run("pnpm", ["-C", "e2e", "test"], {
+			// biome-ignore lint/style/useNamingConvention: env var keys are intentionally uppercase (E2E_BASE_URL)
 			env: { ...process.env, E2E_BASE_URL: BASE_URL },
 		});
 

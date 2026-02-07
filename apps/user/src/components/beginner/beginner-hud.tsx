@@ -35,7 +35,11 @@ export function BeginnerHud() {
 		<Switch
 			checked={mode === "beginner"}
 			onCheckedChange={(v) => setMode(v ? "beginner" : "advanced")}
-			aria-label={mode === "beginner" ? "初心者モードをオフにする" : "初心者モードをオンにする"}
+			aria-label={
+				mode === "beginner"
+					? "初心者モードをオフにする"
+					: "初心者モードをオンにする"
+			}
 		/>
 	);
 
@@ -67,7 +71,9 @@ export function BeginnerHud() {
 				)}
 			>
 				{/* ===== コンパクト表示（スマホ縦 / スマホ横） ===== */}
-				<div className={cn("flex items-center gap-3", `${desktopQuery}:hidden`)}>
+				<div
+					className={cn("flex items-center gap-3", `${desktopQuery}:hidden`)}
+				>
 					<div className="flex items-center gap-2">
 						<div className="text-xs font-semibold">BGM</div>
 						{bgmSwitch}

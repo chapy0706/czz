@@ -20,7 +20,12 @@ function isHidden(pathname: string, prefixes: string[]): boolean {
 	return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-function mapSegmentLabelByMode(mode: UiMode, segment: string, i: number, segments: string[]): string {
+function mapSegmentLabelByMode(
+	mode: UiMode,
+	segment: string,
+	i: number,
+	segments: string[],
+): string {
 	if (mode === "beginner") {
 		if (i === 0 && segment === "tasks") return "課題";
 		if (i === 0 && segment === "results") return "結果";
@@ -34,7 +39,10 @@ function mapSegmentLabelByMode(mode: UiMode, segment: string, i: number, segment
 	return segment;
 }
 
-export function GlobalBreadcrumbs({ className, hiddenPathPrefixes = ["/auth"] }: Props) {
+export function GlobalBreadcrumbs({
+	className,
+	hiddenPathPrefixes = ["/auth"],
+}: Props) {
 	const pathname = usePathname();
 	const mode = useUiModeStore((s) => s.mode);
 

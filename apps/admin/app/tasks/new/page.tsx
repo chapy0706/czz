@@ -13,7 +13,9 @@ import * as React from "react";
 type JsonRecord = Record<string, unknown>;
 
 function asRecord(v: unknown): JsonRecord | null {
-	return !!v && typeof v === "object" && !Array.isArray(v) ? (v as JsonRecord) : null;
+	return !!v && typeof v === "object" && !Array.isArray(v)
+		? (v as JsonRecord)
+		: null;
 }
 
 type EditorState = {
@@ -105,7 +107,8 @@ export default function Page() {
 			}
 
 			const rawTaskId = rec?.taskId;
-			const taskId = typeof rawTaskId === "string" ? rawTaskId : String(rawTaskId ?? "");
+			const taskId =
+				typeof rawTaskId === "string" ? rawTaskId : String(rawTaskId ?? "");
 			setResult({ ok: true, taskId });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Unknown error";
@@ -147,7 +150,9 @@ export default function Page() {
 							<Switch
 								checked={isPublished}
 								onCheckedChange={(v) => setIsPublished(Boolean(v))}
-								aria-label={isPublished ? "公開をオフにする" : "公開をオンにする"}
+								aria-label={
+									isPublished ? "公開をオフにする" : "公開をオンにする"
+								}
 							/>
 							<div className="text-sm">公開</div>
 						</div>

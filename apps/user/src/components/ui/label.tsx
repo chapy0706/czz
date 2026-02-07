@@ -1,24 +1,31 @@
 // apps/user/src/components/ui/label.tsx
+"use client";
 
-import { cn } from "@/lib/utils";
 import * as React from "react";
 
-type LabelProps = React.LabelHTMLAttributes<HTMLLabelElement>;
+import { cn } from "@/lib/utils";
 
 /**
- * 依存を増やさないため Radix は使わない。
- * HTML label として必要十分な挙動を提供する。
+ * Generic Label component.
+ *
+ * Note:
+ * Biome's a11y rule `noLabelWithoutControl` is a static check and can't reliably
+ * understand that consumer code will associate this label with a control via:
+ * - htmlFor/id, or
+ * - nesting an input inside the label
+ *
+ * So we suppress the rule at the element level.
  */
-const Label = React.forwardRef<HTMLLabelElement, LabelProps>(function Label(
-	{ className, children, ...props },
-	ref,
-) {
+export const Label = React.forwardRef<
+	HTMLLabelElement,
+	React.LabelHTMLAttributes<HTMLLabelElement>
+>(({ className, children, ...props }, ref) => {
 	return (
+		// biome-ignore lint/a11y/noLabelWithoutControl: This component is a generic wrapper; association is handled by consumers via htmlFor/id or nesting.
 		<label
 			ref={ref}
 			className={cn(
-				"text-sm font-medium leading-none",
-				"peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+				"text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
 				className,
 			)}
 			{...props}
@@ -28,4 +35,4 @@ const Label = React.forwardRef<HTMLLabelElement, LabelProps>(function Label(
 	);
 });
 
-export { Label };
+Label.displayName = "Label";

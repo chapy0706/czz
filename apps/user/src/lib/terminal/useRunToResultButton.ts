@@ -1,34 +1,29 @@
 // apps/user/src/lib/terminal/useRunToResultButton.ts
 "use client";
 
-import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
-import { isRunnerIoCorrect } from "@/lib/command-builder/runnerIo";
-import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { useCommandBuilderStore } from "../command-builder/commandBuilderStore";
 
-const LAST_RESULT_STORAGE_KEY = "czz-terminal-last-result";
-
-type Args = {
-	taskId: string | null;
-	resetKey: string;
-	getSubmittedProgram: () => unknown;
-	userId?: string;
-	navigateTo?: string;
-	autoNavigateOnComplete?: boolean;
+type RunnerIo = {
+	input: string | null;
+	output: string | null;
 };
 
-export function useRunToResultButton(args: Args) {
-	const {
-		taskId,
-		resetKey,
-		getSubmittedProgram,
-		userId,
-		navigateTo = "/result",
-		autoNavigateOnComplete = true,
-	} = args;
+function isRunnerIoCorrect(io: RunnerIo): boolean {
+	const inputOk = io.input?.trim() === "input.csv";
+	const outputOk = io.output?.trim() === "output.csv";
+	return Boolean(inputOk && outputOk);
+}
 
+export function useRunToResultButton({
+	taskId,
+	resetKey,
+}: {
+	taskId: string | null;
+	resetKey: string;
+}) {
 	const router = useRouter();
 	const mode = useUiModeStore((s) => s.mode);
 	const runnerIo = useCommandBuilderStore((s) => s.runnerIo);
@@ -38,6 +33,7 @@ export function useRunToResultButton(args: Args) {
 
 	// resetKeyが変わったら“実行中”だけは落とす（UI事故防止）
 	React.useEffect(() => {
+		void resetKey;
 		setRunning(false);
 	}, [resetKey]);
 
@@ -53,54 +49,16 @@ export function useRunToResultButton(args: Args) {
 		return running ? "実行中…" : "実行する";
 	})();
 
-	const label = (() => {
-		if (running) return "Running…";
-		return mode === "beginner" ? "実行" : "Run";
-	})();
-
 	const onClick = React.useCallback(async () => {
-		if (disabled) {
-			// disabled理由が I/O なら軽く通知（UX優先で alert を最小限に）
-			if (!ioOk && commandsLen > 0) {
-				window.alert("Runner の両端を選んでね：cat input.csv と >> output.csv");
-			}
-			return;
-		}
-
-		// ここから先は taskId が必ずある（noNonNullAssertion回避）
-		const tid = taskId;
-		if (!tid) return;
-
-		setRunning(true);
+		if (disabled || !taskId) return;
 		try {
-			const submittedProgram = getSubmittedProgram();
-			const result = await evaluateTask({
-				taskId: tid,
-				userId,
-				submittedProgram,
-			});
-
-			try {
-				localStorage.setItem(LAST_RESULT_STORAGE_KEY, JSON.stringify(result));
-			} catch {
-				// localStorage不可でも動作自体は継続
-			}
-
-			if (autoNavigateOnComplete) router.push(navigateTo);
+			setRunning(true);
+			router.push(`/results/running?taskId=${encodeURIComponent(taskId)}`);
 		} finally {
+			// running解除は遷移先で行う想定（ここは保険）
 			setRunning(false);
 		}
-	}, [
-		disabled,
-		ioOk,
-		commandsLen,
-		getSubmittedProgram,
-		taskId,
-		userId,
-		router,
-		navigateTo,
-		autoNavigateOnComplete,
-	]);
+	}, [disabled, router, taskId]);
 
-	return { onClick, disabled, label, title };
+	return { disabled, title, running, onClick };
 }

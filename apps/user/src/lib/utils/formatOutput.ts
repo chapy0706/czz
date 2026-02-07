@@ -57,6 +57,6 @@ export function formatOutputHuman(value: unknown): string {
 	if (!json) return String(value);
 
 	const max = 800;
-	if (json.length > max) return json.slice(0, max) + "…";
+	if (json.length > max) return `${json.slice(0, max)}…`;
 	return json;
 }

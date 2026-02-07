@@ -40,7 +40,6 @@ export function runnerInputCmd(preset: RunnerInputPreset): string {
 	switch (preset) {
 		case "cat_input_csv":
 			return "cat input.csv";
-		case "unset":
 		default:
 			return "□";
 	}
@@ -52,7 +51,6 @@ export function runnerOutputCmd(preset: RunnerOutputPreset): string {
 			return "> output.csv";
 		case "append_output_csv":
 			return ">> output.csv";
-		case "unset":
 		default:
 			return "□";
 	}
@@ -62,7 +60,6 @@ export function runnerInputLabel(preset: RunnerInputPreset): string {
 	switch (preset) {
 		case "cat_input_csv":
 			return "cat input.csv";
-		case "unset":
 		default:
 			return "未選択（□）";
 	}
@@ -74,7 +71,6 @@ export function runnerOutputLabel(preset: RunnerOutputPreset): string {
 			return "> output.csv（上書き）";
 		case "append_output_csv":
 			return ">> output.csv（追記）";
-		case "unset":
 		default:
 			return "未選択（□）";
 	}

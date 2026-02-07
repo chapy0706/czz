@@ -29,7 +29,9 @@ export default function ClientRenderedPage() {
 			const res = await fetch("/api/me");
 			const json: unknown = await res.json().catch(() => null);
 			const asRecord =
-				typeof json === "object" && json !== null ? (json as Record<string, unknown>) : null;
+				typeof json === "object" && json !== null
+					? (json as Record<string, unknown>)
+					: null;
 			const tok = typeof asRecord?.token === "string" ? asRecord.token : "";
 			setTokenHead(tok.slice(0, 16));
 		} catch {
@@ -55,7 +57,9 @@ export default function ClientRenderedPage() {
 								<UserButton />
 								<div className="text-sm">
 									<div>{user?.fullName ?? "(no name)"}</div>
-									<div className="text-muted-foreground">{user?.primaryEmailAddress?.emailAddress}</div>
+									<div className="text-muted-foreground">
+										{user?.primaryEmailAddress?.emailAddress}
+									</div>
 								</div>
 							</div>
 						</SignedIn>
@@ -98,7 +102,9 @@ export default function ClientRenderedPage() {
 					</div>
 
 					{tokenHead ? (
-						<div className="mt-3 text-xs text-muted-foreground">token: {tokenHead}...</div>
+						<div className="mt-3 text-xs text-muted-foreground">
+							token: {tokenHead}...
+						</div>
 					) : null}
 				</div>
 			</div>

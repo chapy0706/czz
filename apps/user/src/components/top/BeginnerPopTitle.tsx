@@ -27,7 +27,11 @@ const SIZE_MAP: Record<Size, string> = {
 	xl: "text-6xl",
 };
 
-export function BeginnerPopTitle({ text = "指示厨ゲーム", staggerMs = 70, size = "lg" }: Props) {
+export function BeginnerPopTitle({
+	text = "指示厨ゲーム",
+	staggerMs = 70,
+	size = "lg",
+}: Props) {
 	const chars = React.useMemo(() => [...text], [text]);
 
 	return (

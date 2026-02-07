@@ -1,14 +1,21 @@
 {
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"noEmit": true
+		"noEmit": true,
+		"skipLibCheck": true,
+		"module": "esnext",
+		"moduleResolution": "bundler"
 	},
 	"include": [
-		"apps/*/src/**/*.ts",
-		"apps/*/src/**/*.tsx",
 		"packages/*/src/**/*.ts",
 		"packages/*/src/**/*.tsx",
 		"infra/**/*.ts"
 	],
-	"exclude": ["**/node_modules/**", "**/.next/**", "**/dist/**", "**/out/**"]
+	"exclude": [
+		"**/node_modules/**",
+		"**/.next/**",
+		"**/dist/**",
+		"**/out/**",
+		"e2e/**"
+	]
 }

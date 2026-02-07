@@ -1,5 +1,5 @@
 // e2e/playwright.config.ts
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 const baseUrl = process.env.E2E_BASE_URL ?? "http://localhost:3100";
 
@@ -13,4 +13,10 @@ export default defineConfig({
 		trace: "on-first-retry",
 		screenshot: "only-on-failure",
 	},
+	projects: [
+		{
+			name: "chromium",
+			use: { ...devices["Desktop Chrome"] },
+		},
+	],
 });

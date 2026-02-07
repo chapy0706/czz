@@ -1,7 +1,7 @@
 {
   "name": "czz",
   "private": true,
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.13.1",
   "scripts": {
     "dev:user": "pnpm --filter user-app dev",
     "dev:admin": "pnpm --filter admin-app dev",

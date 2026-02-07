@@ -10,7 +10,7 @@ type LabelProps = React.LabelHTMLAttributes<HTMLLabelElement>;
  * HTML label として必要十分な挙動を提供する。
  */
 const Label = React.forwardRef<HTMLLabelElement, LabelProps>(function Label(
-	{ className, ...props },
+	{ className, children, ...props },
 	ref,
 ) {
 	return (
@@ -22,7 +22,9 @@ const Label = React.forwardRef<HTMLLabelElement, LabelProps>(function Label(
 				className,
 			)}
 			{...props}
-		/>
+		>
+			{children}
+		</label>
 	);
 });
 

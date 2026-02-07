@@ -13,139 +13,107 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 }
 
 function getTypeString(cmd: Cmd): string {
-	const direct = [cmd.type, cmd.commandType, cmd.kind, cmd.name, cmd.op];
-
-	for (const c of direct) {
-		if (typeof c === "string" && c.trim().length > 0) return c.trim();
-	}
-
-	// value の内側に type が入っているケースも拾う（CommandBuilder の value をそのまま並べているため）
-	const value = (cmd as any).value;
-	if (value && typeof value === "object" && !Array.isArray(value)) {
-		const nested = [
-			(value as any).type,
-			(value as any).commandType,
-			(value as any).kind,
-			(value as any).name,
-			(value as any).op,
-		];
-		for (const c of nested) {
-			if (typeof c === "string" && c.trim().length > 0) return c.trim();
-		}
-	}
-
-	return "";
-}
-
-function normalizeType(raw: string): string {
-	// "sort-asc" / "sort_asc" / "SORT ASC" を同一視
-	return raw
-		.normalize("NFKC")
-		.toUpperCase()
-		.replace(/[^A-Z0-9]+/g, "_")
-		.replace(/^_+|_+$/g, "");
+	const t = cmd.type;
+	return typeof t === "string" ? t : "";
 }
 
 function getNumberParam(cmd: Cmd, keys: string[]): number | null {
 	for (const k of keys) {
-		const v = (cmd as any)[k];
-		if (typeof v === "number" && Number.isFinite(v)) return v;
-		if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)))
-			return Number(v);
-	}
-	// よくある “value: { n: 3 }” も拾う
-	const value = (cmd as any).value;
-	if (isPlainObject(value)) {
-		for (const k of keys) {
-			const v = (value as any)[k];
-			if (typeof v === "number" && Number.isFinite(v)) return v;
-			if (
-				typeof v === "string" &&
-				v.trim() !== "" &&
-				Number.isFinite(Number(v))
-			)
-				return Number(v);
+		const v = cmd[k];
+		if (typeof v === "number") return v;
+		if (typeof v === "string" && v.trim() !== "") {
+			const n = Number(v);
+			if (!Number.isNaN(n)) return n;
 		}
 	}
 	return null;
 }
 
-function coerceCommands(program: unknown): Cmd[] {
-	if (!isPlainObject(program)) return [];
-	const cmds = (program as any).commands;
-	if (!Array.isArray(cmds)) return [];
-	return cmds.filter(isPlainObject) as Cmd[];
+function toCommands(input: unknown): Cmd[] {
+	if (!Array.isArray(input)) return [];
+	const out: Cmd[] = [];
+	for (const v of input) {
+		if (isPlainObject(v)) out.push(v);
+	}
+	return out;
 }
 
-function runPipeline(input: number[], commands: Cmd[]): number[] {
-	let xs = [...input];
+function toNumbers(input: unknown): number[] {
+	if (!Array.isArray(input)) return [];
+	const out: number[] = [];
+	for (const v of input) {
+		if (typeof v === "number" && Number.isFinite(v)) out.push(v);
+		if (typeof v === "string") {
+			const n = Number(v);
+			if (Number.isFinite(n)) out.push(n);
+		}
+	}
+	return out;
+}
+
+function coerceCommands(submittedProgram: unknown): Cmd[] {
+	// 期待: submittedProgram = { commands: [...] } みたいな形
+	if (!isPlainObject(submittedProgram)) return [];
+	const maybe = submittedProgram.commands;
+	return toCommands(maybe);
+}
+
+function runPipeline(xs0: number[], commands: Cmd[]): number[] {
+	let xs = [...xs0];
 
 	for (const cmd of commands) {
-		const t = normalizeType(getTypeString(cmd));
-		if (!t) continue;
+		const t = getTypeString(cmd).toUpperCase();
 
-		// --- sort ---
-		if (
-			t.includes("SORT") ||
-			t.includes("ORDER") ||
-			t.includes("ASC") ||
-			t.includes("DESC")
-		) {
-			const isDesc = t.includes("DESC") || t.includes("DOWN");
-			const isAsc =
-				t.includes("ASC") ||
-				t.includes("UP") ||
-				(!isDesc && t.includes("SORT"));
-			if (isAsc) xs.sort((a, b) => a - b);
-			if (isDesc) xs.sort((a, b) => b - a);
+		if (t.includes("SORT") || t.includes("ASC")) {
+			xs.sort((a, b) => a - b);
 			continue;
 		}
 
-		// --- reverse ---
+		if (t.includes("DESC")) {
+			xs.sort((a, b) => b - a);
+			continue;
+		}
+
 		if (t.includes("REVERSE") || t === "REV") {
 			xs.reverse();
 			continue;
 		}
 
-		// --- unique / dedup ---
 		if (t.includes("UNIQUE") || t.includes("DEDUP") || t.includes("DISTINCT")) {
 			const seen = new Set<number>();
-			xs = xs.filter((n) => (seen.has(n) ? false : (seen.add(n), true)));
+			xs = xs.filter((n) => {
+				if (seen.has(n)) return false;
+				seen.add(n);
+				return true;
+			});
 			continue;
 		}
 
-		// --- take/head ---
 		if (t.includes("TAKE") || t.includes("HEAD") || t.includes("FIRST")) {
 			const n = getNumberParam(cmd, ["n", "count", "take", "value"]) ?? 0;
 			xs = xs.slice(0, Math.max(0, Math.min(50, Math.trunc(n))));
 			continue;
 		}
 
-		// --- drop/skip ---
 		if (t.includes("DROP") || t.includes("SKIP")) {
 			const n = getNumberParam(cmd, ["n", "count", "drop", "value"]) ?? 0;
 			xs = xs.slice(Math.max(0, Math.min(50, Math.trunc(n))));
 			continue;
 		}
 
-		// --- add ---
 		if (t.includes("ADD") || t.includes("PLUS")) {
 			const k = getNumberParam(cmd, ["k", "add", "value", "n"]) ?? 0;
 			xs = xs.map((x) => x + Math.trunc(k));
 			continue;
 		}
 
-		// --- multiply ---
 		if (t.includes("MUL") || t.includes("TIMES") || t.includes("MULTIPLY")) {
 			const k = getNumberParam(cmd, ["k", "mul", "value", "n"]) ?? 1;
 			xs = xs.map((x) => x * Math.trunc(k));
-			continue;
+			// noUnnecessaryContinue 対策：ここは continue を置かない（末尾なので不要）
 		}
-
-		// 未対応コマンドは無視（Playground は “安全に試す” が主目的）
 	}
 
-	// 長すぎる表示を防ぐ
 	return xs.slice(0, 50);
 }
 
@@ -164,10 +132,11 @@ export async function POST(req: Request) {
 	}
 
 	try {
+		// ✅ ここが今回のTSエラーの本丸：schemaに合わせる
 		const { debugInput, submittedProgram } = parsed.data;
 
 		const commands = coerceCommands(submittedProgram);
-		const output = runPipeline(debugInput, commands);
+		const output = runPipeline(toNumbers(debugInput), commands);
 
 		return NextResponse.json(
 			PlaygroundResponseSchema.parse({
@@ -175,14 +144,12 @@ export async function POST(req: Request) {
 				output,
 			}),
 		);
-	} catch (e: any) {
+	} catch (e: unknown) {
+		const message = e instanceof Error ? e.message : "Playground failed";
 		return NextResponse.json(
 			PlaygroundResponseSchema.parse({
 				ok: false,
-				error: {
-					message: e?.message ?? "Playground failed",
-					details: String(e),
-				},
+				error: { message, details: String(e) },
 			}),
 			{ status: 500 },
 		);

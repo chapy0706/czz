@@ -35,12 +35,15 @@ export function LoadingOverlayRsc({
 				blockInteraction ? "pointer-events-auto" : "pointer-events-none",
 			].join(" ")}
 			style={{ animationDelay: `${delayMs}ms` }}
-			aria-busy="true"
-			aria-live="polite"
-			role="status"
 			data-testid="loading-overlay"
 		>
-			<div className="rounded-2xl border border-white/10 bg-black/40 shadow-xl px-6 py-5 max-w-[90vw]">
+			{/* RSC側も同様に output に寄せて a11y 指摘を回避 */}
+			<output
+				className="rounded-2xl border border-white/10 bg-black/40 shadow-xl px-6 py-5 max-w-[90vw]"
+				aria-busy="true"
+				aria-live="polite"
+				tabIndex={-1}
+			>
 				<div className="text-center font-mono text-sm sm:text-base tracking-wide">
 					{/* ASCIIバー（空） + （埋め）を重ねて、埋めの幅をCSSでstepsアニメする */}
 					<div className="relative inline-block whitespace-pre select-none">
@@ -65,7 +68,7 @@ export function LoadingOverlayRsc({
 						{helperText}
 					</div>
 				</div>
-			</div>
+			</output>
 		</div>
 	);
 }

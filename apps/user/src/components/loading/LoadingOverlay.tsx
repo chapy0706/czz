@@ -76,17 +76,18 @@ export function LoadingOverlay({
 				// 誤操作防止が基本。眺めたいだけなら false にできる
 				blockInteraction ? "pointer-events-auto" : "pointer-events-none",
 			].join(" ")}
-			aria-busy="true"
-			aria-live="polite"
-			role="status"
 			data-testid="loading-overlay"
 		>
-			<div
+			{/* role="status" を div に付けず、意味要素(output)に寄せる */}
+			<output
 				className={[
 					"rounded-2xl border border-white/10 bg-black/40 shadow-xl",
 					"px-6 py-5",
 					"max-w-[90vw]",
 				].join(" ")}
+				aria-busy="true"
+				aria-live="polite"
+				tabIndex={-1}
 			>
 				<div className="text-center font-mono text-sm sm:text-base tracking-wide">
 					<div className="whitespace-pre select-none">{bar}</div>
@@ -97,7 +98,7 @@ export function LoadingOverlay({
 						</div>
 					)}
 				</div>
-			</div>
+			</output>
 		</div>
 	);
 }

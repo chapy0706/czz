@@ -13,46 +13,31 @@ import { cn } from "@/lib/utils";
 /**
  * 初心者モード専用のHUD（小さな操作パネル）
  *
- * - 初心者モード時のみ表示
- * - モバイル/横向きではコンパクト（トグル中心）
- * - 高さが十分あるときだけ音量スライダー表示
- *
- * 認証について:
- * - このHUDから「ログインUI」は出さない（初心者が怖がりやすい）
- * - マイページ導線は「ログイン済みのときだけ」表示
- * - ログイン/ログアウト導線は右上のユーザーバッジに集約
- *
- * 注意:
- * - 位置固定（fixed / bottom-* / right-* など）は Dock 側が担当
- * - ここは “中身だけ”
+ * - 初心者モードの ON/OFF
+ * - BGM / SFX
+ * - アカウント導線
  */
 export function BeginnerHud() {
-	const mode = useUiModeStore((s) => s.mode);
+	const { isSignedIn } = useUser();
 
-	// Clerk（ログイン状態）
-	const { isLoaded: isAuthLoaded, isSignedIn } = useUser();
+	const mode = useUiModeStore((s) => s.mode);
+	const setMode = useUiModeStore((s) => s.setMode);
 
 	const bgmEnabled = useAudioSettingsStore((s) => s.bgmEnabled);
-	const bgmVolume = useAudioSettingsStore((s) => s.volume);
 	const setBgmEnabled = useAudioSettingsStore((s) => s.setBgmEnabled);
-	const setBgmVolume = useAudioSettingsStore((s) => s.setVolume);
 
 	const sfxEnabled = useAudioSettingsStore((s) => s.sfxEnabled);
-	const sfxVolume = useAudioSettingsStore((s) => s.sfxVolume);
 	const setSfxEnabled = useAudioSettingsStore((s) => s.setSfxEnabled);
-	const setSfxVolume = useAudioSettingsStore((s) => s.setSfxVolume);
 
-	if (mode !== "beginner") return null;
+	const desktopQuery = "md";
 
-	// 未ログイン時は、HUD内にログイン導線を出さず、マイページも出さない
-	const showAccountLinks = isAuthLoaded && isSignedIn;
-
-	const bgmPercent = Math.round(bgmVolume * 100);
-	const sfxPercent = Math.round(sfxVolume * 100);
-
-	// “通常表示” は「幅 >= 640px かつ 高さ >= 520px」のときだけ有効にする
-	// - スマホ横向きは width は大きくても height が小さいので、ここでコンパクトに倒れる
-	const desktopQuery = "[@media(min-width:640px)_and_(min-height:520px)]";
+	const modeSwitch = (
+		<Switch
+			checked={mode === "beginner"}
+			onCheckedChange={(v) => setMode(v ? "beginner" : "advanced")}
+			aria-label={mode === "beginner" ? "初心者モードをオフにする" : "初心者モードをオンにする"}
+		/>
+	);
 
 	const bgmSwitch = (
 		<Switch
@@ -71,9 +56,8 @@ export function BeginnerHud() {
 	);
 
 	return (
-		<div
+		<section
 			className={cn("w-auto", "sm:w-[min(92vw,380px)]")}
-			role="region"
 			aria-label="初心者モード 操作パネル"
 		>
 			<div
@@ -83,134 +67,64 @@ export function BeginnerHud() {
 				)}
 			>
 				{/* ===== コンパクト表示（スマホ縦 / スマホ横） ===== */}
-				<div
-					className={cn("flex items-center gap-3", `${desktopQuery}:hidden`)}
-				>
+				<div className={cn("flex items-center gap-3", `${desktopQuery}:hidden`)}>
 					<div className="flex items-center gap-2">
 						<div className="text-xs font-semibold">BGM</div>
-						<div className="text-[11px] text-muted-foreground">
-							{bgmEnabled ? "ON" : "OFF"}
-						</div>
 						{bgmSwitch}
 					</div>
-
 					<div className="flex items-center gap-2">
-						<div className="text-xs font-semibold">SE</div>
-						<div className="text-[11px] text-muted-foreground">
-							{sfxEnabled ? "ON" : "OFF"}
-						</div>
+						<div className="text-xs font-semibold">SFX</div>
 						{sfxSwitch}
 					</div>
-
 					<div className="ml-auto flex items-center gap-2">
-						<Link
-							href="/credits"
-							className={cn(
-								"rounded-full border px-2 py-1.5 text-[11px] font-medium",
-								"hover:bg-muted",
-								"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-							)}
-						>
-							クレジット
-						</Link>
+						<div className="text-xs font-semibold">初心者</div>
+						{modeSwitch}
 					</div>
 				</div>
 
-				{/* ===== 通常表示（高さが十分あるときだけ） ===== */}
+				{/* ===== デスクトップ表示 ===== */}
 				<div className={cn("hidden", `${desktopQuery}:block`)}>
-					{/* --- BGM --- */}
 					<div className="flex items-center justify-between gap-3">
-						<div className="min-w-0">
-							<div className="text-sm font-semibold">BGM</div>
-							<div className="text-xs text-muted-foreground">
-								初心者モードだけ
-							</div>
-						</div>
-						{bgmSwitch}
+						<div className="text-sm font-semibold">初心者モード</div>
+						{modeSwitch}
 					</div>
 
-					<div className="mt-3">
-						<div className="flex items-center justify-between">
-							<div className="text-xs text-muted-foreground">音量</div>
-							<div className="text-xs tabular-nums text-muted-foreground">
-								{bgmEnabled ? `${bgmPercent}%` : "OFF"}
-							</div>
+					<div className="mt-3 grid grid-cols-2 gap-2">
+						<div className="flex items-center justify-between rounded-xl border px-3 py-2">
+							<div className="text-sm font-medium">BGM</div>
+							{bgmSwitch}
 						</div>
-
-						<input
-							type="range"
-							min={0}
-							max={100}
-							step={1}
-							value={Math.round(bgmVolume * 100)}
-							onChange={(e) => setBgmVolume(Number(e.target.value) / 100)}
-							disabled={!bgmEnabled}
-							className={cn(
-								"mt-2 w-full",
-								"accent-primary",
-								!bgmEnabled && "opacity-50",
-							)}
-							aria-label="BGM音量"
-						/>
+						<div className="flex items-center justify-between rounded-xl border px-3 py-2">
+							<div className="text-sm font-medium">SFX</div>
+							{sfxSwitch}
+						</div>
 					</div>
 
-					<div className="my-4 border-t" />
-
-					{/* --- SE --- */}
-					<div className="flex items-center justify-between gap-3">
-						<div className="min-w-0">
-							<div className="text-sm font-semibold">SE</div>
-							<div className="text-xs text-muted-foreground">
-								ボタン操作などの効果音
-							</div>
-						</div>
-						{sfxSwitch}
-					</div>
-
-					<div className="mt-3">
-						<div className="flex items-center justify-between">
-							<div className="text-xs text-muted-foreground">音量</div>
-							<div className="text-xs tabular-nums text-muted-foreground">
-								{sfxEnabled ? `${sfxPercent}%` : "OFF"}
-							</div>
-						</div>
-
-						<input
-							type="range"
-							min={0}
-							max={100}
-							step={1}
-							value={Math.round(sfxVolume * 100)}
-							onChange={(e) => setSfxVolume(Number(e.target.value) / 100)}
-							disabled={!sfxEnabled}
-							className={cn(
-								"mt-2 w-full",
-								"accent-primary",
-								!sfxEnabled && "opacity-50",
-							)}
-							aria-label="効果音の音量"
-						/>
-					</div>
-
-					<div className="mt-4 flex items-center justify-end gap-2">
+					<div className="mt-3 flex items-center justify-between gap-2">
+						{isSignedIn ? (
+							<Link
+								className="text-sm underline underline-offset-4 hover:opacity-80"
+								href="/account/settings"
+							>
+								設定
+							</Link>
+						) : (
+							<Link
+								className="text-sm underline underline-offset-4 hover:opacity-80"
+								href="/auth/sign-in"
+							>
+								ログイン
+							</Link>
+						)}
 						<Link
+							className="text-sm underline underline-offset-4 hover:opacity-80"
 							href="/credits"
-							className={cn(
-								"rounded-xl border px-3 py-2 text-xs font-medium",
-								"hover:bg-muted",
-								"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-							)}
 						>
 							クレジット
 						</Link>
-					</div>
-
-					<div className="mt-3 text-xs text-muted-foreground">
-						※ 音が鳴らないときは、画面を1回タップ or
-						クリック（自動再生規制のため）
 					</div>
 				</div>
 			</div>
-		</div>
+		</section>
 	);
 }

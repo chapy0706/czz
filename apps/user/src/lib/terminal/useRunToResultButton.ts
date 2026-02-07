@@ -67,11 +67,15 @@ export function useRunToResultButton(args: Args) {
 			return;
 		}
 
+		// ここから先は taskId が必ずある（noNonNullAssertion回避）
+		const tid = taskId;
+		if (!tid) return;
+
 		setRunning(true);
 		try {
 			const submittedProgram = getSubmittedProgram();
 			const result = await evaluateTask({
-				taskId: taskId!,
+				taskId: tid,
 				userId,
 				submittedProgram,
 			});

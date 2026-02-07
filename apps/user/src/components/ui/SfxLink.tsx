@@ -2,51 +2,64 @@
 "use client";
 
 import { useUiClickSfx } from "@/lib/audio/useUiClickSfx";
-import Link from "next/link";
+import Link, { type LinkProps } from "next/link";
 import * as React from "react";
 
-type BaseLinkProps = React.ComponentPropsWithoutRef<typeof Link>;
-type BaseLinkRef = HTMLAnchorElement;
+type AnchorRef = HTMLAnchorElement;
 
-export type SfxLinkProps = BaseLinkProps & {
-	/**
-	 * クリック音の音源パス（public 配下）
-	 * 例: "/audio/sfx/click.mp3"
-	 */
-	sfxSrc?: string;
+/**
+ * next/link の props（href 等） + aタグのprops（target 等）
+ * - onClick は本コンポーネントで包むので、ここでは a の onClick は受け取らない
+ */
+type AnchorProps = Omit<
+	React.AnchorHTMLAttributes<HTMLAnchorElement>,
+	"href" | "onClick"
+>;
 
-	/**
-	 * 追加ガード（false なら鳴らさない）
-	 */
-	sfxEnabled?: boolean;
+export type SfxLinkProps = LinkProps &
+	AnchorProps & {
+		/**
+		 * クリック音の音源パス（public 配下）
+		 * 例: "/audio/sfx/click.mp3"
+		 */
+		sfxSrc?: string;
 
-	/**
-	 * 初心者モードのみ鳴らす（必要なら）
-	 */
-	beginnerOnly?: boolean;
+		/**
+		 * 追加ガード（false なら鳴らさない）
+		 */
+		sfxEnabled?: boolean;
 
-	/**
-	 * 課題プレイ画面（/tasks/[taskId]）では鳴らさない
-	 * デフォルト: true
-	 */
-	excludeTaskPlayRoute?: boolean;
+		/**
+		 * 初心者モードのみ鳴らす（必要なら）
+		 */
+		beginnerOnly?: boolean;
 
-	/**
-	 * 連打抑止（ms）
-	 * デフォルト: 120
-	 */
-	sfxThrottleMs?: number;
-};
+		/**
+		 * 課題プレイ画面（/tasks/[taskId]）では鳴らさない
+		 * デフォルト: true
+		 */
+		excludeTaskPlayRoute?: boolean;
+
+		/**
+		 * 連打抑止（ms）
+		 * デフォルト: 120
+		 */
+		sfxThrottleMs?: number;
+
+		/**
+		 * 追加のクリック処理（鳴らした後に呼ぶ）
+		 */
+		onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+	};
 
 /**
  * next/link をラップして UIクリック効果音を鳴らす。
  *
- * 重要:
- * - これも「作っただけでは自動で全部鳴らない」。
- * - 既存の `import Link from "next/link"` を
- *   `import { SfxLink as Link } from "@/components/ui/SfxLink"` に置換するのが最短。
+ * 実装メモ:
+ * - Link に legacyBehavior + passHref を使い、aタグを明示して ref を正しく付与する。
+ * - これで `ref as any` を消せる。
  */
-export const SfxLink = React.forwardRef<BaseLinkRef, SfxLinkProps>(
+export const SfxLink = React.forwardRef<AnchorRef, SfxLinkProps>(
 	(
 		{
 			sfxSrc,
@@ -55,7 +68,16 @@ export const SfxLink = React.forwardRef<BaseLinkRef, SfxLinkProps>(
 			excludeTaskPlayRoute = true,
 			sfxThrottleMs = 120,
 			onClick,
-			...props
+			// LinkProps
+			href,
+			as,
+			replace,
+			scroll,
+			shallow,
+			prefetch,
+			locale,
+			// AnchorProps
+			...anchorProps
 		},
 		ref,
 	) => {
@@ -68,11 +90,9 @@ export const SfxLink = React.forwardRef<BaseLinkRef, SfxLinkProps>(
 		});
 
 		const handleClick = React.useCallback(
-			(e: React.MouseEvent<BaseLinkRef>) => {
-				const el = e.currentTarget as unknown as HTMLElement;
-
-				// Link は disabled 属性を持たないので「disabledっぽい」状態だけ吸収
-				if (isElementDisabledLike(el)) return;
+			(e: React.MouseEvent<HTMLAnchorElement>) => {
+				// aタグなので disabled 属性は無い。disabledっぽい状態だけ吸収
+				if (isElementDisabledLike(e.currentTarget)) return;
 
 				void play();
 				onClick?.(e);
@@ -80,7 +100,21 @@ export const SfxLink = React.forwardRef<BaseLinkRef, SfxLinkProps>(
 			[onClick, play],
 		);
 
-		return <Link ref={ref as any} onClick={handleClick} {...props} />;
+		return (
+			<Link
+				href={href}
+				as={as}
+				replace={replace}
+				scroll={scroll}
+				shallow={shallow}
+				prefetch={prefetch}
+				locale={locale}
+				passHref
+				legacyBehavior
+			>
+				<a ref={ref} onClick={handleClick} {...anchorProps} />
+			</Link>
+		);
 	},
 );
 

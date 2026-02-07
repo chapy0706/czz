@@ -1,4 +1,4 @@
-// app/tasks/new/page.tsx
+// apps/admin/app/tasks/new/page.tsx
 "use client";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -53,6 +53,33 @@ function safeJsonParse(text: string): JsonParseResult {
 	} catch {
 		return { ok: false, error: "JSONの構文が壊れているよ" };
 	}
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+	return typeof v === "object" && v !== null;
+}
+
+function readErrorMessageFromApi(body: unknown): string | null {
+	// 期待: { error: string } or { error: { message: string } }
+	if (!isRecord(body)) return null;
+
+	const err = body.error;
+	if (typeof err === "string") return err;
+
+	if (isRecord(err) && typeof err.message === "string") return err.message;
+
+	return null;
+}
+
+function readTaskIdFromApi(body: unknown): string | null {
+	// 期待: { taskId: string }（string以外でも来る可能性があるので保守的に扱う）
+	if (!isRecord(body)) return null;
+
+	const v = body.taskId;
+	if (typeof v === "string") return v;
+	if (typeof v === "number") return String(v);
+
+	return null;
 }
 
 export default function Page() {
@@ -122,21 +149,22 @@ export default function Page() {
 				body: JSON.stringify(payload),
 			});
 
-			const data = (await res.json().catch(() => null)) as any;
+			const body: unknown = await res.json().catch(() => null);
 
 			if (!res.ok) {
+				const msg =
+					readErrorMessageFromApi(body) ??
+					`作成に失敗したよ (HTTP ${res.status})`;
+
 				setResult({
 					ok: false,
-					error: data?.error ?? `作成に失敗したよ (HTTP ${res.status})`,
-					details: data,
+					error: msg,
+					details: body,
 				});
 				return;
 			}
 
-			const taskId =
-				typeof data?.taskId === "string"
-					? data.taskId
-					: String(data?.taskId ?? "");
+			const taskId = readTaskIdFromApi(body) ?? "";
 			setResult({ ok: true, taskId });
 		} catch (e) {
 			const message = e instanceof Error ? e.message : "Unknown error";

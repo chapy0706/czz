@@ -8,12 +8,27 @@ type TaskHeaderProps = {
 };
 
 type TaskDto = {
-	title?: string | null;
-	description?: string | null;
+	title: string | null;
+	description: string | null;
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
 	return typeof v === "object" && v !== null;
+}
+
+function readNullableString(v: unknown): string | null {
+	return typeof v === "string" ? v : null;
+}
+
+function parseTaskDto(body: unknown): TaskDto | null {
+	if (!isRecord(body)) return null;
+	const task = body.task;
+	if (!isRecord(task)) return null;
+
+	return {
+		title: readNullableString(task.title),
+		description: readNullableString(task.description),
+	};
 }
 
 export function TaskHeader(props: TaskHeaderProps) {
@@ -55,23 +70,15 @@ export function TaskHeader(props: TaskHeaderProps) {
 					return;
 				}
 
-				const dto =
-					isRecord(body) && isRecord(body.task)
-						? {
-								title: body.task.title as any,
-								description: body.task.description as any,
-							}
-						: null;
-
-				setTask(dto);
+				setTask(parseTaskDto(body));
 			} catch (e) {
 				if (!mounted) return;
 				const msg = e instanceof Error ? e.message : "Unknown error";
 				setError(msg);
 				setTask(null);
 			} finally {
-				if (!mounted) return;
-				setLoading(false);
+				// return しない（lint/correctness/noUnsafeFinally 対策）
+				if (mounted) setLoading(false);
 			}
 		}
 

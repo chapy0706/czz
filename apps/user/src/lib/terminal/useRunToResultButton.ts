@@ -1,64 +1,88 @@
 // apps/user/src/lib/terminal/useRunToResultButton.ts
 "use client";
 
-import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import * as React from "react";
-import { useCommandBuilderStore } from "../command-builder/commandBuilderStore";
 
-type RunnerIo = {
-	input: string | null;
-	output: string | null;
-};
+type MaybePromise<T> = T | Promise<T>;
 
-function isRunnerIoCorrect(io: RunnerIo): boolean {
-	const inputOk = io.input?.trim() === "input.csv";
-	const outputOk = io.output?.trim() === "output.csv";
-	return Boolean(inputOk && outputOk);
-}
+type UseRunToResultButtonOptions = Readonly<{
+  taskId: string;
+  resetKey: string;
+
+  /**
+   * 実行前に「最新の提出プログラム」を確定させたい場合のフック。
+   * 例: Zustandのstoreへcommitする、などの副作用に使う。
+   */
+  getSubmittedProgram?: () => MaybePromise<unknown>;
+
+  /**
+   * 遷移先を差し替えたい場合に使う。
+   * 例: `/tasks/:id/result` や `/result?taskId=...` など。
+   */
+  navigateTo?: (taskId: string) => string;
+
+  /**
+   * 将来の拡張用。現状は遷移のみ（完了検知の自動遷移等はここでは未実装）。
+   */
+  autoNavigateOnComplete?: boolean;
+}>;
+
+type RunToResultButtonState = Readonly<{
+  disabled: boolean;
+  running: boolean;
+  title: string;
+  label: string;
+  onClick: () => Promise<void>;
+}>;
 
 export function useRunToResultButton({
-	taskId,
-	resetKey,
-}: {
-	taskId: string | null;
-	resetKey: string;
-}) {
-	const router = useRouter();
-	const mode = useUiModeStore((s) => s.mode);
-	const runnerIo = useCommandBuilderStore((s) => s.runnerIo);
-	const commandsLen = useCommandBuilderStore((s) => s.commands.length);
+  taskId,
+  resetKey,
+  getSubmittedProgram,
+  navigateTo,
+}: UseRunToResultButtonOptions): RunToResultButtonState {
+  const router = useRouter();
+  const [running, setRunning] = useState(false);
 
-	const [running, setRunning] = React.useState(false);
+  const to = useMemo(() => {
+    const defaultTo = (id: string) => `/tasks/${id}/running`;
+    return (navigateTo ?? defaultTo)(taskId);
+  }, [navigateTo, taskId]);
 
-	// resetKeyが変わったら“実行中”だけは落とす（UI事故防止）
-	React.useEffect(() => {
-		void resetKey;
-		setRunning(false);
-	}, [resetKey]);
+  const title = useMemo(() => {
+    // UI上の契約として "title" を返しているので維持
+    return running ? "実行中…" : "実行して結果へ";
+  }, [running]);
 
-	const ioRequired = mode !== "beginner";
-	const ioOk = !ioRequired || isRunnerIoCorrect(runnerIo);
+  const label = title;
 
-	const disabled = running || !taskId || commandsLen === 0 || !ioOk;
+  const onClick = useCallback(async () => {
+    if (running) return;
 
-	const title = (() => {
-		if (!taskId) return "課題が未選択";
-		if (commandsLen === 0) return "コマンドが無いので実行できない";
-		if (!ioOk) return "Runner I/O を選んでね（cat input.csv と >> output.csv）";
-		return running ? "実行中…" : "実行する";
-	})();
+    setRunning(true);
+    try {
+      // “提出内容確定” のような副作用が必要ならここで実行
+      if (getSubmittedProgram) {
+        await getSubmittedProgram();
+      }
 
-	const onClick = React.useCallback(async () => {
-		if (disabled || !taskId) return;
-		try {
-			setRunning(true);
-			router.push(`/results/running?taskId=${encodeURIComponent(taskId)}`);
-		} finally {
-			// running解除は遷移先で行う想定（ここは保険）
-			setRunning(false);
-		}
-	}, [disabled, router, taskId]);
+      // resetKey は将来のガード（同一タスクでの再実行など）に残しておく
+      void resetKey;
 
-	return { disabled, title, running, onClick };
+      router.push(to);
+    } finally {
+      // ここで running を false に戻すと、遷移が失敗したときにだけ復帰する形になる。
+      // 成功時はページ遷移するので気にしなくていい。
+      setRunning(false);
+    }
+  }, [getSubmittedProgram, resetKey, router, running, to]);
+
+  return {
+    disabled: running,
+    running,
+    title,
+    label,
+    onClick,
+  };
 }

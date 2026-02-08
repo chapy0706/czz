@@ -3,61 +3,25 @@
 	"private": true,
 	"packageManager": "pnpm@10.13.1",
 	"scripts": {
-		"dev:user": "pnpm --filter user-app dev",
-		"dev:admin": "pnpm --filter admin-app dev",
-		"build:user": "pnpm --filter user-app build",
-		"build:admin": "pnpm --filter admin-app build",
-		"start:user": "pnpm --filter user-app start",
-		"start:admin": "pnpm --filter admin-app start",
-		"lint": "biome lint .",
-		"format": "biome format .",
+		"dev": "pnpm -r dev",
+		"build": "pnpm -r build",
+		"start": "pnpm -r start",
 		"check": "biome check .",
+		"lint": "pnpm -w check",
+		"format": "biome format --write .",
 		"test:unit": "vitest run",
-		"test:e2e": "pnpm -C e2e test",
-		"test": "pnpm -w test:unit",
 		"test:watch": "vitest --watch",
+
 		"typecheck:apps": "tsc -p apps/user/tsconfig.json --noEmit && tsc -p apps/admin/tsconfig.json --noEmit",
-        "typecheck:packages": "tsc -p packages/dsl-core/tsconfig.json --noEmit",
-        "typecheck:root": "tsc -p tsconfig.typecheck.json --noEmit",
-        "typecheck": "pnpm -w typecheck:packages && pnpm -w typecheck:apps && pnpm -w typecheck:root",
+		"typecheck:packages": "tsc -p packages/dsl-core/tsconfig.json --noEmit",
+		"typecheck": "pnpm -w typecheck:packages && pnpm -w typecheck:apps",
+
 		"e2e": "node ./scripts/run-e2e.mjs",
-		"e2e:ui": "E2E_BASE_URL=http://localhost:3100 pnpm -C e2e test:ui",
-		"e2e:test": "pnpm -C e2e test",
-		"e2e:attach": "E2E_ATTACH=1 node ./scripts/run-e2e.mjs",
-		"e2e:server": "pnpm -C apps/user dev -- -p 3100",
-		"e2e:install": "pnpm -C e2e exec playwright install --with-deps",
-		"drizzle:generate": "drizzle-kit generate",
-		"drizzle:migrate": "drizzle-kit migrate"
+		"e2e:ui": "E2E_BASE_URL=http://localhost:3100 pnpm -C e2e test:ui"
 	},
+	"dependencies": {},
 	"devDependencies": {
-		"@biomejs/biome": "^1.9.4",
-		"@playwright/test": "^1.45.0",
-		"@types/node": "^22.0.0",
-		"@types/react": "^19.2.8",
-		"@types/react-dom": "^19.2.3",
-		"dotenv": "^17.2.3",
-		"drizzle-kit": "^0.24.2",
-		"tsx": "^4.21.0",
-		"typescript": "^5.5.0",
-		"vitest": "^2.0.0"
-	},
-	"dependencies": {
-		"@czz/domain": "workspace:^",
-		"@dnd-kit/core": "^6.3.1",
-		"@dnd-kit/sortable": "^10.0.0",
-		"@dnd-kit/utilities": "^3.2.2",
-		"@neondatabase/serverless": "^1.0.2",
-		"drizzle-orm": "^0.33.0",
-		"lucide-react": "^0.556.0",
-		"next-themes": "^0.4.6",
-		"pg": "^8.16.3",
-		"postgres": "^3.4.4",
-		"zod": "^4.3.5"
-	},
-	"pnpm": {
-		"overrides": {
-			"@types/react": "19.2.8",
-			"@types/react-dom": "19.2.3"
-		}
+		"@biomejs/biome": "1.9.4",
+		"vitest": "2.1.9"
 	}
 }

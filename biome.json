@@ -1,19 +1,20 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.0.5/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.3.14/schema.json",
 	"files": {
-		"ignore": [
-			"**/node_modules/**",
-			"**/.next/**",
-			"**/dist/**",
-			"**/out/**",
-			"**/coverage/**",
-			"**/.turbo/**",
-			"e2e/test-results/**",
-			"apps/user/certificates/**",
-			"infra/drizzle/migrations/**"
+		"ignoreUnknown": true,
+		"includes": [
+			"**",
+			"!!**/node_modules/**",
+			"!!**/.next/**",
+			"!!**/dist/**",
+			"!!**/out/**",
+			"!!**/coverage/**",
+			"!!**/.turbo/**"
 		]
 	},
-	"formatter": { "enabled": true },
+	"formatter": {
+		"enabled": true
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
@@ -25,35 +26,7 @@
 						"filenameCases": ["kebab-case", "camelCase", "PascalCase"]
 					}
 				}
-			},
-			"suspicious": {
-				"noExplicitAny": "error"
 			}
 		}
-	},
-	"overrides": [
-		{
-			"include": [
-				"apps/user/app/**",
-				"apps/admin/app/**",
-
-				"apps/user/src/lib/audio/**",
-				"apps/user/src/lib/utils/**",
-				"apps/user/src/lib/terminal/**",
-				"apps/user/src/lib/command-builder/**",
-
-				"packages/**/src/**",
-
-				"apps/user/src/components/ui/SfxLink.tsx",
-				"apps/user/src/components/tasks/TaskHeader.tsx"
-			],
-			"linter": {
-				"rules": {
-					"suspicious": {
-						"noExplicitAny": "off"
-					}
-				}
-			}
-		}
-	]
+	}
 }

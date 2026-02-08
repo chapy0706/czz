@@ -1,50 +1,32 @@
 {
-  "name": "czz",
-  "private": true,
-  "packageManager": "pnpm@10.13.1",
-  "engines": {
-    "node": ">=22"
-  },
-  "scripts": {
-    "check": "biome check .",
-    "check:fix": "biome check . --write --unsafe",
-    "typecheck:apps": "tsc -p apps/user/tsconfig.json --noEmit && tsc -p apps/admin/tsconfig.json --noEmit",
-    "typecheck:packages": "tsc -p packages/dsl-core/tsconfig.json --noEmit",
-    "typecheck:root": "tsc -p tsconfig.typecheck.json --noEmit",
-    "typecheck": "pnpm -w typecheck:packages && pnpm -w typecheck:apps && pnpm -w typecheck:root",
-    "test": "pnpm -w test:unit",
-    "test:unit": "vitest run",
-    "test:watch": "vitest --watch",
-    "e2e": "node ./scripts/run-e2e.mjs",
-    "e2e:ui": "E2E_BASE_URL=http://localhost:3100 pnpm -C e2e test:ui",
-    "db:generate": "pnpm -C infra/drizzle db:generate",
-    "db:migrate": "pnpm -C infra/drizzle db:migrate",
-    "db:studio": "pnpm -C infra/drizzle db:studio",
-    "db:seed": "pnpm -C infra/drizzle db:seed"
-  },
-  "dependencies": {
-    "@radix-ui/react-slot": "1.2.3",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.462.0",
-    "next": "^15.4.5",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "tailwind-merge": "^3.3.1"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.2.2",
-    "@types/node": "^24.1.0",
-    "@types/react": "^19.2.3",
-    "@types/react-dom": "^19.2.3",
-    "typescript": "^5.9.3",
-    "vitest": "^2.1.9"
-  },
-  "pnpm": {
-    "overrides": {
-      "react": "19.2.3",
-      "react-dom": "19.2.3",
-      "@types/react": "19.2.3",
-      "@types/react-dom": "19.2.3"
-    }
-  }
+	"name": "czz",
+	"private": true,
+	"packageManager": "pnpm@10.13.1",
+	"scripts": {
+		"dev:user": "pnpm -C apps/user dev",
+		"dev:admin": "pnpm -C apps/admin dev",
+		"build:user": "pnpm -C apps/user build",
+		"build:admin": "pnpm -C apps/admin build",
+		"check": "biome check .",
+		"check:write": "biome check . --write --unsafe",
+		"typecheck:apps": "tsc -p apps/user/tsconfig.json --noEmit && tsc -p apps/admin/tsconfig.json --noEmit",
+		"typecheck:packages": "tsc -p packages/dsl-core/tsconfig.json --noEmit",
+		"typecheck": "pnpm -w typecheck:packages && pnpm -w typecheck:apps",
+		"test": "pnpm -w test:unit",
+		"test:unit": "vitest run",
+		"test:watch": "vitest --watch",
+		"e2e": "node ./scripts/run-e2e.mjs",
+		"e2e:ui": "E2E_BASE_URL=http://localhost:3100 pnpm -C e2e test:ui"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.3.14",
+		"typescript": "5.8.3",
+		"vitest": "2.1.9"
+	},
+	"pnpm": {
+		"overrides": {
+			"@types/react": "19.2.3",
+			"@types/react-dom": "19.2.3"
+		}
+	}
 }

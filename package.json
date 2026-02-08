@@ -19,6 +19,14 @@
 		"e2e": "node ./scripts/run-e2e.mjs",
 		"e2e:ui": "E2E_BASE_URL=http://localhost:3100 pnpm -C e2e test:ui"
 	},
+	"pnpm": {
+		"overrides": {
+			"react": "19.2.3",
+			"react-dom": "19.2.3",
+			"@types/react": "19.2.3",
+			"@types/react-dom": "19.2.3"
+		}
+	},
 	"dependencies": {},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",

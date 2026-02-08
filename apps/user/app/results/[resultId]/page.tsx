@@ -11,6 +11,14 @@ type ApiOk<T> = { ok: true; value: T };
 type ApiErr = { ok: false; error?: { kind?: string; message?: string } };
 type ApiResponse<T> = ApiOk<T> | ApiErr;
 
+const LINK_BASE =
+	"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+const LINK_SIZE_DEFAULT = "h-9 px-4 py-2";
+const LINK_VARIANT_DEFAULT =
+	"bg-primary text-primary-foreground shadow hover:bg-primary/90";
+const LINK_VARIANT_SECONDARY =
+	"bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80";
+
 type CaseVerdict = {
 	index: number;
 	title: string;
@@ -88,9 +96,10 @@ function normalizeCases(res: ApiResponse<EvaluateOkShape>): {
 	outputText?: string;
 	err?: { kind: string; message: string };
 } {
-	if (!res.ok) {
-		const kind = typeof res.error?.kind === "string" ? res.error.kind : "UNKNOWN";
-		const message = typeof res.error?.message === "string" ? res.error.message : "Unknown error";
+	if (res.ok !== true) {
+		const err = "error" in res ? res.error : undefined;
+		const kind = typeof err?.kind === "string" ? err.kind : "UNKNOWN";
+		const message = typeof err?.message === "string" ? err.message : "Unknown error";
 		return { total: 0, passed: 0, isAllPassed: false, cases: [], err: { kind, message } };
 	}
 
@@ -195,12 +204,18 @@ export default async function ResultPage({
 						</div>
 
 						<div className="mt-3 flex flex-wrap gap-2">
-							<Button asChild variant="secondary">
-								<Link href="/tasks">課題一覧へ戻る</Link>
-							</Button>
-							<Button asChild>
-								<Link href="/results/running">もう一度試す</Link>
-							</Button>
+							<Link
+								href="/tasks"
+								className={`${LINK_BASE} ${LINK_SIZE_DEFAULT} ${LINK_VARIANT_SECONDARY}`}
+							>
+								課題一覧へ戻る
+							</Link>
+							<Link
+								href="/results/running"
+								className={`${LINK_BASE} ${LINK_SIZE_DEFAULT} ${LINK_VARIANT_DEFAULT}`}
+							>
+								もう一度試す
+							</Link>
 						</div>
 					</div>
 				</div>

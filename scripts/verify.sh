@@ -57,7 +57,7 @@ if [[ "${VERIFY_TEST}" == "1" ]]; then
     # watch を避け、色も抑える
     run_step "test (CI): vitest --run" pnpm -s run test -- --run --reporter=basic --no-color
   else
-    run_step "test: vitest" pnpm -s run test
+    run_step "test: vitest run" pnpm -w exec vitest run
   fi
 fi
 

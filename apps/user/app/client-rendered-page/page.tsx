@@ -3,10 +3,10 @@
 "use client";
 
 import {
-	SignInButton,
-	SignOutButton,
 	SignedIn,
 	SignedOut,
+	SignInButton,
+	SignOutButton,
 	UserButton,
 	useAuth,
 	useUser,

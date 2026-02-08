@@ -1,14 +1,13 @@
 // apps/user/src/app/api/tasks/[taskId]/evaluate/route.ts
-import { NextResponse } from "next/server";
-import { z } from "zod";
-
-import { EvaluateResponseSchema } from "@/lib/terminal/evaluateContract";
-import { REQUIRED_RUNNER_IO } from "@/lib/terminal/runnerIo";
-import { EvaluateTaskUseCase } from "@/usecases/evaluateTask";
 
 // infra
 import { DrizzleResultRepository } from "@infra/drizzle/repositories/resultRepository";
 import { DrizzleTaskRepository } from "@infra/drizzle/repositories/taskRepository";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { EvaluateResponseSchema } from "@/lib/terminal/evaluateContract";
+import { REQUIRED_RUNNER_IO } from "@/lib/terminal/runnerIo";
+import { EvaluateTaskUseCase } from "@/usecases/evaluateTask";
 
 const paramsSchema = z.object({ taskId: z.string().uuid() });
 

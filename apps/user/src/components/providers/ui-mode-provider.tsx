@@ -1,9 +1,9 @@
 // apps/user/src/components/providers/ui-mode-provider.tsx
 "use client";
 
-import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { useTheme } from "next-themes";
 import * as React from "react";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type Props = { children: React.ReactNode };
 

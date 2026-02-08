@@ -1,8 +1,8 @@
 // apps/user/app/api/tasks/route.ts
 
-import { ListPublishedTasksUseCase } from "@/usecases/listPublishedTasks";
 import { DrizzleTaskRepository } from "@infra/drizzle/repositories/taskRepository";
 import { NextResponse } from "next/server";
+import { ListPublishedTasksUseCase } from "@/usecases/listPublishedTasks";
 
 /**
  * GET /api/tasks

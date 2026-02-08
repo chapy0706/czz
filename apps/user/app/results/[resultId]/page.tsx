@@ -1,13 +1,13 @@
 // apps/user/app/results/[resultId]/page.tsx
 "use client";
 
-import { SfxLink as Link } from "@/components/ui/SfxLink";
-import { ResultPanel } from "@/lib/terminal/ResultPanel";
-import type { EvaluateResponse } from "@/lib/terminal/evaluateContract";
-import { useTerminalResultCacheStore } from "@/lib/terminal/terminalStore";
-import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { SfxLink as Link } from "@/components/ui/SfxLink";
+import type { EvaluateResponse } from "@/lib/terminal/evaluateContract";
+import { ResultPanel } from "@/lib/terminal/ResultPanel";
+import { useTerminalResultCacheStore } from "@/lib/terminal/terminalStore";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type ResultPanelProps = React.ComponentProps<typeof ResultPanel>;
 type ResultStatus = ResultPanelProps["status"];

@@ -3,7 +3,7 @@
 
 import { useParams } from "next/navigation";
 import * as React from "react";
-
+import { debugRegistry } from "@/components/debug/debugRegistry";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import {
 	type CommandType,
@@ -11,15 +11,13 @@ import {
 	isCommandType,
 } from "@/lib/command-builder/commandCatalog";
 import {
+	isRunnerIoCorrect,
 	RUNNER_INPUT_PRESETS,
 	RUNNER_OUTPUT_PRESETS,
-	isRunnerIoCorrect,
 	runnerInputCmd,
 	runnerOutputCmd,
 } from "@/lib/command-builder/runnerIo";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
-
-import { debugRegistry } from "@/components/debug/debugRegistry";
 
 type UiMode = "beginner" | "normal";
 

@@ -10,10 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SfxLink } from "@/components/ui/SfxLink";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-
-import { SfxLink } from "@/components/ui/SfxLink";
 
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { cn } from "@/lib/utils";

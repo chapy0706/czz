@@ -1,15 +1,15 @@
 // apps/user/app/result/page.tsx
 "use client";
 
+import { useRouter } from "next/navigation";
+import * as React from "react";
 import { SfxLink as Link } from "@/components/ui/SfxLink";
-import { ResultPanel } from "@/lib/terminal/ResultPanel";
 import {
 	type EvaluateResponse,
 	EvaluateResponseSchema,
 } from "@/lib/terminal/evaluateContract";
+import { ResultPanel } from "@/lib/terminal/ResultPanel";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
-import { useRouter } from "next/navigation";
-import * as React from "react";
 
 const LAST_RESULT_STORAGE_KEY = "czz-terminal-last-result";
 

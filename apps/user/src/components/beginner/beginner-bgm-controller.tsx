@@ -3,9 +3,8 @@
 
 import { usePathname } from "next/navigation";
 import * as React from "react";
-
-import { bgmPlayer } from "@/lib/audio/BgmPlayer";
 import { useAudioSettingsStore } from "@/lib/audio/audioSettingsStore";
+import { bgmPlayer } from "@/lib/audio/BgmPlayer";
 import { bgmTrackForPath } from "@/lib/audio/bgmRoutes";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 

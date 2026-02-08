@@ -1,8 +1,8 @@
 // apps/user/src/components/beginner/beginner-mascot-dock.tsx
 "use client";
 
-import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import Image from "next/image";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 const DEFAULT_SRC = "/assets/characters/studying.gif";
 const DEFAULT_ALT = "初心者モードの案内キャラクター";

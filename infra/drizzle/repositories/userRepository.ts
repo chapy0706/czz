@@ -12,10 +12,10 @@ import { db } from "../db";
 import { users } from "../schema";
 
 export class DrizzleUserRepository implements UserRepository {
-	findByAuthUserId(authUserId: AuthUserId): Promise<User | null> {
+	findByAuthUserId(_authUserId: AuthUserId): Promise<User | null> {
 		throw new Error("Method not implemented.");
 	}
-	create(input: NewUser): Promise<User> {
+	create(_input: NewUser): Promise<User> {
 		throw new Error("Method not implemented.");
 	}
 	async findById(id: UserId): Promise<User | null> {

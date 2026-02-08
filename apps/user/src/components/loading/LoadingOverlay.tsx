@@ -1,10 +1,10 @@
 // apps/user/src/components/loading/LoadingOverlay.tsx
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useDelayedVisibility } from "@/lib/loading/useDelayedVisibility";
 import { useEscalatedMessage } from "@/lib/loading/useEscalatedMessage";
 import { usePrefersReducedMotion } from "@/lib/ui/usePrefersReducedMotion";
-import { useEffect, useMemo, useState } from "react";
 
 type LoadingOverlayProps = Readonly<{
 	message?: string;

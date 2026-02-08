@@ -1,5 +1,5 @@
 // e2e/tests/_helpers/ui.ts
-import { type Locator, type Page, expect } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 export async function closeAnyOverlay(page: Page) {
 	// まず正攻法：Escape

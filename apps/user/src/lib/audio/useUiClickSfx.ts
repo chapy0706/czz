@@ -1,10 +1,10 @@
 // apps/user/src/lib/audio/useUiClickSfx.ts
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useAudioSettingsStore } from "@/lib/audio/audioSettingsStore";
 import { useSfx } from "@/lib/audio/useSfx";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
-import { usePathname } from "next/navigation";
 
 type UseUiClickSfxOptions = {
 	src?: string;

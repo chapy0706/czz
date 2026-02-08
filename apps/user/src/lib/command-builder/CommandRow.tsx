@@ -41,7 +41,7 @@ export function CommandRow({
 		? (cat?.ui.beginnerLabel ?? type ?? "UNKNOWN")
 		: (type ?? "UNKNOWN");
 
-	const isChip = variant === "chip";
+	const _isChip = variant === "chip";
 	const sub = isBeginner
 		? (cat?.ui.beginnerExample ?? "")
 		: "Swipe: → edit / ← delete";

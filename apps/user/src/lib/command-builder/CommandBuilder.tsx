@@ -6,8 +6,8 @@ import * as React from "react";
 
 import { CommandList } from "@/lib/command-builder/CommandList";
 import { CommandPalette } from "@/lib/command-builder/CommandPalette";
-import { PipelinePanel } from "@/lib/command-builder/PipelinePanel";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
+import { PipelinePanel } from "@/lib/command-builder/PipelinePanel";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type Task = {

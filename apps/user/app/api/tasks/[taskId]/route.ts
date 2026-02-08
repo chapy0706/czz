@@ -1,10 +1,10 @@
 // apps/user/app/api/tasks/[taskId]/route.ts
+
+import { tasks } from "@infra/drizzle/schema";
 import { eq } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-
 import { db } from "@/lib/db";
-import { tasks } from "@infra/drizzle/schema";
 
 /**
  * GET /api/tasks/[taskId]

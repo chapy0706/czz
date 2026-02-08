@@ -1,4 +1,6 @@
 // apps/user/src/lib/command-builder/commandBuilderStore.ts
+
+import { create } from "zustand";
 import {
 	type CommandType,
 	createDefaultCommandValue,
@@ -10,7 +12,6 @@ import {
 	type RunnerIo,
 	type RunnerOutputPreset,
 } from "@/lib/command-builder/runnerIo";
-import { create } from "zustand";
 
 export type CommandDraft = {
 	id: string;

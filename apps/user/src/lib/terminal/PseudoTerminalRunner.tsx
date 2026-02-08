@@ -3,11 +3,9 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
-
-import { ResultPanel } from "@/lib/terminal/ResultPanel";
-import { evaluateTask } from "@/lib/terminal/evaluateClient";
-
 import { debugRegistry } from "@/components/debug/debugRegistry";
+import { evaluateTask } from "@/lib/terminal/evaluateClient";
+import { ResultPanel } from "@/lib/terminal/ResultPanel";
 
 type Props = {
 	/**

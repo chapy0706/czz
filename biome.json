@@ -4,13 +4,18 @@
 		"ignoreUnknown": true,
 		"includes": [
 			"**",
-			"!!**/node_modules/**",
-			"!!**/.next/**",
-			"!!**/dist/**",
-			"!!**/out/**",
-			"!!**/coverage/**",
-			"!!**/.turbo/**"
+			"!!**/node_modules",
+			"!!**/.next",
+			"!!**/dist",
+			"!!**/out",
+			"!!**/coverage",
+			"!!**/.turbo"
 		]
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
 	},
 	"formatter": {
 		"enabled": true
@@ -18,8 +23,16 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
+			"suspicious": {
+				"noUnknownAtRules": "off"
+			},
 			"style": {
-				"useNamingConvention": "error",
+				"useNamingConvention": {
+					"level": "error",
+					"options": {
+						"strictCase": false
+					}
+				},
 				"useFilenamingConvention": {
 					"level": "warn",
 					"options": {

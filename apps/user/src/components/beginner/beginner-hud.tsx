@@ -1,9 +1,8 @@
 // apps/user/src/components/beginner/beginner-hud.tsx
 "use client";
 
-import Link from "next/link";
-
 import { useUser } from "@clerk/nextjs";
+import Link from "next/link";
 
 import { Switch } from "@/components/ui/switch";
 import { useAudioSettingsStore } from "@/lib/audio/audioSettingsStore";

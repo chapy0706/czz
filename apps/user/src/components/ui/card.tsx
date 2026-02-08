@@ -1,7 +1,7 @@
 // apps/user/src/components/ui/card.tsx
 
-import { cn } from "@/lib/utils";
 import * as React from "react";
+import { cn } from "@/lib/utils";
 
 type DivProps = React.HTMLAttributes<HTMLDivElement>;
 

@@ -1,6 +1,7 @@
 // apps/admin/app/layout.tsx
-import { ThemeProvider } from "@/components/providers/theme-provider";
+
 import type { Metadata } from "next";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 // グローバルCSSの場所に応じてパスは調整してください
 //import "@/styles/globals.css";
 import "./globals.css";

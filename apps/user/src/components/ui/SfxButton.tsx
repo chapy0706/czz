@@ -1,8 +1,8 @@
 // apps/user/src/components/ui/SfxButton.tsx
 "use client";
 
-import { useUiClickSfx } from "@/lib/audio/useUiClickSfx";
 import * as React from "react";
+import { useUiClickSfx } from "@/lib/audio/useUiClickSfx";
 
 export type SfxButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 	sfxSrc?: string;

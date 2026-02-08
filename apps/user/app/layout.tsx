@@ -5,19 +5,15 @@ import "./globals.css";
 
 import { jaJP } from "@clerk/localizations";
 import { ClerkProvider } from "@clerk/nextjs";
-
-import { ThemeProvider } from "@/components/providers/theme-provider";
-import { UiModeProvider } from "@/components/providers/ui-mode-provider";
-
 import { AuthUserBadge } from "@/components/auth/auth-user-badge";
-import { GlobalBreadcrumbs } from "@/components/nav/global-breadcrumbs";
-
 import { BeginnerBgmController } from "@/components/beginner/beginner-bgm-controller";
 import { BeginnerBottomDock } from "@/components/beginner/beginner-bottom-dock";
 import { BeginnerHud } from "@/components/beginner/beginner-hud";
 import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
-
+import { GlobalBreadcrumbs } from "@/components/nav/global-breadcrumbs";
 import { DebugPanelGate } from "@/components/providers/DebugPanelGate";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 
 const FEATURES = {
 	themeProvider: true,

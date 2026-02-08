@@ -1,10 +1,10 @@
 // apps/user/src/components/debug/DebugPanel.tsx
 "use client";
 
-import { debugRegistry } from "@/components/debug/debugRegistry";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import * as React from "react";
+import { debugRegistry } from "@/components/debug/debugRegistry";
 
 function useRegistrySnapshot() {
 	return React.useSyncExternalStore(

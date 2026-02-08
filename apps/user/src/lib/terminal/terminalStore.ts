@@ -1,9 +1,9 @@
 // apps/user/src/lib/terminal/terminalStore.ts
 "use client";
 
-import type { EvaluateResponse } from "@/lib/terminal/evaluateContract";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import type { EvaluateResponse } from "@/lib/terminal/evaluateContract";
 
 const storage = createJSONStorage(() => localStorage, {
 	replacer: (_k, v) => (typeof v === "bigint" ? v.toString() : v),

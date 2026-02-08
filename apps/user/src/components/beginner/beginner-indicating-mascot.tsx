@@ -1,8 +1,8 @@
 // apps/user/src/components/beginner/beginner-indicating-mascot.tsx
 "use client";
 
-import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import Image from "next/image";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type Props = {
 	className?: string;

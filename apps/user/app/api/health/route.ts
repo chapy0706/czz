@@ -1,8 +1,8 @@
 // apps/user/app/api/health/route.ts
 
-import { db } from "@/lib/db"; // tsconfig の paths によっては相対パスでもOK
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db"; // tsconfig の paths によっては相対パスでもOK
 
 export async function GET() {
 	try {

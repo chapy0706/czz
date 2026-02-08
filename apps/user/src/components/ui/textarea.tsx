@@ -1,7 +1,7 @@
 // apps/user/src/components/ui/textarea.tsx
 
-import { cn } from "@/lib/utils";
 import * as React from "react";
+import { cn } from "@/lib/utils";
 
 type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;
 

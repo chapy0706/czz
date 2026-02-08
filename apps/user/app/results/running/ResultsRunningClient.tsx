@@ -1,6 +1,8 @@
 // apps/user/app/results/running/ResultsRunningClient.tsx
 "use client";
 
+import { useRouter, useSearchParams } from "next/navigation";
+import * as React from "react";
 import { SfxLink as Link } from "@/components/ui/SfxLink";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import {
@@ -8,8 +10,6 @@ import {
 	EvaluateResponseSchema,
 } from "@/lib/terminal/evaluateContract";
 import { persistResult } from "@/lib/terminal/terminalStore";
-import { useRouter, useSearchParams } from "next/navigation";
-import * as React from "react";
 
 function normalizeNetworkError(
 	message: string,

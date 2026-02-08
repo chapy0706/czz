@@ -1,12 +1,12 @@
 // apps/user/app/tasks/[taskId]/page.tsx
 "use client";
 
-import { CommandBuilder } from "@/lib/command-builder/CommandBuilder";
-import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
-import { getOrCreateGuestUserId } from "@/lib/terminal/guestUserId";
-import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { CommandBuilder } from "@/lib/command-builder/CommandBuilder";
+import { getOrCreateGuestUserId } from "@/lib/terminal/guestUserId";
+import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type TaskMeta = {
 	id: string;

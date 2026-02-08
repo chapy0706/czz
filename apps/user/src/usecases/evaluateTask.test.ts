@@ -1,12 +1,11 @@
 // apps/user/src/usecases/evaluateTask.test.ts
-import { describe, expect, it, vi } from "vitest";
-import { EvaluateTaskUseCase } from "./evaluateTask";
-
-import type { NewTask, Task, TaskId } from "@czz/domain/entities/task";
-import type { TaskRepository } from "@czz/domain/repositories/taskRepository";
 
 import type { Result, ResultId } from "@czz/domain/entities/result";
+import type { NewTask, Task, TaskId } from "@czz/domain/entities/task";
 import type { ResultRepository } from "@czz/domain/repositories/resultRepository";
+import type { TaskRepository } from "@czz/domain/repositories/taskRepository";
+import { describe, expect, it, vi } from "vitest";
+import { EvaluateTaskUseCase } from "./evaluateTask";
 
 // ---- Fakes ----
 
@@ -15,7 +14,7 @@ class FakeTaskRepository implements TaskRepository {
 	findPublished(): Promise<Task[]> {
 		throw new Error("Method not implemented.");
 	}
-	create(input: NewTask): Promise<Task> {
+	create(_input: NewTask): Promise<Task> {
 		throw new Error("Method not implemented.");
 	}
 

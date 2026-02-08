@@ -1,5 +1,5 @@
 // e2e/tests/user-flow-top-to-result.spec.ts
-import { type Page, expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const TASK_ID =
 	process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";

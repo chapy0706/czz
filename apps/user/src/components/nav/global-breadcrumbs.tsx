@@ -62,17 +62,23 @@ export function GlobalBreadcrumbs({
 	});
 
 	return (
-		<nav className={className} aria-label="breadcrumbs">
+		<nav className={`px-3 sm:px-4 ${className ?? ""}`} aria-label="breadcrumbs">
 			<ol className="flex flex-wrap gap-2 text-xs text-muted-foreground">
 				<li>
-					<Link className="hover:opacity-80" href="/">
+					<Link
+						className="inline-flex items-center rounded px-2 py-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+						href="/"
+					>
 						home
 					</Link>
 				</li>
 				{crumbs.map((c) => (
 					<li key={c.href} className="flex items-center gap-2">
 						<span className="opacity-50">/</span>
-						<Link className="hover:opacity-80" href={c.href}>
+						<Link
+							className="inline-flex items-center rounded px-2 py-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+							href={c.href}
+						>
 							{c.label}
 						</Link>
 					</li>

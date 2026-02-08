@@ -1,60 +1,42 @@
 // apps/user/src/components/beginner/beginner-hud.tsx
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 
 import { Switch } from "@/components/ui/switch";
 import { useAudioSettingsStore } from "@/lib/audio/audioSettingsStore";
-import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { cn } from "@/lib/utils";
 
 /**
  * 初心者モード専用のHUD（小さな操作パネル）
  *
- * - 初心者モードの ON/OFF
  * - BGM / SFX
- * - アカウント導線
+ * - クレジット導線
  */
 export function BeginnerHud() {
-	const { isSignedIn } = useUser();
-
-	const mode = useUiModeStore((s) => s.mode);
-	const setMode = useUiModeStore((s) => s.setMode);
-
 	const bgmEnabled = useAudioSettingsStore((s) => s.bgmEnabled);
 	const setBgmEnabled = useAudioSettingsStore((s) => s.setBgmEnabled);
 
 	const sfxEnabled = useAudioSettingsStore((s) => s.sfxEnabled);
 	const setSfxEnabled = useAudioSettingsStore((s) => s.setSfxEnabled);
 
-	const desktopQuery = "md";
-
-	const modeSwitch = (
-		<Switch
-			checked={mode === "beginner"}
-			onCheckedChange={(v) => setMode(v ? "beginner" : "advanced")}
-			aria-label={
-				mode === "beginner"
-					? "初心者モードをオフにする"
-					: "初心者モードをオンにする"
-			}
-		/>
-	);
-
 	const bgmSwitch = (
 		<Switch
+			id="beginner-bgm-toggle"
 			checked={bgmEnabled}
 			onCheckedChange={(v) => setBgmEnabled(Boolean(v))}
 			aria-label={bgmEnabled ? "BGMをオフにする" : "BGMをオンにする"}
+			className="data-[state=checked]:bg-sky-500 data-[state=checked]:border-sky-500"
 		/>
 	);
 
 	const sfxSwitch = (
 		<Switch
+			id="beginner-sfx-toggle"
 			checked={sfxEnabled}
 			onCheckedChange={(v) => setSfxEnabled(Boolean(v))}
 			aria-label={sfxEnabled ? "効果音をオフにする" : "効果音をオンにする"}
+			className="data-[state=checked]:bg-sky-500 data-[state=checked]:border-sky-500"
 		/>
 	);
 
@@ -69,65 +51,56 @@ export function BeginnerHud() {
 					"p-2 sm:p-4",
 				)}
 			>
-				{/* ===== コンパクト表示（スマホ縦 / スマホ横） ===== */}
-				<div
-					className={cn("flex items-center gap-3", `${desktopQuery}:hidden`)}
-				>
-					<div className="flex items-center gap-2">
-						<div className="text-xs font-semibold">BGM</div>
+				<div className="flex flex-col gap-2">
+					<div
+						className={cn(
+							"flex items-center justify-between rounded-xl border px-3 py-2",
+							bgmEnabled
+								? "border-sky-300/70 bg-sky-50 text-sky-950"
+								: "border-border bg-background/60 text-foreground",
+						)}
+					>
+						<label
+							className={cn(
+								"text-sm font-semibold",
+								bgmEnabled ? "text-sky-900" : "text-foreground",
+							)}
+							htmlFor="beginner-bgm-toggle"
+						>
+							BGM
+						</label>
 						{bgmSwitch}
 					</div>
-					<div className="flex items-center gap-2">
-						<div className="text-xs font-semibold">SFX</div>
+
+					<div
+						className={cn(
+							"flex items-center justify-between rounded-xl border px-3 py-2",
+							sfxEnabled
+								? "border-sky-300/70 bg-sky-50 text-sky-950"
+								: "border-border bg-background/60 text-foreground",
+						)}
+					>
+						<label
+							className={cn(
+								"text-sm font-semibold",
+								sfxEnabled ? "text-sky-900" : "text-foreground",
+							)}
+							htmlFor="beginner-sfx-toggle"
+						>
+							SFX
+						</label>
 						{sfxSwitch}
 					</div>
-					<div className="ml-auto flex items-center gap-2">
-						<div className="text-xs font-semibold">初心者</div>
-						{modeSwitch}
-					</div>
-				</div>
 
-				{/* ===== デスクトップ表示 ===== */}
-				<div className={cn("hidden", `${desktopQuery}:block`)}>
-					<div className="flex items-center justify-between gap-3">
-						<div className="text-sm font-semibold">初心者モード</div>
-						{modeSwitch}
-					</div>
-
-					<div className="mt-3 grid grid-cols-2 gap-2">
-						<div className="flex items-center justify-between rounded-xl border px-3 py-2">
-							<div className="text-sm font-medium">BGM</div>
-							{bgmSwitch}
-						</div>
-						<div className="flex items-center justify-between rounded-xl border px-3 py-2">
-							<div className="text-sm font-medium">SFX</div>
-							{sfxSwitch}
-						</div>
-					</div>
-
-					<div className="mt-3 flex items-center justify-between gap-2">
-						{isSignedIn ? (
-							<Link
-								className="text-sm underline underline-offset-4 hover:opacity-80"
-								href="/account/settings"
-							>
-								設定
-							</Link>
-						) : (
-							<Link
-								className="text-sm underline underline-offset-4 hover:opacity-80"
-								href="/auth/sign-in"
-							>
-								ログイン
-							</Link>
+					<Link
+						className={cn(
+							"inline-flex items-center justify-center rounded-xl border px-3 py-2 text-sm font-semibold",
+							"hover:bg-muted/60",
 						)}
-						<Link
-							className="text-sm underline underline-offset-4 hover:opacity-80"
-							href="/credits"
-						>
-							クレジット
-						</Link>
-					</div>
+						href="/credits"
+					>
+						クレジット
+					</Link>
 				</div>
 			</div>
 		</section>

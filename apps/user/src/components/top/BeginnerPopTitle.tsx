@@ -7,6 +7,8 @@ import * as React from "react";
 type PopTitleStyleVars = React.CSSProperties & {
 	"--czz-delay"?: string;
 	"--czz-rot"?: string;
+	"--czz-tx"?: string;
+	"--czz-ty"?: string;
 };
 
 type Size = "sm" | "md" | "lg" | "xl";
@@ -27,30 +29,54 @@ const SIZE_MAP: Record<Size, string> = {
 	xl: "text-6xl",
 };
 
-const VARIANTS: Array<{ className: string }> = [
+const VARIANTS: Array<{ className: string; vars: PopTitleStyleVars }> = [
 	{
 		className:
-			"h-14 w-14 text-3xl ring-2 ring-pink-300 bg-pink-200 text-slate-800 rotate-2 -translate-y-0.5",
+			"h-14 w-14 text-3xl ring-2 ring-pink-300 bg-pink-200 text-slate-800",
+		vars: {
+			"--czz-rot": "2deg",
+			"--czz-ty": "-2px",
+		},
 	},
 	{
 		className:
-			"h-12 w-12 text-2xl ring-1 ring-sky-300 bg-sky-200 text-slate-800 -rotate-2 translate-y-0.5",
+			"h-12 w-12 text-2xl ring-1 ring-sky-300 bg-sky-200 text-slate-800",
+		vars: {
+			"--czz-rot": "-2deg",
+			"--czz-ty": "2px",
+		},
 	},
 	{
 		className:
-			"h-16 w-16 text-3xl ring-4 ring-emerald-300 bg-emerald-200 text-slate-800 rotate-1 translate-x-0.5",
+			"h-16 w-16 text-3xl ring-4 ring-emerald-300 bg-emerald-200 text-slate-800",
+		vars: {
+			"--czz-rot": "1deg",
+			"--czz-tx": "2px",
+		},
 	},
 	{
 		className:
-			"h-11 w-11 text-2xl ring-2 ring-amber-300 bg-amber-200 text-slate-800 -rotate-1 -translate-x-0.5",
+			"h-11 w-11 text-2xl ring-2 ring-amber-300 bg-amber-200 text-slate-800",
+		vars: {
+			"--czz-rot": "-1deg",
+			"--czz-tx": "-2px",
+		},
 	},
 	{
 		className:
-			"h-14 w-14 text-3xl ring-2 ring-teal-300 bg-teal-200 text-slate-800 rotate-3 translate-y-1",
+			"h-14 w-14 text-3xl ring-2 ring-teal-300 bg-teal-200 text-slate-800",
+		vars: {
+			"--czz-rot": "3deg",
+			"--czz-ty": "4px",
+		},
 	},
 	{
 		className:
-			"h-14 w-14 text-2xl ring-1 ring-violet-300 bg-violet-200 text-slate-800 -rotate-3 -translate-y-1",
+			"h-14 w-14 text-2xl ring-1 ring-violet-300 bg-violet-200 text-slate-800",
+		vars: {
+			"--czz-rot": "-3deg",
+			"--czz-ty": "-4px",
+		},
 	},
 ];
 
@@ -72,6 +98,8 @@ export function BeginnerPopTitle({
 						const styleVars: PopTitleStyleVars = {
 							"--czz-delay": delay,
 							"--czz-rot": rot,
+							"--czz-tx": "0px",
+							"--czz-ty": "0px",
 						};
 
 						return (
@@ -81,7 +109,7 @@ export function BeginnerPopTitle({
 								className="inline-block align-middle"
 								style={styleVars}
 							>
-								<span className="inline-grid place-items-center rounded-full border px-2 py-1">
+								<span className="czz-drop-bounce motion-reduce:animate-none inline-grid place-items-center rounded-full border px-2 py-1">
 									{ch}
 								</span>
 							</span>
@@ -98,12 +126,20 @@ export function BeginnerPopTitle({
 				<div className="grid grid-cols-3 grid-rows-2 gap-1.5 sm:grid-cols-6 sm:grid-rows-1 sm:gap-2">
 					{chars.map((ch, idx) => {
 						const variant = VARIANTS[idx];
+						const delay = `${idx * staggerMs}ms`;
+						const styleVars: PopTitleStyleVars = {
+							"--czz-delay": delay,
+							"--czz-rot": variant.vars["--czz-rot"],
+							"--czz-tx": variant.vars["--czz-tx"] ?? "0px",
+							"--czz-ty": variant.vars["--czz-ty"] ?? "0px",
+						};
 
 						return (
 							<span
 								// biome-ignore lint/suspicious/noArrayIndexKey: 6文字固定の演出で順序が変わらないため
 								key={idx}
-								className={`inline-grid place-items-center rounded-full leading-none ${variant.className}`}
+								className={`czz-drop-bounce motion-reduce:animate-none inline-grid place-items-center rounded-full leading-none ${variant.className}`}
+								style={styleVars}
 							>
 								{ch}
 							</span>

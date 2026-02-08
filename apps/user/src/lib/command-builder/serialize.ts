@@ -1,5 +1,5 @@
 // apps/user/src/lib/command-builder/serialize.ts
-import type { RunnerIo } from "@/lib/terminal/runnerIo";
+import type { RunnerIoPreset } from "@/lib/terminal/runnerIo";
 import { safeJsonCompact } from "@/lib/utils/safeStringify";
 
 type AnyCommand = { value: unknown };
@@ -10,7 +10,7 @@ type AnyCommand = { value: unknown };
  */
 export function buildResetKey(
 	commands: AnyCommand[],
-	runnerIo?: RunnerIo,
+	runnerIo?: RunnerIoPreset,
 ): string {
 	return (
 		safeJsonCompact({

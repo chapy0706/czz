@@ -16,7 +16,7 @@ import {
 	RUNNER_OUTPUT_PRESETS,
 	runnerInputCmd,
 	runnerOutputCmd,
-} from "@/lib/command-builder/runnerIo";
+} from "@/lib/terminal/runnerIo";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
 
 type UiMode = "beginner" | "normal";
@@ -123,6 +123,7 @@ export function PipelinePanel(props: Props) {
 		resetKey: programDigest,
 		getSubmittedProgram: () =>
 			useCommandBuilderStore.getState().serializeProgram(),
+		getRunnerIo: () => useCommandBuilderStore.getState().runnerIo,
 		navigateTo: "/result",
 		autoNavigateOnComplete: true,
 	});

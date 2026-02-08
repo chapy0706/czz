@@ -9,21 +9,14 @@ import {
 	EvaluateResponseSchema,
 } from "@/lib/terminal/evaluateContract";
 import { ResultPanel } from "@/lib/terminal/ResultPanel";
+import {
+	type CachedResult,
+	useTerminalResultCacheStore,
+} from "@/lib/terminal/terminalStore";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
-
-const LAST_RESULT_STORAGE_KEY = "czz-terminal-last-result";
 
 type ResultPanelProps = React.ComponentProps<typeof ResultPanel>;
 type ResultStatus = ResultPanelProps["status"];
-
-function safeParse(json: string | null): unknown {
-	if (!json) return null;
-	try {
-		return JSON.parse(json);
-	} catch {
-		return null;
-	}
-}
 
 function safeStringify(x: unknown): string {
 	try {
@@ -89,12 +82,6 @@ async function fetchTaskTestTitles(taskId: string): Promise<string[]> {
 		return [];
 	}
 }
-
-type StoredLastResult = {
-	savedAt: number;
-	meta?: { taskId?: string };
-	response: unknown;
-};
 
 type CaseVerdict = {
 	index: number;
@@ -333,7 +320,15 @@ export default function ResultPage() {
 	const [mounted, setMounted] = React.useState(false);
 	React.useEffect(() => setMounted(true), []);
 
-	const [stored, setStored] = React.useState<StoredLastResult | null>(null);
+	const { latestId, byId, clearAll } = useTerminalResultCacheStore((s) => ({
+		latestId: s.latestId,
+		byId: s.byId,
+		clearAll: s.clearAll,
+	}));
+	const stored = React.useMemo<CachedResult | null>(() => {
+		if (!latestId) return null;
+		return byId[latestId] ?? null;
+	}, [byId, latestId]);
 	const [panel, setPanel] = React.useState<Pick<
 		ResultPanelProps,
 		"status" | "outputText" | "expectedText" | "hint"
@@ -345,20 +340,13 @@ export default function ResultPage() {
 	React.useEffect(() => {
 		if (!mounted) return;
 
-		const raw = safeParse(
-			localStorage.getItem(LAST_RESULT_STORAGE_KEY),
-		) as StoredLastResult | null;
-		if (!raw || typeof raw !== "object") {
-			setStored(null);
+		if (!stored) {
 			setPanel(null);
 			setCases([]);
 			setIsAllPassed(false);
 			return;
 		}
-
-		setStored(raw);
-
-		const parsed = EvaluateResponseSchema.safeParse(raw.response);
+		const parsed = EvaluateResponseSchema.safeParse(stored.response);
 		if (!parsed.success) {
 			setPanel({
 				status: "failure",
@@ -377,7 +365,7 @@ export default function ResultPage() {
 		setCases(verdict.cases);
 		setIsAllPassed(verdict.isAllPassed);
 		setPanel(toPanelProps(res, testTitles));
-	}, [mounted, testTitles]);
+	}, [mounted, stored, testTitles]);
 
 	const savedAtText = React.useMemo(() => {
 		if (!stored) return "";
@@ -406,16 +394,11 @@ export default function ResultPage() {
 	}, [taskId]);
 
 	const clear = React.useCallback(() => {
-		try {
-			localStorage.removeItem(LAST_RESULT_STORAGE_KEY);
-		} catch {
-			// ignore
-		}
-		setStored(null);
+		clearAll();
 		setPanel(null);
 		setCases([]);
 		setIsAllPassed(false);
-	}, []);
+	}, [clearAll]);
 
 	const onRetry = React.useCallback(() => {
 		if (taskId) {

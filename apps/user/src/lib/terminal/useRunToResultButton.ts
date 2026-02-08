@@ -4,12 +4,20 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
+import { evaluateTask } from "@/lib/terminal/evaluateClient";
+import { extractResultId } from "@/lib/terminal/evaluateContract";
+import {
+	type RunnerIo,
+	type RunnerIoPreset,
+	toRunnerIo,
+} from "@/lib/terminal/runnerIo";
+import { persistResult } from "@/lib/terminal/terminalStore";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type MaybePromise<T> = T | Promise<T>;
 
 type UseRunToResultButtonOptions = Readonly<{
-	taskId: string;
+	taskId: string | null;
 	resetKey: string;
 
 	/**
@@ -17,6 +25,7 @@ type UseRunToResultButtonOptions = Readonly<{
 	 * 例: Zustandのstoreへcommitする、serializeしてスナップショットを取る、など。
 	 */
 	getSubmittedProgram?: () => MaybePromise<unknown>;
+	getRunnerIo?: () => RunnerIoPreset | RunnerIo | null;
 
 	/**
 	 * 遷移先を差し替えたい場合に使う。
@@ -41,61 +50,109 @@ type RunToResultButtonState = Readonly<{
 	running: boolean;
 	title: string;
 	label: string;
+	error: string | null;
 	onClick: () => Promise<void>;
 }>;
+
+function normalizeRunnerIo(value: RunnerIoPreset | RunnerIo | null | undefined) {
+	if (!value) return { input: null, output: null } satisfies RunnerIo;
+	if ("input" in value && "output" in value) {
+		const maybePreset = value as RunnerIoPreset;
+		if (
+			typeof maybePreset.input === "string" &&
+			typeof maybePreset.output === "string"
+		) {
+			return toRunnerIo(maybePreset);
+		}
+		return value as RunnerIo;
+	}
+	return { input: null, output: null } satisfies RunnerIo;
+}
 
 export function useRunToResultButton({
 	taskId,
 	resetKey,
 	getSubmittedProgram,
+	getRunnerIo,
 	navigateTo,
 	userId,
+	autoNavigateOnComplete,
 }: UseRunToResultButtonOptions): RunToResultButtonState {
 	const router = useRouter();
 	const [running, setRunning] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const mode = useUiModeStore((s) => s.mode);
 
 	const to = useMemo(() => {
-		const defaultTo = (id: string) => `/tasks/${id}/running`;
-		const nav = navigateTo ?? defaultTo;
-		return typeof nav === "string" ? nav : nav(taskId);
+		const nav = navigateTo ?? "/result";
+		return typeof nav === "string" ? nav : taskId ? nav(taskId) : nav("");
 	}, [navigateTo, taskId]);
 
 	const title = useMemo(() => {
-		if (!userId) return "ログインして実行";
+		if (!taskId) return "タスクが見つからない";
 		if (running) return "実行中…";
 		return mode === "beginner" ? "実行してみる" : "実行して結果へ";
-	}, [mode, running, userId]);
+	}, [mode, running, taskId]);
 
 	const label = title;
 
 	const onClick = useCallback(async () => {
 		if (running) return;
-		if (!userId) return;
+		if (!taskId) return;
 
+		setError(null);
 		setRunning(true);
 		try {
-			// “提出内容確定” のような副作用が必要ならここで実行
-			if (getSubmittedProgram) {
-				await getSubmittedProgram();
+			const submittedProgram = getSubmittedProgram
+				? await getSubmittedProgram()
+				: undefined;
+			const runnerIo = normalizeRunnerIo(getRunnerIo?.());
+
+			const evaluated = await evaluateTask({
+				taskId,
+				userId: userId ?? undefined,
+				submittedProgram,
+				runnerIo,
+				purpose: "evaluate",
+			});
+
+			const resultId = extractResultId(evaluated);
+			if (resultId) {
+				if (autoNavigateOnComplete !== false) {
+					router.push(`/results/${resultId}`);
+				}
+				return;
 			}
 
-			// resetKey は将来のガード（同一タスクでの再実行など）に残しておく
-			void resetKey;
-
-			router.push(to);
+			persistResult(evaluated, { taskId });
+			if (autoNavigateOnComplete !== false) {
+				router.push(to);
+			}
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Unknown error");
 		} finally {
 			// 成功時はページ遷移するので気にしなくていい。失敗時だけ復帰できる。
 			setRunning(false);
 		}
-	}, [getSubmittedProgram, resetKey, router, running, to, userId]);
+	}, [
+		autoNavigateOnComplete,
+		getRunnerIo,
+		getSubmittedProgram,
+		resetKey,
+		router,
+		running,
+		taskId,
+		to,
+		userId,
+	]);
 
 	return {
-		disabled: running || !userId,
+		disabled: running || !taskId,
 		running,
 		title,
 		label,
+		error,
 		onClick,
 	};
 }

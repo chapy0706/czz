@@ -1,13 +1,14 @@
 // apps/user/src/lib/command-builder/CommandBuilder.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { CommandList } from "@/lib/command-builder/CommandList";
 import { CommandPalette } from "@/lib/command-builder/CommandPalette";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import { PipelinePanel } from "@/lib/command-builder/PipelinePanel";
+import { buildResetKey } from "@/lib/command-builder/serialize";
+import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type Task = {
@@ -23,78 +24,6 @@ type Props = {
 };
 
 type UiModeForPanels = "beginner" | "normal";
-
-type EvaluateResponse = {
-	ok: boolean;
-	value?: { resultId?: string; id?: string; result?: { id?: string } };
-	resultId?: string;
-	message?: string;
-	error?: { kind?: string };
-};
-
-function asMessage(e: unknown): string {
-	if (!e) return "Unknown error";
-	if (typeof e === "string") return e;
-	if (e instanceof Error) return e.message || "Error";
-	try {
-		return JSON.stringify(e);
-	} catch {
-		return String(e);
-	}
-}
-
-async function postEvaluate(args: {
-	taskId: string;
-	userId?: string;
-	program: unknown;
-}): Promise<{ resultId?: string }> {
-	const res = await fetch(`/api/tasks/${args.taskId}/evaluate`, {
-		method: "POST",
-		cache: "no-store",
-		credentials: "same-origin",
-		headers: { "content-type": "application/json" },
-		// サーバ側の契約差分に備えて冗長に送る（P0: とにかく導線を繋ぐ）
-		body: JSON.stringify({
-			dslProgram: args.program,
-			program: args.program,
-			userId: args.userId,
-		}),
-	});
-
-	const text = await res.text().catch(() => "");
-	const json: EvaluateResponse | null = text ? (JSON.parse(text) as any) : null;
-
-	if (!res.ok) {
-		const msg =
-			typeof json?.message === "string"
-				? json.message
-				: typeof json?.error?.kind === "string"
-					? json.error.kind
-					: text
-						? text.slice(0, 200)
-						: `HTTP ${res.status}`;
-		throw new Error(msg);
-	}
-
-	if (json?.ok !== true) {
-		const msg =
-			typeof json?.message === "string"
-				? json.message
-				: typeof json?.error?.kind === "string"
-					? json.error.kind
-					: "Evaluate response not ok";
-		throw new Error(msg);
-	}
-
-	const resultId =
-		(typeof json?.value?.resultId === "string" && json.value.resultId) ||
-		(typeof json?.value?.id === "string" && json.value.id) ||
-		(typeof json?.resultId === "string" && json.resultId) ||
-		(typeof json?.value?.result?.id === "string" && json.value.result.id) ||
-		undefined;
-
-	return { resultId: resultId || undefined };
-}
 
 function toCommandToken(command: unknown): string {
 	// command は store の Draft なので、型を信用せずに "それっぽい" 文字列へ安全に落とす
@@ -114,8 +43,6 @@ function toCommandToken(command: unknown): string {
 export function CommandBuilder(props: Props) {
 	const { task, userId } = props;
 
-	const router = useRouter();
-
 	// "advanced" | "beginner"
 	const mode = useUiModeStore((s) => s.mode);
 	const isBeginner = mode === "beginner";
@@ -130,6 +57,7 @@ export function CommandBuilder(props: Props) {
 	const select = useCommandBuilderStore((s) => s.select);
 	const openEditor = useCommandBuilderStore((s) => s.openEditor);
 	const move = useCommandBuilderStore((s) => s.move);
+	const runnerIo = useCommandBuilderStore((s) => s.runnerIo);
 
 	React.useEffect(() => {
 		if (!task.id) return;
@@ -188,10 +116,24 @@ export function CommandBuilder(props: Props) {
 		return ["input.csv", ...tokens, "output.csv"].join(" | ");
 	}, [commands]);
 
-	const [isRunning, setIsRunning] = React.useState(false);
-	const [runError, setRunError] = React.useState<string | null>(null);
+	const resetKey = React.useMemo(
+		() => buildResetKey(commands as any, runnerIo),
+		[commands, runnerIo],
+	);
 
-	const canRun = Boolean(task.id) && commands.length > 0 && !isRunning;
+	const run = useRunToResultButton({
+		taskId: task.id,
+		resetKey,
+		getSubmittedProgram: () =>
+			useCommandBuilderStore.getState().serializeProgram(),
+		getRunnerIo: () => useCommandBuilderStore.getState().runnerIo,
+		userId,
+		navigateTo: "/result",
+		autoNavigateOnComplete: true,
+	});
+
+	const canRun =
+		Boolean(task.id) && commands.length > 0 && !run.running && !run.disabled;
 
 	const disabledReason = !task.id
 		? isBeginner
@@ -201,7 +143,7 @@ export function CommandBuilder(props: Props) {
 			? isBeginner
 				? "まずはコマンドを追加してね"
 				: "Add at least one command"
-			: isRunning
+			: run.running
 				? isBeginner
 					? "実行中…"
 					: "Running…"
@@ -209,42 +151,13 @@ export function CommandBuilder(props: Props) {
 
 	const onClear = React.useCallback(() => {
 		if (!task.id) return;
-		if (isRunning) return;
-
-		setRunError(null);
+		if (run.running) return;
 		setSelectedIndex(-1);
 		setRevealIndex(0);
 
 		// storeの「確実に存在する」APIだけで初期化する
 		initForTask(task.id);
-	}, [initForTask, isRunning, task.id]);
-
-	const onRun = React.useCallback(async () => {
-		if (!task.id) return;
-
-		setIsRunning(true);
-		setRunError(null);
-
-		try {
-			const program = useCommandBuilderStore.getState().serializeProgram();
-			const { resultId } = await postEvaluate({
-				taskId: task.id,
-				userId,
-				program,
-			});
-
-			// P0: resultId が取れたら直リンク、取れなければ旧 /result へフォールバック。
-			if (typeof resultId === "string" && resultId) {
-				router.push(`/results/${resultId}`);
-			} else {
-				router.push("/result");
-			}
-		} catch (e) {
-			setRunError(asMessage(e));
-		} finally {
-			setIsRunning(false);
-		}
-	}, [router, task.id, userId]);
+	}, [initForTask, run.running, task.id]);
 
 	return (
 		<div className="space-y-4">
@@ -296,7 +209,7 @@ export function CommandBuilder(props: Props) {
 							type="button"
 							className="rounded border px-3 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50"
 							onClick={onClear}
-							disabled={!task.id || isRunning}
+							disabled={!task.id || run.running}
 						>
 							{isBeginner ? "クリア" : "Clear"}
 						</button>
@@ -304,10 +217,10 @@ export function CommandBuilder(props: Props) {
 						<button
 							type="button"
 							className="rounded border px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50"
-							onClick={onRun}
+							onClick={run.onClick}
 							disabled={!canRun}
 						>
-							{isRunning
+							{run.running
 								? isBeginner
 									? "うごかしてる…"
 									: "Running…"
@@ -324,13 +237,13 @@ export function CommandBuilder(props: Props) {
 					</div>
 				) : null}
 
-				{runError ? (
+				{run.error ? (
 					<div className="mt-2 rounded border p-3 text-sm">
 						<div className="font-semibold">
 							{isBeginner ? "実行に失敗" : "Run failed"}
 						</div>
 						<div className="mt-1 whitespace-pre-wrap opacity-80">
-							{runError}
+							{run.error}
 						</div>
 					</div>
 				) : null}

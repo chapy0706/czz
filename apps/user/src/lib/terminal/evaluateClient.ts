@@ -2,6 +2,7 @@
 import {
 	type EvaluateResponse,
 	EvaluateResponseSchema,
+	extractResultId,
 } from "@/lib/terminal/evaluateContract";
 import type { RunnerIo } from "@/lib/terminal/runnerIo";
 
@@ -37,7 +38,12 @@ export async function evaluateTask(params: Params): Promise<EvaluateResponse> {
 		const json = await res.json().catch(() => null);
 
 		const parsed = EvaluateResponseSchema.safeParse(json);
-		if (parsed.success) return parsed.data;
+		if (parsed.success) {
+			const extracted = extractResultId(json);
+			return extracted && !parsed.data.resultId
+				? { ...parsed.data, resultId: extracted }
+				: parsed.data;
+		}
 
 		return {
 			ok: false,
@@ -46,6 +52,7 @@ export async function evaluateTask(params: Params): Promise<EvaluateResponse> {
 				message: "Invalid response shape",
 				details: parsed.error.flatten(),
 			},
+			resultId: extractResultId(json) ?? undefined,
 		};
 	} catch (e) {
 		return {

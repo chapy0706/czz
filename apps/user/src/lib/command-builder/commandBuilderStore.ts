@@ -9,9 +9,9 @@ import {
 import {
 	DEFAULT_RUNNER_IO,
 	type RunnerInputPreset,
-	type RunnerIo,
+	type RunnerIoPreset,
 	type RunnerOutputPreset,
-} from "@/lib/command-builder/runnerIo";
+} from "@/lib/terminal/runnerIo";
 
 export type CommandDraft = {
 	id: string;
@@ -30,7 +30,7 @@ type State = {
 	editingId: string | null;
 
 	// Runner I/O（cat input.csv / >> output.csv 等）
-	runnerIo: RunnerIo;
+	runnerIo: RunnerIoPreset;
 
 	initForTask: (taskId: string) => void;
 

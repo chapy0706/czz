@@ -55,7 +55,37 @@ export const EvaluateResponseSchema = z.union([
 		}),
 		passed: z.number().int().nonnegative().optional(),
 		total: z.number().int().nonnegative().optional(),
+		resultId: z.string().uuid().optional(),
 	}),
 ]);
 
 export type EvaluateResponse = z.infer<typeof EvaluateResponseSchema>;
+
+export function extractResultId(payload: unknown): string | null {
+	if (!payload || typeof payload !== "object") return null;
+
+	const obj = payload as Record<string, unknown>;
+	const direct = typeof obj.resultId === "string" ? obj.resultId : null;
+	if (direct) return direct;
+
+	const value = obj.value as Record<string, unknown> | undefined;
+	if (value) {
+		if (typeof value.resultId === "string" && value.resultId) {
+			return value.resultId;
+		}
+		if (typeof value.id === "string" && value.id) return value.id;
+		const result = value.result as Record<string, unknown> | undefined;
+		if (result && typeof result.id === "string" && result.id) {
+			return result.id;
+		}
+	}
+
+	const result = obj.result as Record<string, unknown> | undefined;
+	if (result && typeof result.id === "string" && result.id) {
+		return result.id;
+	}
+
+	if (typeof obj.id === "string" && obj.id) return obj.id;
+
+	return null;
+}

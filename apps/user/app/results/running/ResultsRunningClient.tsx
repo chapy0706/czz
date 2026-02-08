@@ -5,48 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { SfxLink as Link } from "@/components/ui/SfxLink";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
-import {
-	type EvaluateResponse,
-	EvaluateResponseSchema,
-} from "@/lib/terminal/evaluateContract";
+import { evaluateTask } from "@/lib/terminal/evaluateClient";
+import { extractResultId } from "@/lib/terminal/evaluateContract";
+import { toRunnerIo } from "@/lib/terminal/runnerIo";
 import { persistResult } from "@/lib/terminal/terminalStore";
-
-function normalizeNetworkError(
-	message: string,
-	details?: unknown,
-): EvaluateResponse {
-	return { ok: false, error: { kind: "NETWORK", message, details } };
-}
-
-async function postEvaluate(
-	taskId: string,
-	submittedProgram: unknown,
-): Promise<EvaluateResponse> {
-	try {
-		const res = await fetch(`/api/tasks/${taskId}/evaluate`, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ submittedProgram }),
-		});
-
-		const json = await res.json().catch(() => null);
-		const parsed = EvaluateResponseSchema.safeParse(json);
-		if (!parsed.success) {
-			return {
-				ok: false,
-				error: {
-					kind: "UNKNOWN",
-					message: "Invalid API response",
-					details: parsed.error.flatten(),
-				},
-			};
-		}
-		return parsed.data;
-	} catch (e) {
-		const message = e instanceof Error ? e.message : "Network error";
-		return normalizeNetworkError(message, e);
-	}
-}
 
 export default function ResultsRunningClient() {
 	const router = useRouter();
@@ -84,9 +46,20 @@ export default function ResultsRunningClient() {
 		setState("running");
 
 		(async () => {
-			const evaluated = await postEvaluate(taskId, program);
-			const resultId = persistResult(evaluated, { taskId });
-			router.replace(`/results/${resultId}`);
+			const runnerIoPreset = useCommandBuilderStore.getState().runnerIo;
+			const evaluated = await evaluateTask({
+				taskId,
+				submittedProgram: program,
+				runnerIo: toRunnerIo(runnerIoPreset),
+				purpose: "evaluate",
+			});
+			const extracted = extractResultId(evaluated);
+			if (extracted) {
+				router.replace(`/results/${extracted}`);
+				return;
+			}
+			persistResult(evaluated, { taskId });
+			router.replace("/result");
 		})().catch((e) => {
 			setState("error");
 			setErrText(e instanceof Error ? e.message : "Unknown error");

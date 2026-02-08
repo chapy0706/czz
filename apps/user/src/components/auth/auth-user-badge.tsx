@@ -175,7 +175,7 @@ export function AuthUserBadge() {
 	}, [computeBounds]);
 
 	return (
-		<div
+		<section
 			ref={containerRef}
 			className={cn(
 				"fixed top-3 right-3 z-[60]",
@@ -191,7 +191,8 @@ export function AuthUserBadge() {
 			) : (
 				<>
 					{/* ドラッグハンドル（アバター部分だけ） */}
-					<div
+					<button
+						type="button"
 						className={cn(
 							"h-7 w-7 overflow-hidden rounded-full border bg-muted shrink-0",
 							"cursor-grab active:cursor-grabbing",
@@ -213,7 +214,7 @@ export function AuthUserBadge() {
 								draggable={false}
 							/>
 						) : null}
-					</div>
+					</button>
 
 					<div className="min-w-0 flex-1">
 						<div className="flex items-center gap-1.5">
@@ -269,6 +270,6 @@ export function AuthUserBadge() {
 					</SignedIn>
 				</>
 			)}
-		</div>
+		</section>
 	);
 }

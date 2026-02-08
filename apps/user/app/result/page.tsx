@@ -254,10 +254,7 @@ function CaseList({
 								</pre>
 							) : null}
 						</div>
-						<div
-							className="shrink-0 rounded-full border px-2 py-1 text-xs"
-							aria-label={c.ok ? "passed" : "failed"}
-						>
+						<div className="shrink-0 rounded-full border px-2 py-1 text-xs">
 							{c.ok ? "○ 正解" : "× 不正解"}
 						</div>
 					</li>

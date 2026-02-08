@@ -60,3 +60,25 @@ export function formatOutputHuman(value: unknown): string {
 	if (json.length > max) return `${json.slice(0, max)}…`;
 	return json;
 }
+
+export function extractText(value: unknown): string {
+	if (value == null) return "";
+	if (typeof value === "string") return value;
+	if (
+		typeof value === "number" ||
+		typeof value === "boolean" ||
+		typeof value === "bigint"
+	) {
+		return String(value);
+	}
+
+	try {
+		return JSON.stringify(
+			value,
+			(_k, v) => (typeof v === "bigint" ? v.toString() : v),
+			2,
+		);
+	} catch {
+		return String(value);
+	}
+}

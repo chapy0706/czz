@@ -64,11 +64,9 @@ type ResultCacheState = {
 };
 
 function newId(): string {
-	if (
-		typeof crypto !== "undefined" &&
-		typeof (crypto as any).randomUUID === "function"
-	) {
-		return (crypto as any).randomUUID() as string;
+	const cryptoObj = typeof crypto !== "undefined" ? crypto : undefined;
+	if (cryptoObj && typeof cryptoObj.randomUUID === "function") {
+		return cryptoObj.randomUUID();
 	}
 	return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }

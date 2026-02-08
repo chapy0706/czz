@@ -7,10 +7,11 @@ import {
 	type CommandType,
 	getCatalogItem,
 } from "@/lib/command-builder/commandCatalog";
+import { getString, isRecord } from "@/lib/shared/unknown";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type Props = {
-	command: { id: string; value: any };
+	command: { id: string; value: unknown };
 	index: number;
 	isSelected: boolean;
 	onSelect: () => void;
@@ -27,13 +28,16 @@ export function CommandRow({
 	onSelect,
 	onEdit,
 	onRemove,
-	onReorder,
+	onReorder: _onReorder,
 	variant,
 }: Props) {
 	const mode = useUiModeStore((s) => s.mode);
 	const isBeginner = mode === "beginner";
 
-	const type = command.value?.type as CommandType | undefined;
+	const valueRecord = isRecord(command.value) ? command.value : null;
+	const type = (getString(valueRecord, "type") ?? undefined) as
+		| CommandType
+		| undefined;
 	const cat = type ? getCatalogItem(type) : undefined;
 
 	// ✅ beginnerName ではなく beginnerLabel

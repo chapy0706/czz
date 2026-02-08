@@ -4,6 +4,7 @@
 import useSwr from "swr";
 import { BeginnerIndicatingMascot } from "@/components/beginner/beginner-indicating-mascot";
 import { SfxLink as Link } from "@/components/ui/SfxLink";
+import { getArray, isRecord } from "@/lib/shared/unknown";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { cn } from "@/lib/utils";
 
@@ -23,11 +24,16 @@ const fetcher = async (url: string) => {
 };
 
 function normalizeTasks(data: unknown): AnyTask[] {
-	if (Array.isArray(data)) return data as AnyTask[];
-	if (!data || typeof data !== "object") return [];
-	const any = data as any;
-	const arr = any.tasks ?? any.items ?? any.data ?? [];
-	return Array.isArray(arr) ? (arr as AnyTask[]) : [];
+	if (Array.isArray(data)) {
+		return data.filter(isRecord) as AnyTask[];
+	}
+	if (!isRecord(data)) return [];
+	const arr =
+		getArray(data, "tasks") ??
+		getArray(data, "items") ??
+		getArray(data, "data") ??
+		[];
+	return arr.filter(isRecord) as AnyTask[];
 }
 
 export default function TasksPage() {

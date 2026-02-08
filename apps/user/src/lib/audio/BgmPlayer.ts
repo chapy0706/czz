@@ -17,7 +17,8 @@ export class BgmPlayer {
 		a.preload = "auto";
 		a.loop = false;
 		a.volume = 0.5;
-		(a as any).playsInline = true;
+		const inline = a as HTMLAudioElement & { playsInline?: boolean };
+		inline.playsInline = true;
 
 		this.audio = a;
 		return a;

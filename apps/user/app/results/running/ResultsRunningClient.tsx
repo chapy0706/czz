@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { SfxLink as Link } from "@/components/ui/SfxLink";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
+import { getArray, isRecord } from "@/lib/shared/unknown";
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import { extractResultId } from "@/lib/terminal/evaluateContract";
 import { toRunnerIo } from "@/lib/terminal/runnerIo";
@@ -33,7 +34,8 @@ export default function ResultsRunningClient() {
 		}
 
 		const program = useCommandBuilderStore.getState().serializeProgram();
-		const commands = (program as any)?.commands;
+		const programRecord = isRecord(program) ? program : null;
+		const commands = getArray(programRecord, "commands");
 
 		if (!Array.isArray(commands) || commands.length === 0) {
 			setState("error");

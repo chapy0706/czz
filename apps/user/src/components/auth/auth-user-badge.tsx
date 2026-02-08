@@ -206,6 +206,7 @@ export function AuthUserBadge() {
 						aria-label="ドラッグして移動"
 					>
 						{avatarSrc ? (
+							// biome-ignore lint/performance/noImgElement: Remote avatar URL from auth provider; Next/Image domain config not guaranteed here.
 							<img
 								src={avatarSrc}
 								alt="avatar"

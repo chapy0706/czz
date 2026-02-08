@@ -5,6 +5,7 @@ import { DrizzleResultRepository } from "@infra/drizzle/repositories/resultRepos
 import { DrizzleTaskRepository } from "@infra/drizzle/repositories/taskRepository";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { isRecord } from "@/lib/shared/unknown";
 import { EvaluateResponseSchema } from "@/lib/terminal/evaluateContract";
 import { REQUIRED_RUNNER_IO } from "@/lib/terminal/runnerIo";
 import { EvaluateTaskUseCase } from "@/usecases/evaluateTask";
@@ -106,15 +107,17 @@ export async function POST(
 
 		// UseCase は runTestCases の結果を返す。
 		// API 層で EvaluateResponse（契約）に正規化して返す。
-		const any = result as any;
-		const results = Array.isArray(any?.results) ? any.results : null;
+		const resultRecord = isRecord(result) ? result : null;
+		const results = Array.isArray(resultRecord?.results)
+			? resultRecord?.results
+			: null;
 		const total = results ? results.length : Number.NaN;
 		const passed = results
-			? results.filter((r: any) => r && r.passed === true).length
+			? results.filter((r) => isRecord(r) && r.passed === true).length
 			: Number.NaN;
 		const allPassed =
-			typeof any?.allPassed === "boolean"
-				? any.allPassed
+			typeof resultRecord?.allPassed === "boolean"
+				? resultRecord.allPassed
 				: results
 					? passed === total
 					: false;

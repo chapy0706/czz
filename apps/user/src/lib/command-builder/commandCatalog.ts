@@ -40,6 +40,17 @@ export type CommandCatalogItem = {
 	};
 };
 
+type RunnerStep = {
+	type: string;
+	label: string;
+	unixHint: string;
+	params: ParamSpec[];
+	ui: {
+		beginnerLabel: string;
+		beginnerExample: string;
+	};
+};
+
 export const COMMAND_CATALOG: CommandCatalogItem[] = [
 	{
 		type: "FILTER_EQUALS",
@@ -280,7 +291,7 @@ export const COMMAND_CATALOG: CommandCatalogItem[] = [
 // PipelinePanel が import しているが、実コマンド一覧（COMMAND_CATALOG）には入れない。
 // 形が多少違っても壊れないように、型は最小限で逃がす。
 
-export const RUNNER_INPUT_STEP = {
+export const RUNNER_INPUT_STEP: RunnerStep = {
 	type: "__RUNNER_INPUT__",
 	label: "input.csv",
 	unixHint: "input.csv",
@@ -289,9 +300,9 @@ export const RUNNER_INPUT_STEP = {
 		beginnerLabel: "入力データ",
 		beginnerExample: "input.csv を読み込むよ",
 	},
-} as any;
+};
 
-export const RUNNER_OUTPUT_STEP = {
+export const RUNNER_OUTPUT_STEP: RunnerStep = {
 	type: "__RUNNER_OUTPUT__",
 	label: "output.csv",
 	unixHint: "output.csv",
@@ -300,11 +311,11 @@ export const RUNNER_OUTPUT_STEP = {
 		beginnerLabel: "出力データ",
 		beginnerExample: "output.csv を作るよ",
 	},
-} as any;
+};
 
 // 前処理ステップ（現状は空でOK）
 // ここに “入力の整形” 的な疑似ステップを後で足せる。
-export const RUNNER_PREPROCESS_STEPS = [] as any[];
+export const RUNNER_PREPROCESS_STEPS: RunnerStep[] = [];
 
 export function getCatalogItem(
 	type: CommandType,
@@ -327,7 +338,14 @@ export function createDefaultCommandValue(type: CommandType): unknown {
 
 	// params の defaultValue / default / initialValue など “ありがちな名前” を拾って初期化
 	for (const p of item.params ?? []) {
-		const anyP = p as any;
+		const anyP = p as ParamSpec & {
+			defaultValue?: unknown;
+			default?: unknown;
+			initialValue?: unknown;
+			kind?: string;
+			type?: string;
+			options?: unknown[];
+		};
 
 		const dv =
 			anyP.defaultValue ?? anyP.default ?? anyP.initialValue ?? undefined;

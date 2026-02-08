@@ -3,7 +3,7 @@
 
 import { CommandRow } from "./CommandRow";
 
-type Command = { id: string; value: any };
+type Command = { id: string; value: unknown };
 
 type Props = {
 	layout?: "horizontal" | "vertical";

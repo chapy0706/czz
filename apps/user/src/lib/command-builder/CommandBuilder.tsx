@@ -8,6 +8,7 @@ import { CommandPalette } from "@/lib/command-builder/CommandPalette";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import { PipelinePanel } from "@/lib/command-builder/PipelinePanel";
 import { buildResetKey } from "@/lib/command-builder/serialize";
+import { getString, isRecord } from "@/lib/shared/unknown";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
@@ -27,15 +28,10 @@ type UiModeForPanels = "beginner" | "normal";
 
 function toCommandToken(command: unknown): string {
 	// command は store の Draft なので、型を信用せずに "それっぽい" 文字列へ安全に落とす
-	const c: any = command;
-
-	const v = c?.value;
-	const t1 =
-		v && typeof v === "object" && typeof v.type === "string"
-			? v.type
-			: undefined;
-	const t2 = typeof c?.type === "string" ? c.type : undefined;
-
+	const c = isRecord(command) ? command : null;
+	const v = isRecord(c?.value) ? c?.value : null;
+	const t1 = getString(v, "type");
+	const t2 = getString(c, "type");
 	const t = t1 ?? t2 ?? "CMD";
 	return String(t);
 }
@@ -69,7 +65,7 @@ export function CommandBuilder(props: Props) {
 	const [revealIndex, setRevealIndex] = React.useState(0);
 
 	React.useEffect(() => {
-		const idx = commands.findIndex((c: any) => c.id === selectedId);
+		const idx = commands.findIndex((c) => c.id === selectedId);
 		setSelectedIndex(idx);
 		setRevealIndex((v) => (idx >= 0 ? Math.max(v, idx) : v));
 	}, [commands, selectedId]);
@@ -93,18 +89,18 @@ export function CommandBuilder(props: Props) {
 		if (commands.length === 0) return;
 
 		if (selectedIndex < 0) {
-			select((commands[0] as any).id);
+			select(commands[0].id);
 			return;
 		}
 
 		const next = Math.min(selectedIndex + 1, commands.length - 1);
-		select((commands[next] as any).id);
+		select(commands[next].id);
 	}, [commands, selectedIndex, select]);
 
 	const onSelectStep = React.useCallback(
 		(index: number) => {
 			if (index < 0 || index >= commands.length) return;
-			select((commands[index] as any).id);
+			select(commands[index].id);
 			setRevealIndex((v) => Math.max(v, index));
 		},
 		[commands, select],
@@ -112,12 +108,12 @@ export function CommandBuilder(props: Props) {
 
 	// 表示用: パイプライン1行（Domainの真実ではなくUIの見せ方）
 	const pipelineText = React.useMemo(() => {
-		const tokens = commands.map((c: any) => toCommandToken(c));
+		const tokens = commands.map((c) => toCommandToken(c));
 		return ["input.csv", ...tokens, "output.csv"].join(" | ");
 	}, [commands]);
 
 	const resetKey = React.useMemo(
-		() => buildResetKey(commands as any, runnerIo),
+		() => buildResetKey(commands, runnerIo),
 		[commands, runnerIo],
 	);
 
@@ -175,7 +171,7 @@ export function CommandBuilder(props: Props) {
 			{/* コマンド列（編集UI） */}
 			{commands.length > 0 ? (
 				<CommandList
-					commands={commands as any}
+					commands={commands}
 					selectedId={selectedId}
 					onSelect={(id) => select(id)}
 					onEdit={(id) => openEditor(id)}
@@ -253,7 +249,7 @@ export function CommandBuilder(props: Props) {
 			{!isBeginner && commands.length > 0 ? (
 				<PipelinePanel
 					uiMode={uiModeForPanels}
-					commands={commands as any}
+					commands={commands}
 					selectedId={selectedId}
 					selectedIndex={selectedIndex}
 					revealIndex={revealIndex}

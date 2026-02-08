@@ -8,7 +8,6 @@ export default defineConfig({
 	timeout: 30_000,
 	retries: process.env.CI ? 1 : 0,
 	use: {
-		// biome-ignore lint/style/useNamingConvention: Playwright config requires `baseURL`
 		baseURL: baseUrl,
 		trace: "on-first-retry",
 		screenshot: "only-on-failure",

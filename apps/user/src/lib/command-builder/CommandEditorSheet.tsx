@@ -8,6 +8,7 @@ import {
 	type CommandType,
 	getCatalogItem,
 } from "@/lib/command-builder/commandCatalog";
+import { isRecord } from "@/lib/shared/unknown";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type Props = {
@@ -19,14 +20,12 @@ type Props = {
 type Mode = "basic" | "advanced";
 
 function extractType(value: unknown): string {
-	if (!value || typeof value !== "object") return "UNKNOWN";
-	const v = value as { type?: unknown };
-	return typeof v.type === "string" ? v.type : "UNKNOWN";
+	if (!isRecord(value)) return "UNKNOWN";
+	return typeof value.type === "string" ? value.type : "UNKNOWN";
 }
 
 function asObject(value: unknown): Record<string, unknown> {
-	if (value && typeof value === "object")
-		return value as Record<string, unknown>;
+	if (isRecord(value)) return value;
 	return {};
 }
 
@@ -55,7 +54,7 @@ export function CommandEditorSheet(props: Props) {
 		const obj = asObject(selected.value);
 
 		for (const p of cat?.params ?? []) {
-			init[p.key] = (obj as any)[p.key] ?? "";
+			init[p.key] = obj[p.key] ?? "";
 		}
 
 		setBasicValues(init);
@@ -124,16 +123,17 @@ export function CommandEditorSheet(props: Props) {
 		setError(null);
 
 		try {
-			const parsed = JSON.parse(advancedJson);
-			if (!parsed || typeof parsed !== "object") {
+			const parsed: unknown = JSON.parse(advancedJson);
+			if (!isRecord(parsed)) {
 				setError("JSON must be an object");
 				return;
 			}
-			(parsed as any).type = typeRaw;
-			onSave(parsed);
+			const next = { ...parsed, type: typeRaw };
+			onSave(next);
 			onClose();
-		} catch (e: any) {
-			setError(e?.message ?? "Invalid JSON");
+		} catch (e: unknown) {
+			const message = e instanceof Error ? e.message : "Invalid JSON";
+			setError(message);
 		}
 	}
 

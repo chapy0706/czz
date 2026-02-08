@@ -10,10 +10,13 @@ import {
 	getCatalogItem,
 	isCommandType,
 } from "@/lib/command-builder/commandCatalog";
+import { isRecord } from "@/lib/shared/unknown";
 import {
 	isRunnerIoCorrect,
 	RUNNER_INPUT_PRESETS,
 	RUNNER_OUTPUT_PRESETS,
+	type RunnerInputPreset,
+	type RunnerOutputPreset,
 	runnerInputCmd,
 	runnerOutputCmd,
 } from "@/lib/terminal/runnerIo";
@@ -43,15 +46,11 @@ type Props = {
 function getTaskIdFromParams(
 	params: ReturnType<typeof useParams>,
 ): string | null {
-	if (!params) return null;
-	const v = (params as any).taskId;
+	if (!params || !isRecord(params)) return null;
+	const v = params.taskId;
 	if (typeof v === "string") return v;
 	if (Array.isArray(v)) return v[0] ?? null;
 	return null;
-}
-
-function isRecord(x: unknown): x is Record<string, unknown> {
-	return typeof x === "object" && x !== null;
 }
 
 function cmdTypeOf(value: unknown): CommandType | null {
@@ -234,7 +233,9 @@ export function PipelinePanel(props: Props) {
 						<select
 							className="rounded border px-2 py-1 text-xs"
 							value={runnerIo.input}
-							onChange={(e) => setRunnerInput(e.target.value as any)}
+							onChange={(e) =>
+								setRunnerInput(e.target.value as RunnerInputPreset)
+							}
 						>
 							{RUNNER_INPUT_PRESETS.map((p) => (
 								<option key={p} value={p}>
@@ -249,7 +250,9 @@ export function PipelinePanel(props: Props) {
 						<select
 							className="rounded border px-2 py-1 text-xs"
 							value={runnerIo.output}
-							onChange={(e) => setRunnerOutput(e.target.value as any)}
+							onChange={(e) =>
+								setRunnerOutput(e.target.value as RunnerOutputPreset)
+							}
 						>
 							{RUNNER_OUTPUT_PRESETS.map((p) => (
 								<option key={p} value={p}>

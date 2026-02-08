@@ -7,6 +7,7 @@
  * - それ以外: なるべく短く、最悪 safeStringify 相当
  */
 
+import { isRecord } from "@/lib/shared/unknown";
 import { safeStringify } from "@/lib/utils/safeStringify";
 
 function isNumberArray(x: unknown): x is number[] {
@@ -45,12 +46,12 @@ export function formatOutputHuman(value: unknown): string {
 	if (isNumberMatrix(value)) return formatNumberMatrix(value);
 
 	// { value: [...] } みたいな包みを軽く救う
-	if (typeof value === "object") {
-		const obj = value as any;
-		if (isNumberArray(obj?.value)) return formatNumberSeries(obj.value);
-		if (isNumberMatrix(obj?.value)) return formatNumberMatrix(obj.value);
-		if (isNumberArray(obj?.output)) return formatNumberSeries(obj.output);
-		if (isNumberMatrix(obj?.output)) return formatNumberMatrix(obj.output);
+	if (isRecord(value)) {
+		const obj = value;
+		if (isNumberArray(obj.value)) return formatNumberSeries(obj.value);
+		if (isNumberMatrix(obj.value)) return formatNumberMatrix(obj.value);
+		if (isNumberArray(obj.output)) return formatNumberSeries(obj.output);
+		if (isNumberMatrix(obj.output)) return formatNumberMatrix(obj.output);
 	}
 
 	const json = safeStringify(value, 0);

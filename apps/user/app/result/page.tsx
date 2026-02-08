@@ -1,9 +1,16 @@
 // apps/user/app/result/page.tsx
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { SfxLink as Link } from "@/components/ui/SfxLink";
+import {
+	getBoolean,
+	getNumber,
+	getString,
+	isRecord,
+} from "@/lib/shared/unknown";
 import {
 	type EvaluateResponse,
 	EvaluateResponseSchema,
@@ -65,17 +72,27 @@ async function fetchTaskTestTitles(taskId: string): Promise<string[]> {
 			credentials: "same-origin",
 		});
 		if (!res.ok) return [];
-		const json = (await res.json()) as any;
-		if (json?.ok !== true) return [];
-		const task = json?.value ?? json?.task ?? json?.value?.task ?? json?.value;
-		const tcs = Array.isArray(task?.testCases)
-			? (task.testCases as TaskTestCase[])
-			: [];
+		const json: unknown = await res.json().catch(() => null);
+		if (!isRecord(json) || json.ok !== true) return [];
+		const taskCandidate = isRecord(json.value)
+			? json.value
+			: isRecord(json.task)
+				? json.task
+				: isRecord(json.value) && isRecord(json.value.task)
+					? json.value.task
+					: isRecord(json.value)
+						? json.value
+						: null;
+		const testCases =
+			taskCandidate && Array.isArray(taskCandidate.testCases)
+				? (taskCandidate.testCases as unknown[])
+				: [];
+		const tcs = testCases.filter(isRecord) as TaskTestCase[];
 		return tcs.map((tc, i) => {
 			const t =
-				(typeof tc?.title === "string" && tc.title) ||
-				(typeof tc?.name === "string" && tc.name) ||
-				(typeof tc?.label === "string" && tc.label);
+				(getString(tc, "title") && tc.title) ||
+				(getString(tc, "name") && tc.name) ||
+				(getString(tc, "label") && tc.label);
 			return t || `テスト ${i + 1}`;
 		});
 	} catch {
@@ -90,37 +107,40 @@ type CaseVerdict = {
 	detail?: string;
 };
 
-function isCaseOk(c: any): boolean {
-	if (!c) return false;
-	if (typeof c.ok === "boolean") return c.ok;
-	if (typeof c.passed === "boolean") return c.passed;
-	if (typeof c.success === "boolean") return c.success;
-	if (typeof c.status === "string") return c.status.toLowerCase() === "pass";
-	if (typeof c.result === "string") return c.result.toLowerCase() === "pass";
+function isCaseOk(c: unknown): boolean {
+	if (!isRecord(c)) return false;
+	if (getBoolean(c, "ok") !== undefined) return Boolean(c.ok);
+	if (getBoolean(c, "passed") !== undefined) return Boolean(c.passed);
+	if (getBoolean(c, "success") !== undefined) return Boolean(c.success);
+	const status = getString(c, "status");
+	if (status) return status.toLowerCase() === "pass";
+	const result = getString(c, "result");
+	if (result) return result.toLowerCase() === "pass";
 	return false;
 }
 
 function pickCaseTitle(
-	c: any,
+	c: unknown,
 	index: number,
 	overrideTitles?: string[],
 ): string {
 	const o = Array.isArray(overrideTitles) ? overrideTitles[index] : undefined;
 	if (typeof o === "string" && o.trim()) return o;
 
+	if (!isRecord(c)) return `テスト ${index + 1}`;
 	const t =
-		(typeof c?.title === "string" && c.title) ||
-		(typeof c?.name === "string" && c.name) ||
-		(typeof c?.label === "string" && c.label);
+		getString(c, "title") || getString(c, "name") || getString(c, "label");
 	return t || `テスト ${index + 1}`;
 }
 
-function pickCaseDetail(c: any): string | undefined {
+function pickCaseDetail(c: unknown): string | undefined {
+	if (!isRecord(c)) return undefined;
 	const parts: string[] = [];
-	if (typeof c?.message === "string" && c.message) parts.push(c.message);
-	if (c?.expected != null) parts.push(`expected:\n${extractText(c.expected)}`);
-	if (c?.actual != null) parts.push(`actual:\n${extractText(c.actual)}`);
-	if (c?.diff != null) parts.push(`diff:\n${extractText(c.diff)}`);
+	const message = getString(c, "message");
+	if (message) parts.push(message);
+	if (c.expected != null) parts.push(`expected:\n${extractText(c.expected)}`);
+	if (c.actual != null) parts.push(`actual:\n${extractText(c.actual)}`);
+	if (c.diff != null) parts.push(`diff:\n${extractText(c.diff)}`);
 
 	const d = parts.join("\n\n").trim();
 	return d ? d : undefined;
@@ -135,22 +155,29 @@ function extractCaseVerdicts(
 	total: number;
 	isAllPassed: boolean;
 } {
-	const any = res as any;
-
-	const passedFromTop = typeof any?.passed === "number" ? any.passed : 0;
-	const totalFromTop = typeof any?.total === "number" ? any.total : 0;
+	const resRecord = isRecord(res) ? (res as Record<string, unknown>) : null;
+	const passedFromTop = getNumber(resRecord, "passed") ?? 0;
+	const totalFromTop = getNumber(resRecord, "total") ?? 0;
 
 	const candidates: unknown[] = [
-		any?.caseResults,
-		any?.testResults,
-		any?.results,
-		any?.details?.caseResults,
-		any?.details?.testResults,
-		any?.details?.results,
-		any?.details?.cases,
+		resRecord?.caseResults,
+		resRecord?.testResults,
+		resRecord?.results,
+		isRecord(resRecord?.details)
+			? (resRecord.details as Record<string, unknown>).caseResults
+			: undefined,
+		isRecord(resRecord?.details)
+			? (resRecord.details as Record<string, unknown>).testResults
+			: undefined,
+		isRecord(resRecord?.details)
+			? (resRecord.details as Record<string, unknown>).results
+			: undefined,
+		isRecord(resRecord?.details)
+			? (resRecord.details as Record<string, unknown>).cases
+			: undefined,
 	];
 
-	const arr = candidates.find((x) => Array.isArray(x)) as any[] | undefined;
+	const arr = candidates.find((x) => Array.isArray(x)) as unknown[] | undefined;
 
 	let cases: CaseVerdict[] = [];
 	if (arr && arr.length > 0) {
@@ -193,7 +220,7 @@ function toPanelProps(
 	const status: ResultStatus = isAllPassed ? "success" : "failure";
 
 	if (ok) {
-		const outputText = extractText((res as any).output);
+		const outputText = extractText(isRecord(res) ? res.output : undefined);
 		const hint =
 			isAllPassed || total === 0
 				? undefined
@@ -202,9 +229,10 @@ function toPanelProps(
 		return { status, outputText, expectedText: undefined, hint };
 	}
 
-	const err = (res as any)?.error;
-	const kind = typeof err?.kind === "string" ? err.kind : "UNKNOWN";
-	const msg = typeof err?.message === "string" ? err.message : "Unknown error";
+	const resErr = isRecord(res) ? (res as Record<string, unknown>).error : null;
+	const err = isRecord(resErr) ? resErr : null;
+	const kind = getString(err, "kind") ?? "UNKNOWN";
+	const msg = getString(err, "message") ?? "Unknown error";
 	const details = err?.details != null ? `\n\n${extractText(err.details)}` : "";
 
 	return {
@@ -270,9 +298,11 @@ function BeginnerResultView({
 		<div className="mt-6 space-y-4">
 			<div className="rounded-2xl border bg-card p-4">
 				<div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
-					<img
+					<Image
 						src={src}
 						alt={isAllPassed ? "全問正解" : "不正解あり"}
+						width={112}
+						height={112}
 						className="h-28 w-28 rounded-xl border bg-background object-cover"
 					/>
 					<div className="w-full">

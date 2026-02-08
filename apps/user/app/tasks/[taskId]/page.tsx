@@ -4,6 +4,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CommandBuilder } from "@/lib/command-builder/CommandBuilder";
+import { getString, isRecord } from "@/lib/shared/unknown";
 import { getOrCreateGuestUserId } from "@/lib/terminal/guestUserId";
 import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
@@ -18,12 +19,14 @@ function coerceTaskMeta(raw: unknown): TaskMeta {
 	if (!raw || typeof raw !== "object") {
 		throw new Error("Task payload is not an object");
 	}
-	const r = raw as any;
+	const r = isRecord(raw) ? raw : null;
+	if (!r) {
+		throw new Error("Task payload is not a record");
+	}
 
-	const id = typeof r.id === "string" ? r.id : "";
-	const title = typeof r.title === "string" ? r.title : undefined;
-	const description =
-		typeof r.description === "string" ? r.description : undefined;
+	const id = getString(r, "id") ?? "";
+	const title = getString(r, "title");
+	const description = getString(r, "description");
 
 	if (!id) {
 		throw new Error(
@@ -57,29 +60,40 @@ async function fetchTaskMeta(taskId: string): Promise<TaskMeta> {
 		);
 	}
 
-	const json = (await res.json()) as any;
+	const json: unknown = await res.json().catch(() => null);
 
-	if (json?.ok !== true) {
+	if (!isRecord(json)) {
+		throw new Error("Task response is not an object");
+	}
+	if (json.ok !== true) {
+		const err = isRecord(json.error) ? json.error : null;
 		const msg =
-			typeof json?.message === "string"
-				? json.message
-				: typeof json?.error?.kind === "string"
-					? json.error.kind
-					: "Task response not ok";
+			getString(json, "message") ??
+			getString(err, "kind") ??
+			"Task response not ok";
 		throw new Error(msg);
 	}
 
 	// 想定: { ok:true, value:{...} }
 	// でも実装差分があっても壊れないように吸収
-	const payload = json?.value ?? json?.task ?? json?.value?.task;
+	const payload = isRecord(json.value)
+		? json.value
+		: isRecord(json.task)
+			? json.task
+			: isRecord(json.value) && isRecord(json.value.task)
+				? json.value.task
+				: (json.value ?? null);
 
 	return coerceTaskMeta(payload);
 }
 
 export default function TaskPage() {
 	const params = useParams();
-	const raw = (params as any)?.taskId as string | string[] | undefined;
-	const taskId = Array.isArray(raw) ? raw[0] : raw;
+	const taskId = (() => {
+		if (!params || !isRecord(params)) return undefined;
+		const raw = params.taskId;
+		return Array.isArray(raw) ? raw[0] : raw;
+	})();
 
 	if (!taskId) {
 		return (

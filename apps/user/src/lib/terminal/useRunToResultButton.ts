@@ -54,7 +54,9 @@ type RunToResultButtonState = Readonly<{
 	onClick: () => Promise<void>;
 }>;
 
-function normalizeRunnerIo(value: RunnerIoPreset | RunnerIo | null | undefined) {
+function normalizeRunnerIo(
+	value: RunnerIoPreset | RunnerIo | null | undefined,
+) {
 	if (!value) return { input: null, output: null } satisfies RunnerIo;
 	if ("input" in value && "output" in value) {
 		const maybePreset = value as RunnerIoPreset;
@@ -71,7 +73,7 @@ function normalizeRunnerIo(value: RunnerIoPreset | RunnerIo | null | undefined) 
 
 export function useRunToResultButton({
 	taskId,
-	resetKey,
+	resetKey: _resetKey,
 	getSubmittedProgram,
 	getRunnerIo,
 	navigateTo,
@@ -139,7 +141,6 @@ export function useRunToResultButton({
 		autoNavigateOnComplete,
 		getRunnerIo,
 		getSubmittedProgram,
-		resetKey,
 		router,
 		running,
 		taskId,

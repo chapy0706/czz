@@ -48,7 +48,9 @@ export const REQUIRED_RUNNER_IO = {
 	output: { kind: "append", file: "output.csv" },
 } as const;
 
-export function toRunnerIo(preset: RunnerIoPreset | null | undefined): RunnerIo {
+export function toRunnerIo(
+	preset: RunnerIoPreset | null | undefined,
+): RunnerIo {
 	if (!preset) return { input: null, output: null };
 
 	const input: RunnerInput | null =

@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { debugRegistry } from "@/components/debug/debugRegistry";
+import { getString, isRecord } from "@/lib/shared/unknown";
 import { evaluateTask } from "@/lib/terminal/evaluateClient";
 import { ResultPanel } from "@/lib/terminal/ResultPanel";
 
@@ -83,16 +84,15 @@ export function PseudoTerminalRunner({
 			// debugInput / dryRun がサーバ未対応でも落とさない（未対応なら error 側でメッセージ表示）
 			debugInput: inputText,
 			dryRun: true,
-		} as any);
+			purpose: "debug",
+		});
 
 		setRunning(false);
 
 		// ok が boolean に広がる実装差分があっても壊れないように、存在判定で分岐する
 		if ("error" in res) {
-			const msg =
-				(res as any).error && typeof (res as any).error.message === "string"
-					? (res as any).error.message
-					: "Unknown error";
+			const err = isRecord(res) && isRecord(res.error) ? res.error : null;
+			const msg = getString(err, "message") ?? "Unknown error";
 
 			setOutputText(`Error: ${msg}`);
 			setUiResult({
@@ -103,7 +103,8 @@ export function PseudoTerminalRunner({
 			return;
 		}
 
-		const text = formatHumanReadable((res as any).output);
+		const output = isRecord(res) ? res.output : undefined;
+		const text = formatHumanReadable(output);
 		setOutputText(text);
 		setUiResult({ status: "success", outputText: text });
 

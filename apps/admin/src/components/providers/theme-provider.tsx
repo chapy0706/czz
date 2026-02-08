@@ -1,8 +1,8 @@
 // apps/admin/src/components/providers/theme-provider.tsx
 "use client";
 
-import * as React from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
+import type * as React from "react";
 
 type ThemeProviderProps = React.ComponentProps<typeof NextThemesProvider>;
 

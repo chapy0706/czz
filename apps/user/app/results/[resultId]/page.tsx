@@ -3,7 +3,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
@@ -66,8 +65,13 @@ function isCaseOk(c: unknown): boolean {
 	return false;
 }
 
-function pickCaseTitle(c: unknown, index: number, overrideTitles?: string[]): string {
-	if (overrideTitles?.[index]) return overrideTitles[index] ?? `ケース ${index + 1}`;
+function pickCaseTitle(
+	c: unknown,
+	index: number,
+	overrideTitles?: string[],
+): string {
+	if (overrideTitles?.[index])
+		return overrideTitles[index] ?? `ケース ${index + 1}`;
 	if (!c || typeof c !== "object") return `ケース ${index + 1}`;
 	const obj = c as Record<string, unknown>;
 	if (typeof obj.title === "string" && obj.title) return obj.title;
@@ -99,8 +103,15 @@ function normalizeCases(res: ApiResponse<EvaluateOkShape>): {
 	if (res.ok !== true) {
 		const err = "error" in res ? res.error : undefined;
 		const kind = typeof err?.kind === "string" ? err.kind : "UNKNOWN";
-		const message = typeof err?.message === "string" ? err.message : "Unknown error";
-		return { total: 0, passed: 0, isAllPassed: false, cases: [], err: { kind, message } };
+		const message =
+			typeof err?.message === "string" ? err.message : "Unknown error";
+		return {
+			total: 0,
+			passed: 0,
+			isAllPassed: false,
+			cases: [],
+			err: { kind, message },
+		};
 	}
 
 	const v = res.value;
@@ -126,24 +137,36 @@ function normalizeCases(res: ApiResponse<EvaluateOkShape>): {
 		: [];
 
 	const total = totalFromTop > 0 ? totalFromTop : cases.length;
-	const passed = passedFromTop > 0 ? passedFromTop : cases.filter((c) => c.ok).length;
+	const passed =
+		passedFromTop > 0 ? passedFromTop : cases.filter((c) => c.ok).length;
 	const isAllPassed =
-		typeof v.allPassed === "boolean" ? v.allPassed : total > 0 ? passed === total : false;
+		typeof v.allPassed === "boolean"
+			? v.allPassed
+			: total > 0
+				? passed === total
+				: false;
 
 	const outputText = extractText(v.output).trim() || undefined;
 
 	return { total, passed, isAllPassed, cases, outputText };
 }
 
-async function fetchResult(resultId: string): Promise<ApiResponse<EvaluateOkShape> | null> {
+async function fetchResult(
+	resultId: string,
+): Promise<ApiResponse<EvaluateOkShape> | null> {
 	const base = process.env.NEXT_PUBLIC_APP_URL;
-	const url = base ? `${base}/api/results/${encodeURIComponent(resultId)}` : null;
+	const url = base
+		? `${base}/api/results/${encodeURIComponent(resultId)}`
+		: null;
 
 	try {
-		const res = await fetch(url ?? `/api/results/${encodeURIComponent(resultId)}`, {
-			cache: "no-store",
-			next: { revalidate: 0 },
-		});
+		const res = await fetch(
+			url ?? `/api/results/${encodeURIComponent(resultId)}`,
+			{
+				cache: "no-store",
+				next: { revalidate: 0 },
+			},
+		);
 		const text = await res.text().catch(() => "");
 		const json: unknown = text ? JSON.parse(text) : null;
 
@@ -236,7 +259,10 @@ export default async function ResultPage({
 						<div className="text-sm font-semibold">テスト結果</div>
 						<ul className="mt-3 space-y-2">
 							{normalized.cases.map((c) => (
-								<li key={c.index} className="rounded-lg border bg-background p-3">
+								<li
+									key={c.index}
+									className="rounded-lg border bg-background p-3"
+								>
 									<div className="flex items-center justify-between gap-2">
 										<div className="text-sm font-medium">{c.title}</div>
 										<div className="text-xs text-muted-foreground">

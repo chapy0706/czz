@@ -1,5 +1,5 @@
 // apps/user/src/components/ui/separator.tsx
-import * as React from "react";
+import type * as React from "react";
 
 type Props = React.HTMLAttributes<HTMLDivElement> & {
 	orientation?: "horizontal" | "vertical";

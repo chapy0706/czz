@@ -42,19 +42,19 @@ export function BeginnerHud() {
 
 	return (
 		<section
-			className={cn("w-auto", "sm:w-[min(92vw,380px)]")}
+			className={cn("w-auto", "max-w-[180px]")}
 			aria-label="初心者モード 操作パネル"
 		>
 			<div
 				className={cn(
-					"rounded-2xl border bg-card/80 shadow-lg backdrop-blur",
-					"p-2 sm:p-4",
+					"rounded-xl border bg-card/80 shadow-lg backdrop-blur",
+					"p-1.5",
 				)}
 			>
-				<div className="flex flex-col gap-2">
+				<div className="flex flex-col gap-1">
 					<div
 						className={cn(
-							"flex items-center justify-between rounded-xl border px-3 py-2",
+							"flex items-center justify-between rounded-xl border px-2 py-1",
 							bgmEnabled
 								? "border-sky-300/70 bg-sky-50 text-sky-950"
 								: "border-border bg-background/60 text-foreground",
@@ -62,7 +62,7 @@ export function BeginnerHud() {
 					>
 						<label
 							className={cn(
-								"text-sm font-semibold",
+								"text-xs font-semibold",
 								bgmEnabled ? "text-sky-900" : "text-foreground",
 							)}
 							htmlFor="beginner-bgm-toggle"
@@ -74,7 +74,7 @@ export function BeginnerHud() {
 
 					<div
 						className={cn(
-							"flex items-center justify-between rounded-xl border px-3 py-2",
+							"flex items-center justify-between rounded-xl border px-2 py-1",
 							sfxEnabled
 								? "border-sky-300/70 bg-sky-50 text-sky-950"
 								: "border-border bg-background/60 text-foreground",
@@ -82,7 +82,7 @@ export function BeginnerHud() {
 					>
 						<label
 							className={cn(
-								"text-sm font-semibold",
+								"text-xs font-semibold",
 								sfxEnabled ? "text-sky-900" : "text-foreground",
 							)}
 							htmlFor="beginner-sfx-toggle"
@@ -94,7 +94,7 @@ export function BeginnerHud() {
 
 					<Link
 						className={cn(
-							"inline-flex items-center justify-center rounded-xl border px-3 py-2 text-sm font-semibold",
+							"inline-flex items-center justify-center rounded-xl border px-2 py-1 text-xs font-semibold",
 							"hover:bg-muted/60",
 						)}
 						href="/credits"

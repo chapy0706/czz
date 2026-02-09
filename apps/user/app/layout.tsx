@@ -8,7 +8,6 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { AuthUserBadge } from "@/components/auth/auth-user-badge";
 import { BeginnerBgmController } from "@/components/beginner/beginner-bgm-controller";
 import { BeginnerBottomDock } from "@/components/beginner/beginner-bottom-dock";
-import { BeginnerHud } from "@/components/beginner/beginner-hud";
 import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
 import { GlobalBreadcrumbs } from "@/components/nav/global-breadcrumbs";
 import { DebugPanelGate } from "@/components/providers/DebugPanelGate";
@@ -42,10 +41,7 @@ export default function RootLayout({
 			{FEATURES.authUserBadge ? <AuthUserBadge /> : null}
 
 			{FEATURES.beginnerDock ? (
-				<BeginnerBottomDock
-					left={<BeginnerMascotDock />}
-					right={<BeginnerHud />}
-				/>
+				<BeginnerBottomDock left={<BeginnerMascotDock />} right={null} />
 			) : null}
 
 			{FEATURES.beginnerBgm ? <BeginnerBgmController /> : null}

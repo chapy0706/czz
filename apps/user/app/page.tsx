@@ -1,5 +1,6 @@
 // apps/user/app/page.tsx
 
+import { BeginnerHud } from "@/components/beginner/beginner-hud";
 import { UiModeToggle } from "@/components/beginner/ui-mode-toggle";
 import { TopCtasWithSfx } from "@/components/top/top-ctas-with-sfx";
 import { TopIntro } from "@/components/top/top-intro";
@@ -11,6 +12,10 @@ export default function Page() {
 				<TopIntro />
 
 				<TopCtasWithSfx />
+			</div>
+
+			<div className="mt-6">
+				<BeginnerHud />
 			</div>
 
 			<UiModeToggle className="mt-6" />

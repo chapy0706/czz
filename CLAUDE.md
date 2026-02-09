@@ -23,6 +23,7 @@
 ## 参照（詳細はここに集約）
 - AGENTS.md（Codex 実働ガイド）
 - .claude/rules/*（短いルール）
+- .claude/skills/*（Claude Code Skills。連携手順はここに型化する）
 - docs/specs/README.md（Spec運用）
 - docs/runbook/*（調査・運用の型）
 

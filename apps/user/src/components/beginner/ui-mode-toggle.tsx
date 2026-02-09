@@ -25,6 +25,7 @@ export function UiModeToggle({ className }: Props) {
 					checked={checked}
 					onCheckedChange={(v) => setMode(v ? "beginner" : "advanced")}
 					aria-label="初心者モード切り替え"
+					className="data-[state=checked]:bg-sky-500 data-[state=checked]:border-sky-500"
 				/>
 				<div className="leading-tight">
 					<div className="text-sm font-medium">初心者モード</div>

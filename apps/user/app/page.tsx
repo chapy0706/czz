@@ -14,11 +14,11 @@ export default function Page() {
 				<TopCtasWithSfx />
 			</div>
 
+			<UiModeToggle className="mt-6" />
+
 			<div className="mt-6">
 				<BeginnerHud />
 			</div>
-
-			<UiModeToggle className="mt-6" />
 		</main>
 	);
 }

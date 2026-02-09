@@ -6,8 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { CommandBuilder } from "@/lib/command-builder/CommandBuilder";
 import { getString, isRecord } from "@/lib/shared/unknown";
 import { getOrCreateGuestUserId } from "@/lib/terminal/guestUserId";
-import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
-import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type TaskMeta = {
 	id: string;
@@ -17,11 +15,11 @@ type TaskMeta = {
 
 function coerceTaskMeta(raw: unknown): TaskMeta {
 	if (!raw || typeof raw !== "object") {
-		throw new Error("Task payload is not an object");
+		throw new Error("課題データがオブジェクトではありません");
 	}
 	const r = isRecord(raw) ? raw : null;
 	if (!r) {
-		throw new Error("Task payload is not a record");
+		throw new Error("課題データの形式が不正です");
 	}
 
 	const id = getString(r, "id") ?? "";
@@ -30,17 +28,17 @@ function coerceTaskMeta(raw: unknown): TaskMeta {
 
 	if (!id) {
 		throw new Error(
-			`Task payload missing id. keys=${Object.keys(r).join(",")}`,
+			`課題データに id がありません。keys=${Object.keys(r).join(",")}`,
 		);
 	}
 	if (title === undefined) {
 		throw new Error(
-			`Task payload missing title. keys=${Object.keys(r).join(",")}`,
+			`課題データに title がありません。keys=${Object.keys(r).join(",")}`,
 		);
 	}
 	if (description === undefined) {
 		throw new Error(
-			`Task payload missing description. keys=${Object.keys(r).join(",")}`,
+			`課題データに description がありません。keys=${Object.keys(r).join(",")}`,
 		);
 	}
 
@@ -56,21 +54,21 @@ async function fetchTaskMeta(taskId: string): Promise<TaskMeta> {
 	if (!res.ok) {
 		const text = await res.text().catch(() => "");
 		throw new Error(
-			`Task fetch failed: ${res.status}${text ? ` (${text.slice(0, 120)})` : ""}`,
+			`課題の取得に失敗しました: ${res.status}${text ? ` (${text.slice(0, 120)})` : ""}`,
 		);
 	}
 
 	const json: unknown = await res.json().catch(() => null);
 
 	if (!isRecord(json)) {
-		throw new Error("Task response is not an object");
+		throw new Error("課題のレスポンス形式が不正です");
 	}
 	if (json.ok !== true) {
 		const err = isRecord(json.error) ? json.error : null;
 		const msg =
 			getString(json, "message") ??
 			getString(err, "kind") ??
-			"Task response not ok";
+			"課題の取得に失敗しました";
 		throw new Error(msg);
 	}
 
@@ -99,9 +97,9 @@ export default function TaskPage() {
 		return (
 			<div className="mx-auto w-full max-w-5xl px-4 py-6">
 				<div className="rounded-2xl border bg-card p-4">
-					<div className="text-sm text-muted-foreground">Task</div>
+					<div className="text-sm text-muted-foreground">課題</div>
 					<div className="mt-2 text-sm">
-						Invalid route params (taskId not found)
+						ルートのパラメータが不正です（taskId が見つかりません）
 					</div>
 				</div>
 			</div>
@@ -112,9 +110,6 @@ export default function TaskPage() {
 }
 
 function TaskPageClient({ taskId }: { taskId: string }) {
-	const mode = useUiModeStore((s) => s.mode);
-	const isBeginner = mode === "beginner";
-
 	const [meta, setMeta] = useState<TaskMeta | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -154,16 +149,10 @@ function TaskPageClient({ taskId }: { taskId: string }) {
 	return (
 		<div className="mx-auto w-full max-w-5xl px-4 py-6">
 			<div className="mb-4 rounded-2xl border bg-card p-4">
-				<div className="text-sm text-muted-foreground">
-					{isBeginner ? "もんだい" : "Task"}
-				</div>
+				<div className="text-sm text-muted-foreground">もんだい</div>
 
 				<div className="text-xl font-semibold">
-					{error
-						? isBeginner
-							? "読み込みに失敗したよ"
-							: "Failed to load"
-						: (meta?.title ?? "読み込み中…")}
+					{error ? "読み込みに失敗しました" : (meta?.title ?? "読み込み中…")}
 				</div>
 
 				<div className="mt-2 text-sm text-muted-foreground">
@@ -175,20 +164,6 @@ function TaskPageClient({ taskId }: { taskId: string }) {
 
 			{/* CommandBuilder は taskId ではなく task を受け取る契約 */}
 			<CommandBuilder task={taskForBuilder} userId={userId} />
-
-			{!isBeginner ? (
-				<details
-					className="mt-6 rounded-2xl border bg-card p-4"
-					data-testid="debug-drawer"
-				>
-					<summary className="cursor-pointer text-sm text-muted-foreground">
-						Debug
-					</summary>
-					<div className="mt-3">
-						<PseudoTerminalRunner taskId={taskId} userId={userId} />
-					</div>
-				</details>
-			) : null}
 		</div>
 	);
 }

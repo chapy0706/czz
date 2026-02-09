@@ -6,7 +6,6 @@ import * as React from "react";
 import { CommandList } from "@/lib/command-builder/CommandList";
 import { CommandPalette } from "@/lib/command-builder/CommandPalette";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
-import { PipelinePanel } from "@/lib/command-builder/PipelinePanel";
 import { buildResetKey } from "@/lib/command-builder/serialize";
 import { getString, isRecord } from "@/lib/shared/unknown";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
@@ -60,50 +59,11 @@ export function CommandBuilder(props: Props) {
 		initForTask(task.id);
 	}, [task.id, initForTask]);
 
-	// Step UI state (PipelinePanel 用)
-	const [selectedIndex, setSelectedIndex] = React.useState(-1);
-	const [revealIndex, setRevealIndex] = React.useState(0);
-
-	React.useEffect(() => {
-		const idx = commands.findIndex((c) => c.id === selectedId);
-		setSelectedIndex(idx);
-		setRevealIndex((v) => (idx >= 0 ? Math.max(v, idx) : v));
-	}, [commands, selectedId]);
-
 	const onReorder = React.useCallback(
 		(fromIndex: number, toIndex: number) => {
 			move(fromIndex, toIndex);
 		},
 		[move],
-	);
-
-	const onStepPlus = React.useCallback(() => {
-		setRevealIndex((v) => Math.min(v + 1, commands.length));
-	}, [commands.length]);
-
-	const onStepMinus = React.useCallback(() => {
-		setRevealIndex((v) => Math.max(v - 1, 0));
-	}, []);
-
-	const onSelectNext = React.useCallback(() => {
-		if (commands.length === 0) return;
-
-		if (selectedIndex < 0) {
-			select(commands[0].id);
-			return;
-		}
-
-		const next = Math.min(selectedIndex + 1, commands.length - 1);
-		select(commands[next].id);
-	}, [commands, selectedIndex, select]);
-
-	const onSelectStep = React.useCallback(
-		(index: number) => {
-			if (index < 0 || index >= commands.length) return;
-			select(commands[index].id);
-			setRevealIndex((v) => Math.max(v, index));
-		},
-		[commands, select],
 	);
 
 	// 表示用: パイプライン1行（Domainの真実ではなくUIの見せ方）
@@ -132,24 +92,16 @@ export function CommandBuilder(props: Props) {
 		Boolean(task.id) && commands.length > 0 && !run.running && !run.disabled;
 
 	const disabledReason = !task.id
-		? isBeginner
-			? "問題の読み込み中だよ"
-			: "Loading task…"
+		? "問題を読み込み中…"
 		: commands.length === 0
-			? isBeginner
-				? "まずはコマンドを追加してね"
-				: "Add at least one command"
+			? "まずはコマンドを追加してね"
 			: run.running
-				? isBeginner
-					? "実行中…"
-					: "Running…"
+				? "実行中…"
 				: null;
 
 	const onClear = React.useCallback(() => {
 		if (!task.id) return;
 		if (run.running) return;
-		setSelectedIndex(-1);
-		setRevealIndex(0);
 
 		// storeの「確実に存在する」APIだけで初期化する
 		initForTask(task.id);
@@ -157,15 +109,6 @@ export function CommandBuilder(props: Props) {
 
 	return (
 		<div className="space-y-4">
-			<header className="rounded border p-4">
-				<div className="text-lg font-semibold">{task.title}</div>
-				{task.description ? (
-					<div className="mt-1 whitespace-pre-wrap text-sm opacity-80">
-						{task.description}
-					</div>
-				) : null}
-			</header>
-
 			<CommandPalette onAdd={add} uiMode={uiModeForPanels} />
 
 			{/* コマンド列（編集UI） */}
@@ -181,14 +124,14 @@ export function CommandBuilder(props: Props) {
 				/>
 			) : (
 				<div className="rounded border p-4 text-sm opacity-70">
-					{isBeginner ? "コマンドを追加してね" : "Add commands"}
+					コマンドを追加してね
 				</div>
 			)}
 
 			{/* P0: 初心者モードでも “Clear / Run” を常時表示して導線を切らない */}
 			<section className="rounded border p-4">
 				<div className="mb-2 text-xs font-semibold opacity-70">
-					{isBeginner ? "コマンドライン" : "Command line"}
+					コマンドライン
 				</div>
 
 				<div className="rounded border px-3 py-2 font-mono text-sm overflow-x-auto whitespace-nowrap">
@@ -196,9 +139,7 @@ export function CommandBuilder(props: Props) {
 				</div>
 
 				<div className="mt-3 flex items-center justify-between gap-3">
-					<div className="text-sm font-semibold">
-						{isBeginner ? "実行" : "Run"}
-					</div>
+					<div className="text-sm font-semibold">実行</div>
 
 					<div className="flex items-center gap-2">
 						<button
@@ -207,7 +148,7 @@ export function CommandBuilder(props: Props) {
 							onClick={onClear}
 							disabled={!task.id || run.running}
 						>
-							{isBeginner ? "クリア" : "Clear"}
+							クリア
 						</button>
 
 						<button
@@ -216,13 +157,7 @@ export function CommandBuilder(props: Props) {
 							onClick={run.onClick}
 							disabled={!canRun}
 						>
-							{run.running
-								? isBeginner
-									? "うごかしてる…"
-									: "Running…"
-								: isBeginner
-									? "ためす"
-									: "Run"}
+							{run.running ? "うごかしてる…" : "ためす"}
 						</button>
 					</div>
 				</div>
@@ -235,30 +170,13 @@ export function CommandBuilder(props: Props) {
 
 				{run.error ? (
 					<div className="mt-2 rounded border p-3 text-sm">
-						<div className="font-semibold">
-							{isBeginner ? "実行に失敗" : "Run failed"}
-						</div>
+						<div className="font-semibold">実行に失敗しました</div>
 						<div className="mt-1 whitespace-pre-wrap opacity-80">
 							{run.error}
 						</div>
 					</div>
 				) : null}
 			</section>
-
-			{/* 上級者モードのみ: ステップ操作などの補助UI */}
-			{!isBeginner && commands.length > 0 ? (
-				<PipelinePanel
-					uiMode={uiModeForPanels}
-					commands={commands}
-					selectedId={selectedId}
-					selectedIndex={selectedIndex}
-					revealIndex={revealIndex}
-					onStepPlus={onStepPlus}
-					onStepMinus={onStepMinus}
-					onSelectNext={onSelectNext}
-					onSelectStep={onSelectStep}
-				/>
-			) : null}
 		</div>
 	);
 }

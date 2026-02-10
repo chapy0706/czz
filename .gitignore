@@ -36,3 +36,4 @@ apps/admin/.env.local
 
 #keys
 apps/user/certificates
+.ai/handoff/*.txt

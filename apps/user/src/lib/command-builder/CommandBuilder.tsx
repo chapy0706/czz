@@ -8,6 +8,7 @@ import { CommandPalette } from "@/lib/command-builder/CommandPalette";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import { buildResetKey } from "@/lib/command-builder/serialize";
 import { getString, isRecord } from "@/lib/shared/unknown";
+import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
@@ -177,6 +178,13 @@ export function CommandBuilder(props: Props) {
 					</div>
 				) : null}
 			</section>
+
+			<PseudoTerminalRunner
+				taskId={task.id}
+				getSubmittedProgram={() =>
+					useCommandBuilderStore.getState().serializeProgram()
+				}
+			/>
 		</div>
 	);
 }

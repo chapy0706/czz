@@ -5,18 +5,15 @@ import dynamic from "next/dynamic";
 import * as React from "react";
 
 const IS_DEV = process.env.NODE_ENV === "development";
-const BUILD_FLAG = process.env.NEXT_PUBLIC_DEBUG_PANEL === "1";
-
-// dev + flag の時だけ import（production build で巻き込まれない）
-const LazyDebugPanel =
-	IS_DEV && BUILD_FLAG
-		? dynamic(
-				() => import("@/components/debug/DebugPanel").then((m) => m.DebugPanel),
-				{
-					ssr: false,
-				},
-			)
-		: null;
+// dev の時だけ import（production build で巻き込まれない）
+const LazyDebugPanel = IS_DEV
+	? dynamic(
+			() => import("@/components/debug/DebugPanel").then((m) => m.DebugPanel),
+			{
+				ssr: false,
+			},
+		)
+	: null;
 
 function isLocalhostHost(hostname: string) {
 	return (
@@ -35,7 +32,6 @@ export function DebugPanelGate() {
 	}, []);
 
 	if (!IS_DEV) return null;
-	if (!BUILD_FLAG) return null;
 
 	// 初回は必ず null（server/client で一致させる）
 	if (!mounted) return null;

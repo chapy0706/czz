@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import * as React from "react";
 import { debugRegistry } from "@/components/debug/debugRegistry";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 function useRegistrySnapshot() {
 	return React.useSyncExternalStore(
@@ -18,6 +19,7 @@ export function DebugPanel() {
 	const pathname = usePathname();
 	const params = useParams();
 	const snap = useRegistrySnapshot();
+	const mode = useUiModeStore((state) => state.mode);
 
 	const [collapsed, setCollapsed] = React.useState(false);
 	const [taskId, setTaskId] = React.useState("");
@@ -30,7 +32,9 @@ export function DebugPanel() {
 		<div className="fixed bottom-3 right-3 z-[2147483647] w-[360px] max-w-[92vw] rounded-xl border bg-background/95 shadow-lg backdrop-blur">
 			<div className="flex items-center justify-between gap-2 border-b px-3 py-2">
 				<div className="min-w-0">
-					<div className="text-sm font-semibold">Debug Panel</div>
+					<div className="text-sm font-semibold">
+						{mode === "beginner" ? "お試しエリア" : "デバッグパネル"}
+					</div>
 					<div className="truncate text-xs text-muted-foreground">
 						{pathname}
 					</div>
@@ -41,14 +45,14 @@ export function DebugPanel() {
 						className="rounded-md border px-2 py-1 text-xs"
 						onClick={() => setCollapsed((v) => !v)}
 					>
-						{collapsed ? "open" : "close"}
+						{collapsed ? "開く" : "閉じる"}
 					</button>
 					<button
 						type="button"
 						className="rounded-md border px-2 py-1 text-xs"
 						onClick={() => debugRegistry.clear()}
 					>
-						clear
+						クリア
 					</button>
 				</div>
 			</div>

@@ -36,21 +36,23 @@ export class EvaluateTaskUseCase {
 
 		// userId がある場合のみ保存を試みる（ゲストは保存しない）
 		// userId が DB に存在しない場合の FK 違反は “保存しない扱い” に落とす
+		let resultId: string | undefined;
 		if (userId) {
 			try {
-				await this.deps.resultRepository.create({
+				const saved = await this.deps.resultRepository.create({
 					taskId,
 					userId,
 					submittedProgram,
 					resultStatus: result.allPassed, // boolean（0/1変換はrepoで）
 				});
+				resultId = saved.id;
 			} catch (e) {
 				if (!isForeignKeyViolation(e)) throw e;
 				// 保存だけ失敗：評価結果は返す（ゲスト相当として扱う）
 			}
 		}
 
-		return result;
+		return resultId ? { ...result, resultId } : result;
 	}
 }
 

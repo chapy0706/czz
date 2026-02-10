@@ -107,10 +107,16 @@ export async function POST(
 
 		// UseCase は runTestCases の結果を返す。
 		// API 層で EvaluateResponse（契約）に正規化して返す。
-		const resultRecord = isRecord(result) ? result : null;
+		const resultRecord = isRecord(result)
+			? (result as Record<string, unknown>)
+			: null;
 		const results = Array.isArray(resultRecord?.results)
 			? resultRecord?.results
 			: null;
+		const resultId =
+			typeof resultRecord?.resultId === "string"
+				? resultRecord.resultId
+				: undefined;
 		const total = results ? results.length : Number.NaN;
 		const passed = results
 			? results.filter((r) => isRecord(r) && r.passed === true).length
@@ -138,6 +144,7 @@ export async function POST(
 			return NextResponse.json(
 				{
 					ok: false,
+					resultId,
 					error: {
 						kind: "UNKNOWN",
 						message: "Invalid runTestCases result shape",
@@ -149,9 +156,10 @@ export async function POST(
 		}
 
 		const response = allPassed
-			? ({ ok: true, passed, total, output } as const)
+			? ({ ok: true, passed, total, output, resultId } as const)
 			: ({
 					ok: false,
+					resultId,
 					passed,
 					total,
 					error: {

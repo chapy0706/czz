@@ -39,6 +39,15 @@ export const useTerminalHistoryStore = create<TerminalHistoryState>()(
 			version: 2,
 			storage,
 			partialize: (s) => ({ history: s.history }),
+			migrate: (persisted) => {
+				if (!persisted || typeof persisted !== "object") {
+					return { history: [] };
+				}
+				const record = persisted as { history?: unknown };
+				return {
+					history: Array.isArray(record.history) ? record.history : [],
+				};
+			},
 		},
 	),
 );
@@ -104,6 +113,20 @@ export const useTerminalResultCacheStore = create<ResultCacheState>()(
 			version: 1,
 			storage,
 			partialize: (s) => ({ byId: s.byId, latestId: s.latestId }),
+			migrate: (persisted) => {
+				if (!persisted || typeof persisted !== "object") {
+					return { byId: {}, latestId: null };
+				}
+				const record = persisted as {
+					byId?: unknown;
+					latestId?: unknown;
+				};
+				const byId =
+					record.byId && typeof record.byId === "object" ? record.byId : {};
+				const latestId =
+					typeof record.latestId === "string" ? record.latestId : null;
+				return { byId, latestId };
+			},
 		},
 	),
 );

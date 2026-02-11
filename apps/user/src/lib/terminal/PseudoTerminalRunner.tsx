@@ -3,8 +3,10 @@
 
 import * as React from "react";
 import { debugRegistry } from "@/components/debug/debugRegistry";
+import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
+import { serializeCommandsForDisplay } from "@/lib/command-builder/serialize";
 import { runPlayground } from "@/lib/terminal/playgroundClient";
-import { ResultPanel } from "@/lib/terminal/ResultPanel";
+import { formatOutputHuman } from "@/lib/utils/formatOutput";
 
 type Props = {
 	/**
@@ -21,26 +23,13 @@ type Props = {
 	getSubmittedProgram: () => unknown;
 };
 
-type UiResultStatus = "success" | "failure";
-type UiResult = {
-	status: UiResultStatus;
+type DryRunStatus = "success" | "failure";
+type DryRunResult = {
+	status: DryRunStatus;
+	inputText: string;
+	commandLines: string[];
 	outputText: string;
-	expectedText?: string;
-	hint?: { title?: string; detail: string };
 };
-
-function formatHumanReadable(value: unknown): string {
-	// JSON ベタ表示を避け、配列は "a, b, c" で見せる
-	if (Array.isArray(value)) return value.map((v) => String(v)).join(", ");
-	if (typeof value === "string") return value;
-	if (typeof value === "number" || typeof value === "boolean")
-		return String(value);
-	try {
-		return JSON.stringify(value, null, 2);
-	} catch {
-		return String(value);
-	}
-}
 
 const PRESET_OPTIONS = [
 	{ key: "preset-0", label: "[2,3,5,7,0]" },
@@ -76,8 +65,7 @@ export function PseudoTerminalRunner({
 	const [randomLength, setRandomLength] = React.useState(5);
 	const [randomRange, setRandomRange] = React.useState<RangeKey>("0-9");
 	const [randomInput, setRandomInput] = React.useState<number[]>([]);
-	const [outputText, setOutputText] = React.useState<string>("");
-	const [uiResult, setUiResult] = React.useState<UiResult | null>(null);
+	const [result, setResult] = React.useState<DryRunResult | null>(null);
 	const [errorSummary, setErrorSummary] = React.useState<string | null>(null);
 	const [errorDetails, setErrorDetails] = React.useState<string | null>(null);
 
@@ -85,8 +73,7 @@ export function PseudoTerminalRunner({
 		presetKey === "random" ? randomInput : PRESET_VALUES[presetKey];
 
 	const onClear = React.useCallback(() => {
-		setOutputText("");
-		setUiResult(null);
+		setResult(null);
 		setErrorSummary(null);
 		setErrorDetails(null);
 	}, []);
@@ -105,7 +92,7 @@ export function PseudoTerminalRunner({
 		if (presetKey === "random" && randomInput.length === 0) return;
 
 		setRunning(true);
-		setUiResult(null);
+		setResult(null);
 		setErrorSummary(null);
 		setErrorDetails(null);
 
@@ -116,23 +103,36 @@ export function PseudoTerminalRunner({
 
 		setRunning(false);
 
+		const inputText = formatOutputHuman(inputNumbers);
+		const commandLines = serializeCommandsForDisplay(
+			useCommandBuilderStore.getState().commands,
+		);
+
 		if (!res.ok) {
 			const err = "error" in res ? res.error : undefined;
 			const msg = err?.message ?? "Unknown error";
-			setOutputText("");
-			setUiResult(null);
 			setErrorSummary(msg);
 			setErrorDetails(
 				err?.details !== undefined
-					? formatHumanReadable(err.details)
+					? formatOutputHuman(err.details)
 					: "詳細情報がありません。",
 			);
+			setResult({
+				status: "failure",
+				inputText,
+				commandLines,
+				outputText: "出力が取得できませんでした。",
+			});
 			return;
 		}
 
-		const text = formatHumanReadable(res.output);
-		setOutputText(text);
-		setUiResult({ status: "success", outputText: text });
+		const outputText = formatOutputHuman(res.output);
+		setResult({
+			status: "success",
+			inputText,
+			commandLines,
+			outputText,
+		});
 	}, [
 		resolvedTaskId,
 		presetKey,
@@ -176,7 +176,7 @@ export function PseudoTerminalRunner({
 			</div>
 
 			<div className="rounded-2xl border bg-card p-3">
-				<div className="text-xs text-muted-foreground">入力</div>
+				<div className="text-xs text-muted-foreground">初期データ</div>
 				<div className="mt-2 space-y-2">
 					<select
 						className="w-full rounded-md border bg-background px-2 py-1 text-sm"
@@ -236,32 +236,65 @@ export function PseudoTerminalRunner({
 					</div>
 				</div>
 
-				<div className="mt-3 text-xs text-muted-foreground">出力</div>
-				<div className="mt-1 whitespace-pre-wrap rounded-md border bg-background px-2 py-2 text-sm">
-					{outputText || "—"}
-				</div>
 			</div>
 
-			{errorSummary ? (
-				<div className="rounded border p-3 text-sm">
-					<div className="font-semibold">{errorSummary}</div>
-					<details className="mt-2">
-						<summary className="cursor-pointer">詳細</summary>
-						<div className="mt-2 whitespace-pre-wrap text-xs">
-							{errorDetails ?? "詳細情報がありません。"}
+			{result ? (
+				<section className="rounded border bg-card p-3 text-sm">
+					<div className="flex items-center gap-2">
+						<span
+							className={`inline-block h-2 w-2 rounded-full ${
+								result.status === "success" ? "bg-emerald-500" : "bg-rose-500"
+							}`}
+							aria-hidden="true"
+						/>
+						<div className="font-semibold">
+							{result.status === "success"
+								? "実行に成功しました"
+								: "実行に失敗しました"}
 						</div>
-					</details>
-				</div>
-			) : null}
+					</div>
 
-			{uiResult ? (
-				<ResultPanel
-					status={uiResult.status}
-					outputText={uiResult.outputText}
-					expectedText={uiResult.expectedText}
-					hint={uiResult.hint}
-					onRetry={onRun}
-				/>
+					<div className="mt-3 space-y-3">
+						<div>
+						<div className="text-xs text-muted-foreground">初期データ</div>
+						<div className="mt-1 rounded-md border bg-background px-2 py-2">
+							{result.inputText || "—"}
+						</div>
+						</div>
+
+						<div>
+							<div className="text-xs text-muted-foreground">コマンド列</div>
+							<div className="mt-1 rounded-md border bg-background px-2 py-2 text-xs">
+								{result.commandLines.length > 0 ? (
+									<div className="whitespace-pre-wrap">
+										{result.commandLines.join("\n")}
+									</div>
+								) : (
+									"—"
+								)}
+							</div>
+						</div>
+
+						<div>
+							<div className="text-xs text-muted-foreground">出力</div>
+							<div className="mt-1 whitespace-pre-wrap rounded-md border bg-background px-2 py-2">
+								{result.outputText || "—"}
+							</div>
+						</div>
+					</div>
+
+					{errorSummary ? (
+						<div className="mt-3 rounded border p-3 text-sm">
+							<div className="font-semibold">{errorSummary}</div>
+							<details className="mt-2">
+								<summary className="cursor-pointer">詳細</summary>
+								<div className="mt-2 whitespace-pre-wrap text-xs">
+									{errorDetails ?? "詳細情報がありません。"}
+								</div>
+							</details>
+						</div>
+					) : null}
+				</section>
 			) : null}
 		</div>
 	);

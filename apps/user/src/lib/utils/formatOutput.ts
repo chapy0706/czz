@@ -4,11 +4,10 @@
  * JSON表示を避けて、人間が読みやすい形に寄せるための整形ユーティリティ。
  * - 数値配列: "1, 2, 3"
  * - 2次元配列: 行ごとに改行
- * - それ以外: なるべく短く、最悪 safeStringify 相当
+ * - それ以外: JSONは出さずに安全なフォールバック
  */
 
 import { isRecord } from "@/lib/shared/unknown";
-import { safeStringify } from "@/lib/utils/safeStringify";
 
 function isNumberArray(x: unknown): x is number[] {
 	return (
@@ -41,6 +40,14 @@ export function formatOutputHuman(value: unknown): string {
 
 	if (typeof value === "string") return value;
 
+	if (
+		typeof value === "number" ||
+		typeof value === "boolean" ||
+		typeof value === "bigint"
+	) {
+		return String(value);
+	}
+
 	if (isNumberArray(value)) return formatNumberSeries(value);
 
 	if (isNumberMatrix(value)) return formatNumberMatrix(value);
@@ -54,12 +61,7 @@ export function formatOutputHuman(value: unknown): string {
 		if (isNumberMatrix(obj.output)) return formatNumberMatrix(obj.output);
 	}
 
-	const json = safeStringify(value, 0);
-	if (!json) return String(value);
-
-	const max = 800;
-	if (json.length > max) return `${json.slice(0, max)}…`;
-	return json;
+	return "表示できない形式";
 }
 
 export function extractText(value: unknown): string {

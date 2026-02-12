@@ -1,8 +1,10 @@
 // apps/user/src/app/api/tasks/[taskId]/evaluate/route.ts
 
+import { auth } from "@clerk/nextjs/server";
 // infra
 import { DrizzleResultRepository } from "@infra/drizzle/repositories/resultRepository";
 import { DrizzleTaskRepository } from "@infra/drizzle/repositories/taskRepository";
+import { DrizzleUserRepository } from "@infra/drizzle/repositories/userRepository";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isRecord } from "@/lib/shared/unknown";
@@ -45,6 +47,7 @@ export async function POST(
 	ctx: { params: Promise<{ taskId: string }> },
 ) {
 	try {
+		const { userId: authUserId } = await auth();
 		const { taskId } = paramsSchema.parse(await ctx.params);
 
 		const body = await req.json();
@@ -94,6 +97,23 @@ export async function POST(
 			}
 		}
 
+		const userRepo = new DrizzleUserRepository();
+		let resolvedUserId = parsed.userId;
+
+		if (authUserId) {
+			const existing = await userRepo.findByAuthUserId(authUserId);
+			if (existing) {
+				resolvedUserId = existing.id;
+			} else {
+				const created = await userRepo.create({
+					authUserId,
+					displayName: authUserId,
+					role: 0,
+				});
+				resolvedUserId = created.id;
+			}
+		}
+
 		const usecase = new EvaluateTaskUseCase({
 			taskRepository: new DrizzleTaskRepository(),
 			resultRepository: new DrizzleResultRepository(),
@@ -101,7 +121,7 @@ export async function POST(
 
 		const result = await usecase.execute({
 			taskId,
-			userId: parsed.userId,
+			userId: resolvedUserId,
 			submittedProgram: parsed.submittedProgram,
 		});
 

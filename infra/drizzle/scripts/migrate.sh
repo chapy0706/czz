@@ -2,6 +2,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+cd "$(git rev-parse --show-toplevel)"
+
 if [[ -z "${DB_URL:-}" ]]; then
   echo "ERROR: DB_URL is not set."
   echo "Hint: DB_URL=postgres://... make db-migrate"

@@ -1,12 +1,12 @@
-// apps/admin/app/api/admin/tasks/route.ts
+// apps/admin/app/api/admin/tasks/[taskId]/route.ts
 import { NextResponse } from "next/server";
 import {
 	apiError,
 	apiOk,
-	createTaskInputSchema,
 	type TaskDto,
+	updateTaskInputSchema,
 } from "@/lib/contracts/taskContract";
-import { DrizzleTaskRepository } from "../../../../../../infra/drizzle/repositories/taskRepository";
+import { DrizzleTaskRepository } from "../../../../../../../infra/drizzle/repositories/taskRepository";
 
 export const runtime = "nodejs";
 
@@ -63,29 +63,36 @@ function toTaskDto(task: {
 	};
 }
 
-export async function GET(req: Request) {
+type Params = { params: { taskId: string } };
+
+export async function GET(req: Request, { params }: Params) {
 	try {
 		const unauth = requireAdminToken(req);
 		if (unauth) return unauth;
 
 		const repository = new DrizzleTaskRepository();
-		const tasks = await repository.findAll();
-		return NextResponse.json(apiOk(tasks.map(toTaskDto)));
+		const task = await repository.findById(params.taskId);
+		if (!task) {
+			return NextResponse.json(apiError("not_found", "Task not found."), {
+				status: 404,
+			});
+		}
+		return NextResponse.json(apiOk(toTaskDto(task)));
 	} catch (error) {
-		console.error("GET /api/admin/tasks error:", error);
+		console.error("GET /api/admin/tasks/[taskId] error:", error);
 		return NextResponse.json(apiError("internal_error", "Internal error."), {
 			status: 500,
 		});
 	}
 }
 
-export async function POST(req: Request) {
+export async function PATCH(req: Request, { params }: Params) {
 	try {
 		const unauth = requireAdminToken(req);
 		if (unauth) return unauth;
 
 		const json = await req.json().catch(() => null);
-		const parsed = createTaskInputSchema.safeParse(json);
+		const parsed = updateTaskInputSchema.safeParse(json);
 		if (!parsed.success) {
 			return NextResponse.json(
 				apiError("invalid_request", "Invalid request.", parsed.error.flatten()),
@@ -93,29 +100,53 @@ export async function POST(req: Request) {
 			);
 		}
 
-		const dslResult = parseJsonField(parsed.data.dslProgram, "dslProgram");
-		if (!dslResult.ok) {
-			return NextResponse.json(dslResult.error, { status: 400 });
+		const next = { ...parsed.data };
+		if ("dslProgram" in next) {
+			const dslResult = parseJsonField(next.dslProgram, "dslProgram");
+			if (!dslResult.ok) {
+				return NextResponse.json(dslResult.error, { status: 400 });
+			}
+			next.dslProgram = dslResult.value;
 		}
-
-		const testResult = parseJsonField(parsed.data.testCases, "testCases");
-		if (!testResult.ok) {
-			return NextResponse.json(testResult.error, { status: 400 });
+		if ("testCases" in next) {
+			const testResult = parseJsonField(next.testCases, "testCases");
+			if (!testResult.ok) {
+				return NextResponse.json(testResult.error, { status: 400 });
+			}
+			next.testCases = testResult.value;
 		}
 
 		const repository = new DrizzleTaskRepository();
-		const task = await repository.create({
-			title: parsed.data.title,
-			description: parsed.data.description,
-			isPublished: parsed.data.isPublished,
-			dslProgram: dslResult.value,
-			testCases: testResult.value,
-			createdByUserId: "00000000-0000-0000-0000-000000000000",
-		});
-
-		return NextResponse.json(apiOk(toTaskDto(task)), { status: 201 });
+		const updated = await repository.update(params.taskId, next);
+		if (!updated) {
+			return NextResponse.json(apiError("not_found", "Task not found."), {
+				status: 404,
+			});
+		}
+		return NextResponse.json(apiOk(toTaskDto(updated)));
 	} catch (error) {
-		console.error("POST /api/admin/tasks error:", error);
+		console.error("PATCH /api/admin/tasks/[taskId] error:", error);
+		return NextResponse.json(apiError("internal_error", "Internal error."), {
+			status: 500,
+		});
+	}
+}
+
+export async function DELETE(req: Request, { params }: Params) {
+	try {
+		const unauth = requireAdminToken(req);
+		if (unauth) return unauth;
+
+		const repository = new DrizzleTaskRepository();
+		const ok = await repository.delete(params.taskId);
+		if (!ok) {
+			return NextResponse.json(apiError("not_found", "Task not found."), {
+				status: 404,
+			});
+		}
+		return NextResponse.json(apiOk({ id: params.taskId }));
+	} catch (error) {
+		console.error("DELETE /api/admin/tasks/[taskId] error:", error);
 		return NextResponse.json(apiError("internal_error", "Internal error."), {
 			status: 500,
 		});

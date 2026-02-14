@@ -4,7 +4,9 @@
 		"baseUrl": ".",
 		"paths": {
 			"@app/*": ["src/*"], // adminアプリ固有
-			"@/*": ["src/*"]
+			"@/*": ["src/*"],
+			"@czz/domain": ["../../packages/domain/src/index.ts"],
+			"@czz/domain/*": ["../../packages/domain/src/*"]
 		},
 		"allowJs": true,
 		"skipLibCheck": true,

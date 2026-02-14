@@ -45,8 +45,8 @@ type State = {
 
 	updateCommandJson: (id: string, next: unknown) => void;
 
-	setRunnerInput: (preset: RunnerInputPreset) => void;
-	setRunnerOutput: (preset: RunnerOutputPreset) => void;
+	setRunnerInput: (preset: RunnerInputPreset | null) => void;
+	setRunnerOutput: (preset: RunnerOutputPreset | null) => void;
 	resetRunnerIo: () => void;
 
 	// evaluate API にはまだ渡さない（dslProgramSchema が {commands} 前提のため）
@@ -151,9 +151,13 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
 	},
 
 	setRunnerInput: (preset) =>
-		set((s) => ({ runnerIo: { ...s.runnerIo, input: preset } })),
+		set((s) => ({
+			runnerIo: { ...s.runnerIo, input: preset ?? "unset" },
+		})),
 	setRunnerOutput: (preset) =>
-		set((s) => ({ runnerIo: { ...s.runnerIo, output: preset } })),
+		set((s) => ({
+			runnerIo: { ...s.runnerIo, output: preset ?? "unset" },
+		})),
 	resetRunnerIo: () => set({ runnerIo: DEFAULT_RUNNER_IO }),
 
 	serializeProgram: () => {

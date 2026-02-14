@@ -3,6 +3,8 @@
 
 import Link from "next/link";
 import * as React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type Props = {
 	resultId: string;
@@ -11,17 +13,29 @@ type Props = {
 type ApiOk = {
 	ok: true;
 	resultId: string;
-	passed?: number;
-	total?: number;
+	passed: number;
+	total: number;
 	output?: unknown;
 	taskId?: string;
 	createdAt?: string;
+	cases?: Array<{
+		index: number;
+		input: number[];
+		expected: number[];
+		actual: number[];
+		passed: boolean;
+	}>;
 };
 
 type ApiErr = {
 	ok: false;
 	error: string;
 };
+
+function formatNumberList(values: number[]): string {
+	if (values.length === 0) return "（空）";
+	return values.join(", ");
+}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
 	return typeof v === "object" && v !== null;
@@ -36,6 +50,8 @@ function normalizeApiResponse(json: unknown): ApiOk | ApiErr {
 }
 
 export default function ResultsByIdClient({ resultId }: Props) {
+	const mode = useUiModeStore((s) => s.mode);
+	const isBeginner = mode === "beginner";
 	const [state, setState] = React.useState<
 		| { status: "loading" }
 		| { status: "error"; message: string }
@@ -182,51 +198,130 @@ export default function ResultsByIdClient({ resultId }: Props) {
 					</div>
 				</div>
 			) : (
-				<div className="mt-6 space-y-4">
-					<div className="rounded border p-4">
-						<div className="flex flex-wrap items-center gap-2 text-sm">
-							<span className="text-muted-foreground">判定</span>
-							<span className="font-medium">
-								{typeof state.data.passed === "number" &&
-								typeof state.data.total === "number"
-									? `${state.data.passed} / ${state.data.total}`
-									: "（取得中）"}
-							</span>
-						</div>
+				<div className="mt-6 space-y-6">
+					<Card>
+						<CardHeader>
+							<CardTitle>サマリ</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<div className="flex flex-wrap items-center gap-3 text-sm">
+								<span className="text-muted-foreground">判定</span>
+								<span
+									className={[
+										"rounded-full px-2 py-0.5 text-xs font-semibold",
+										state.data.passed === state.data.total
+											? "bg-emerald-100 text-emerald-700"
+											: "bg-rose-100 text-rose-700",
+									].join(" ")}
+								>
+									{state.data.passed === state.data.total ? "成功" : "失敗"}
+								</span>
+								<span className="font-medium">
+									{state.data.passed} / {state.data.total}
+								</span>
+							</div>
 
-						{state.data.taskId ? (
-							<div className="mt-2 text-sm">
+							{state.data.createdAt ? (
+								<div className="text-sm text-muted-foreground">
+									実行時刻: {new Date(state.data.createdAt).toLocaleString()}
+								</div>
+							) : null}
+
+							<div className="flex flex-wrap items-center gap-3 text-sm">
+								{state.data.taskId ? (
+									<Link
+										className="text-muted-foreground hover:underline"
+										href={`/tasks/${state.data.taskId}`}
+									>
+										タスクへ戻る
+									</Link>
+								) : null}
 								<Link
 									className="text-muted-foreground hover:underline"
-									href={`/tasks/${state.data.taskId}`}
+									href="/tasks"
 								>
-									タスクへ戻る
+									課題一覧へ
+								</Link>
+								<Link
+									className="text-muted-foreground hover:underline"
+									href="/results/running"
+								>
+									もう一度実行
 								</Link>
 							</div>
-						) : null}
-					</div>
+						</CardContent>
+					</Card>
 
-					<div className="rounded border p-4">
-						<p className="text-sm font-medium">レスポンス</p>
-						<pre className="mt-3 overflow-auto rounded bg-muted/30 p-3 text-xs">
-							{JSON.stringify(state.data, null, 2)}
-						</pre>
-					</div>
+					{state.data.cases && state.data.cases.length > 0 ? (
+						<Card>
+							<CardHeader>
+								<CardTitle>テストケース</CardTitle>
+							</CardHeader>
+							<CardContent className="space-y-3">
+								{state.data.cases.map((c) => (
+									<details key={c.index} className="rounded border px-3 py-2">
+										<summary className="cursor-pointer list-none">
+											<div className="flex flex-wrap items-center gap-3 text-sm">
+												<span className="font-semibold">
+													{isBeginner
+														? `ケース ${c.index + 1}`
+														: `Case #${c.index + 1}`}
+												</span>
+												<span
+													className={[
+														"rounded-full px-2 py-0.5 text-xs font-semibold",
+														c.passed
+															? "bg-emerald-100 text-emerald-700"
+															: "bg-rose-100 text-rose-700",
+													].join(" ")}
+												>
+													{c.passed ? "passed" : "failed"}
+												</span>
+											</div>
+										</summary>
 
-					<div className="flex flex-wrap items-center gap-3 text-sm">
-						<Link
-							className="text-muted-foreground hover:underline"
-							href="/tasks"
-						>
-							課題一覧へ
-						</Link>
-						<Link
-							className="text-muted-foreground hover:underline"
-							href="/results/running"
-						>
-							もう一度実行
-						</Link>
-					</div>
+										<div className="mt-3 space-y-3 text-sm">
+											<div>
+												<div className="text-xs font-semibold text-muted-foreground">
+													{isBeginner ? "入力データ" : "input"}
+												</div>
+												<div className="mt-1 rounded bg-muted/40 p-2 text-xs">
+													{formatNumberList(c.input)}
+												</div>
+											</div>
+											<div>
+												<div className="text-xs font-semibold text-muted-foreground">
+													{isBeginner ? "正しい答え" : "expected"}
+												</div>
+												<div className="mt-1 rounded bg-muted/40 p-2 text-xs">
+													{formatNumberList(c.expected)}
+												</div>
+											</div>
+											<div>
+												<div className="text-xs font-semibold text-muted-foreground">
+													{isBeginner ? "あなたの出力" : "actual"}
+												</div>
+												<div className="mt-1 rounded bg-muted/40 p-2 text-xs">
+													{formatNumberList(c.actual)}
+												</div>
+											</div>
+
+											{!isBeginner ? (
+												<details className="rounded border px-3 py-2 text-xs">
+													<summary className="cursor-pointer list-none text-muted-foreground">
+														raw JSON
+													</summary>
+													<pre className="mt-2 rounded bg-muted/40 p-2 text-xs">
+														{JSON.stringify(c, null, 2)}
+													</pre>
+												</details>
+											) : null}
+										</div>
+									</details>
+								))}
+							</CardContent>
+						</Card>
+					) : null}
 				</div>
 			)}
 		</main>

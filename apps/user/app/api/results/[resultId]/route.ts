@@ -1,6 +1,12 @@
 // apps/user/app/api/results/[resultId]/route.ts
 import { auth } from "@clerk/nextjs/server";
+import {
+	dslProgramSchema,
+	dslTestCaseSchema,
+	runTestCases,
+} from "@czz/dsl-core";
 import { DrizzleResultRepository } from "@infra/drizzle/repositories/resultRepository";
+import { DrizzleTaskRepository } from "@infra/drizzle/repositories/taskRepository";
 import { DrizzleUserRepository } from "@infra/drizzle/repositories/userRepository";
 import { NextResponse } from "next/server";
 
@@ -14,6 +20,13 @@ type ResultOutput = {
 	output?: unknown;
 	taskId: string;
 	createdAt: string;
+	cases?: Array<{
+		index: number;
+		input: number[];
+		expected: number[];
+		actual: number[];
+		passed: boolean;
+	}>;
 };
 
 type ResultError = { ok: false; error: string };
@@ -77,14 +90,40 @@ export async function GET(
 			);
 		}
 
+		let cases: ResultOutput["cases"];
+		let passed = result.resultStatus ? 1 : 0;
+		let total = 1;
+
+		const taskRepository = new DrizzleTaskRepository();
+		const task = await taskRepository.findById(result.taskId);
+		if (task) {
+			try {
+				const program = dslProgramSchema.parse(result.submittedProgram);
+				const testCases = dslTestCaseSchema.array().parse(task.testCases);
+				const rerun = runTestCases(program, testCases);
+				cases = rerun.results.map((r) => ({
+					index: r.index,
+					input: r.input,
+					expected: r.expected,
+					actual: r.actual,
+					passed: r.passed,
+				}));
+				passed = cases.filter((c) => c.passed).length;
+				total = cases.length;
+			} catch (error) {
+				console.error("GET /api/results/[resultId] rerun error:", error);
+			}
+		}
+
 		const response: ResultOutput = {
 			ok: true,
 			resultId: result.id,
-			passed: result.resultStatus ? 1 : 0,
-			total: 1,
+			passed,
+			total,
 			output: extractOutput(result.submittedProgram),
 			taskId: result.taskId,
 			createdAt: result.createdAt.toISOString(),
+			cases,
 		};
 
 		return NextResponse.json(response, { status: 200 });

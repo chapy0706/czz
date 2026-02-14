@@ -1,10 +1,12 @@
 // packages/domain/src/repositories/taskRepository.ts
 
-import type { NewTask, Task, TaskId } from "../entities/task";
+import type { NewTask, Task, TaskId, UpdateTask } from "../entities/task";
 
 export interface TaskRepository {
 	findPublished(): Promise<Task[]>;
+	findAll(): Promise<Task[]>;
 	findById(id: TaskId): Promise<Task | null>;
 	create(input: NewTask): Promise<Task>;
-	// 必要になったら update/delete を追加
+	update(id: TaskId, input: UpdateTask): Promise<Task | null>;
+	delete(id: TaskId): Promise<boolean>;
 }

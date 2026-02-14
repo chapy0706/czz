@@ -14,7 +14,16 @@ class FakeTaskRepository implements TaskRepository {
 	findPublished(): Promise<Task[]> {
 		throw new Error("Method not implemented.");
 	}
+	findAll(): Promise<Task[]> {
+		throw new Error("Method not implemented.");
+	}
 	create(_input: NewTask): Promise<Task> {
+		throw new Error("Method not implemented.");
+	}
+	update(): Promise<Task | null> {
+		throw new Error("Method not implemented.");
+	}
+	delete(): Promise<boolean> {
 		throw new Error("Method not implemented.");
 	}
 

@@ -1,6 +1,7 @@
 // apps/admin/app/tasks/new/page.tsx
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -9,14 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-
-type JsonRecord = Record<string, unknown>;
-
-function asRecord(v: unknown): JsonRecord | null {
-	return !!v && typeof v === "object" && !Array.isArray(v)
-		? (v as JsonRecord)
-		: null;
-}
+import { adminApi } from "@/lib/adminApi";
+import type { TaskDto } from "@/lib/contracts/taskContract";
 
 type EditorState = {
 	value: string;
@@ -34,8 +29,8 @@ function useEditor(initial: string): EditorState {
 }
 
 type ResultState =
-	| { ok: true; taskId: string }
-	| { ok: false; error: string; details?: unknown }
+	| { ok: true; task: TaskDto }
+	| { ok: false; error: string }
 	| null;
 
 export default function Page() {
@@ -84,32 +79,22 @@ export default function Page() {
 		};
 
 		try {
-			const res = await fetch("/api/admin/tasks", {
+			const res = await adminApi<TaskDto>("/api/admin/tasks", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify(payload),
 			});
 
-			const data: unknown = await res.json().catch(() => null);
-			const rec = asRecord(data);
-
 			if (!res.ok) {
-				const err =
-					rec && typeof rec.error === "string"
-						? rec.error
-						: `作成に失敗したよ (HTTP ${res.status})`;
+				const message = "error" in res ? res.error.message : "作成に失敗したよ";
 				setResult({
 					ok: false,
-					error: err,
-					details: data,
+					error: message ?? "作成に失敗したよ",
 				});
 				return;
 			}
 
-			const rawTaskId = rec?.taskId;
-			const taskId =
-				typeof rawTaskId === "string" ? rawTaskId : String(rawTaskId ?? "");
-			setResult({ ok: true, taskId });
+			setResult({ ok: true, task: res.data });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Unknown error";
 			setResult({ ok: false, error: message });
@@ -202,7 +187,16 @@ export default function Page() {
 						{result?.ok === true ? (
 							<Alert>
 								<AlertTitle>作成できたよ</AlertTitle>
-								<AlertDescription>taskId: {result.taskId}</AlertDescription>
+								<AlertDescription className="space-y-2">
+									<div>taskId: {result.task.id}</div>
+									<div>
+										<Button asChild variant="secondary">
+											<Link href={`/tasks/${result.task.id}/edit`}>
+												このタスクを編集
+											</Link>
+										</Button>
+									</div>
+								</AlertDescription>
 							</Alert>
 						) : null}
 

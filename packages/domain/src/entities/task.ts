@@ -28,3 +28,11 @@ export interface NewTask {
 	testCases: unknown; // TODO: TestCase 型にする
 	createdByUserId: UserId;
 }
+
+export interface UpdateTask {
+	title?: string;
+	description?: string;
+	isPublished?: boolean;
+	dslProgram?: unknown;
+	testCases?: unknown;
+}

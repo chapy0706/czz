@@ -1,88 +1,110 @@
-<!-- docs/specs/active/fix-results-api-auth-401.md -->
+<!-- docs/specs/active/2026-02-14-issue-fix-results-api-auth-401.md -->
 
-# Spec: Results API が 500 になる問題を 401/403 に正規化し、結果詳細取得を安定させる
+# Spec: results API の 500 を 401/403 に正規化し、ローカル https/http の揺れを潰す
 
-## 背景 / 現状
+## 背景
 
-- `GET /api/results/:resultId` が `500 Internal Server Error` を返すケースがある。
-- `curl` では以下のヘッダが出ており、Clerk の認証情報が付与されていない状態で API に到達している。
-  - `x-clerk-auth-status: signed-out`
-  - `x-clerk-auth-reason: dev-browser-missing`
+`GET /api/results/:resultId` が `500 Internal Server Error` を返す。
+レスポンスヘッダに以下が出ている。
 
-- ブラウザでの結果詳細画面からも `API returned 500` と出ることがある。
-- 以前は `https://...` で試していたが、現在はローカルの `http://localhost:3100`。
+- `x-clerk-auth-reason: dev-browser-missing`
+- `x-clerk-auth-status: signed-out`
 
-## 目的（Why）
+つまり「未ログイン（または Clerk の dev browser token が付かない）」状態で API が落ちている可能性が高い。
 
-- 認証/認可不足（signed-out）を「500」ではなく「401/403」で返す。
-- Result 取得時に **IDOR（他人の resultId を見れる）** を防ぐ。
-- ローカル/本番/プレビュー（https）で同じコードが動くように、URL の組み立てを安全にする。
+また、`https://localhost:3100` で試していたのに、いつの間にか `http://localhost:3100` で叩いている。
+Clerk 側の Cookie が `Secure` で付与されている場合、**http では Cookie が送信されず強制的に signed-out になる**。
 
-## 非目的（Not now）
+## 先に答え
 
-- results の UI デザイン刷新
-- 複数結果一覧（履歴ページ）の実装
+- `resultId` は URL パスに載せてよいが、`userId` をパスに載せる設計は避ける（IDOR の温床）。
+  - 認可は「今のログインユーザー（Clerk の userId）」と「result.ownerUserId」をサーバー側で突き合わせてやる。
+- `http` と `https` の差分は **原因になりうる**（Cookie の `Secure` 属性次第）。
+  - ただし、どちらにせよ「未認証」なら **500 ではなく 401** を返すのが正しい。
 
-## 期待する挙動（Acceptance Criteria）
+## Goal
 
-1. 未ログイン状態で `GET /api/results/:resultId` を叩くと
-   - `401` と `{ ok:false, error:{ kind:"AUTH", ... } }` が返る（500 にならない）。
-2. ログイン済みでも「別ユーザーの resultId」を指定すると
-   - `403` か `404`（方針に沿う方）で返る（データ漏えいしない）。
-3. 結果詳細画面は
-   - 401/403/404 のときに「結果の取得に失敗した」ではなく、理由に応じた案内を出す（例: ログインへ誘導 / 権限なし / 見つからない）。
-4. fetch URL は **常に same-origin** を使う（ローカル http / 本番 https でも破綻しない）。
-   - 例: `fetch(f"/api/results/{resultId}")`
-   - 絶対 URL（https 固定）や別ホストに飛ばさない。
+- 未ログイン時に `/api/results/:resultId` が 500 にならず、401（or 403）を返す
+- UI（`/results/:resultId`）が 401 を自然に扱い、ユーザーにログイン導線を出す
+- ローカル環境で `http/https` が混ざってもデバッグしやすい状態にする
 
-## 調査メモ（仮説）
+## Non-goals
 
-- `curl` が signed-out なのは「Cookie / dev-browser トークンが無い」ためで自然。
-- UI 側が 500 を踏むのは、以下のどれかの可能性が高い:
-  - API 側が signed-out を例外として投げてしまい 500 になっている
-  - UI 側が `https://.../api/results/...` のように別 origin を叩いて Cookie が送られていない
-  - middleware の rewrite/保護対象の設定がズレている
+- 認証方式そのものの変更（Clerk → 別）
+- Runner I/O の仕様調整
+- DB スキーマ変更
 
-## 実装方針（How）
+## 現象の再現手順
 
-### A) API: /api/results/[resultId] を「例外を投げない」設計に
+1. ローカルで `http://localhost:3100/api/results/<resultId>` にアクセス
+2. レスポンスが `500`、Body が `{ ok:false, error:"Internal Server Error" }`
+3. ヘッダに `x-clerk-auth-reason: dev-browser-missing` / `signed-out` が付く
 
-- `@clerk/nextjs/server` の `auth()` で `userId` を取り、無ければ 401 を返す。
-- DB から result を取ったら `result.userId === userId` を必ず検証する。
-- 失敗時は `Response.json(..., { status })` で返し、throw しない。
-- 例外は最終防衛として catch して 500 を返すが、ログは残す（PII を含めない）。
+## 仮説
 
-### B) UI: fetch URL を same-origin に固定
+H1. API route 内で `auth()` / `currentUser()` の戻りが空（未ログイン）なのに例外を投げて 500 になっている
 
-- `NEXT_PUBLIC_APP_URL` 等を使った絶対 URL をやめる（使うなら server-only で厳密に）。
-- クライアント fetch は相対パスで十分。
-- `credentials` は通常不要（same-origin なら Cookie は送られる）。cross-origin になるなら設計自体を見直す。
+H2. `https` でログインして Cookie が `Secure` になっており、`http` で叩くと Cookie が送られず signed-out になる
 
-### C) UI: ApiOk | ApiErr の型取り回しを統一
+## 期待する挙動（AC）
 
-- `ApiOk | ApiErr` なのに `res.error` を直接読んで型エラーが出ていた。
-- `if (!res.ok) { ...res.error... }` のように `ok` を discriminant にして分岐する。
+1. 未ログインで `GET /api/results/:resultId` → `401`（JSON）
+2. ログイン済みだが他人の resultId → `404` または `403`（方針に従う）
+   - 推奨: 404（存在隠し）
+3. ログイン済み & 自分の resultId → `200`（JSON）
+4. `/results/:resultId` は 401 を検知したら「ログインして結果を見る」導線を表示する
+5. `make verify` が通る
 
-## 変更が入りそうなファイル（候補）
+## 実装方針
 
-- `apps/user/app/api/results/[resultId]/route.ts`（新規 or 修正）
-- `apps/user/app/results/[resultId]/ResultsByIdClient.tsx`（fetch と表示分岐）
-- `apps/user/app/middleware.ts`（Clerk middleware の適用範囲がズレている場合のみ）
-- `packages/types` or `apps/user/src/lib/api`（ApiOk/ApiErr の共通型があるならそこ）
+### 1) API route を「失敗しても落ちない」形にする
 
-## 手動テスト手順
+対象:
+- `apps/user/app/api/results/[resultId]/route.ts`
 
-1. ログアウト状態で:
-   - `curl -i http://localhost:3100/api/results/<id>`
-   - 期待: 401（x-clerk-auth-status: signed-out でも 500 にならない）
-2. ログイン状態でブラウザから結果詳細へ遷移:
-   - 期待: 正常表示
-3. ログイン状態で「別ユーザー resultId」を叩く（可能なら）:
-   - 期待: 403/404
-4. もし `https://...` で動かす環境があるなら同様に確認:
-   - 期待: fetch URL が相対なので問題なし
+やること:
+- `auth()` の戻りが無い（`userId` が falsy）場合は即 `401` を返す
+- 想定外例外は catch して `500` ではなく、ログを残した上で `500` を返す（ログは必須）
+  - ただし「認証不備」を例外にしない（401 で返す）
 
-## リスク / セキュリティ観点
+### 2) UI 側の fetch エラーを分岐
 
-- `resultId` は推測可能な UUID なので、**必ず userId で認可**しないと情報漏えい（IDOR）になる。
-- エラー詳細に DB の生ログやスタックトレースを返さない。
+対象:
+- `apps/user/app/results/[resultId]/ResultsByIdClient.tsx`
+
+やること:
+- `res.status === 401` を専用ハンドリング
+  - 例: 「ログインが必要」表示 + `/auth/sign-in` へのリンク
+- `404` は NotFound 表示（今のまま）
+
+### 3) ローカルの http/https を揃える（運用）
+
+- 既に `apps/user/certificates/localhost.pem` 等があるので、開発サーバを https で起動している可能性が高い。
+- **運用ルールとして**「ローカルは https で開く」を決め、`http://localhost:3100` をブクマから消す。
+- もし http で運用したいなら、Cookie が `Secure` にならない条件に揃える（Clerk/Next の設定見直し）。
+  - ここは環境依存なので、今回の issue では「https を正」とするのが安全。
+
+## 変更対象（想定）
+
+- `apps/user/app/api/results/[resultId]/route.ts`
+- `apps/user/app/results/[resultId]/ResultsByIdClient.tsx`
+- （任意）`docs/runbook/` に「ローカル https で開く」メモを追記
+
+## テスト観点
+
+- ブラウザでログイン済み → `/results/:id` が表示される（ネットワーク 200）
+- ブラウザでログアウト → `/results/:id` でログイン導線（ネットワーク 401）
+- curl で叩く場合は Cookie を付けない限り 401 になる（500 にならない）
+
+## Codex / Claude Code 用の最小プロンプト
+
+- spec: `docs/specs/active/2026-02-14-issue-fix-results-api-auth-401.md`
+- do:
+  1. `apps/user/app/api/results/[resultId]/route.ts` を修正し、未認証時は 401 を返す（例外にしない）
+  2. `ResultsByIdClient.tsx` で 401 を扱い、ログイン導線を出す
+  3. `make verify` を通す
+- dont:
+  - userId を URL パスに追加しない
+  - 既存の IDOR 防止ロジックを弱めない
+  - secrets / 破壊的コマンド / git push しない
+

@@ -1,6 +1,7 @@
 // apps/user/app/api/results/[resultId]/route.ts
 import { auth } from "@clerk/nextjs/server";
 import { DrizzleResultRepository } from "@infra/drizzle/repositories/resultRepository";
+import { DrizzleUserRepository } from "@infra/drizzle/repositories/userRepository";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -26,21 +27,42 @@ function extractOutput(submittedProgram: unknown): unknown {
 	return "output" in submittedProgram ? submittedProgram.output : undefined;
 }
 
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(
 	_req: Request,
-	{ params }: { params: { resultId: string } },
+	ctx: { params: Promise<{ resultId: string }> },
 ) {
 	try {
-		const { userId } = await auth();
-		if (!userId) {
+		const { resultId } = await ctx.params;
+		if (!resultId || !UUID_RE.test(resultId)) {
+			return NextResponse.json(
+				{ ok: false, error: "Invalid resultId" } satisfies ResultError,
+				{ status: 400 },
+			);
+		}
+
+		const { userId: authUserId } = await auth();
+		if (!authUserId) {
 			return NextResponse.json(
 				{ ok: false, error: "Unauthorized" } satisfies ResultError,
 				{ status: 401 },
 			);
 		}
 
+		// Clerk userId → internal users.id に変換（evaluate と同じ方式）
+		const userRepo = new DrizzleUserRepository();
+		const appUser = await userRepo.findByAuthUserId(authUserId);
+		if (!appUser) {
+			return NextResponse.json(
+				{ ok: false, error: "Not found" } satisfies ResultError,
+				{ status: 404 },
+			);
+		}
+
 		const repository = new DrizzleResultRepository();
-		const result = await repository.findById(params.resultId);
+		const result = await repository.findById(resultId);
 		if (!result) {
 			return NextResponse.json(
 				{ ok: false, error: "Not found" } satisfies ResultError,
@@ -48,7 +70,7 @@ export async function GET(
 			);
 		}
 
-		if (result.userId !== userId) {
+		if (result.userId !== appUser.id) {
 			return NextResponse.json(
 				{ ok: false, error: "Not found" } satisfies ResultError,
 				{ status: 404 },

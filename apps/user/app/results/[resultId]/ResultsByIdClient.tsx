@@ -39,6 +39,8 @@ export default function ResultsByIdClient({ resultId }: Props) {
 	const [state, setState] = React.useState<
 		| { status: "loading" }
 		| { status: "error"; message: string }
+		| { status: "unauthorized" }
+		| { status: "notfound" }
 		| { status: "ok"; data: ApiOk }
 	>({ status: "loading" });
 
@@ -58,6 +60,14 @@ export default function ResultsByIdClient({ resultId }: Props) {
 				);
 
 				if (!res.ok) {
+					if (res.status === 401) {
+						setState({ status: "unauthorized" });
+						return;
+					}
+					if (res.status === 403 || res.status === 404) {
+						setState({ status: "notfound" });
+						return;
+					}
 					const text = await res.text().catch(() => "");
 					throw new Error(
 						`API returned ${res.status}. /api/results/${resultId} ${text ? `- ${text}` : ""}`,
@@ -105,6 +115,34 @@ export default function ResultsByIdClient({ resultId }: Props) {
 			{state.status === "loading" ? (
 				<div className="mt-6 rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
 					loading…
+				</div>
+			) : state.status === "unauthorized" ? (
+				<div className="mt-6 space-y-3">
+					<div className="rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
+						ログインが必要です。
+					</div>
+					<div className="flex flex-wrap items-center gap-3 text-sm">
+						<Link
+							className="text-muted-foreground hover:underline"
+							href="/sign-in"
+						>
+							ログインへ
+						</Link>
+					</div>
+				</div>
+			) : state.status === "notfound" ? (
+				<div className="mt-6 space-y-3">
+					<div className="rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
+						結果が見つかりません。
+					</div>
+					<div className="flex flex-wrap items-center gap-3 text-sm">
+						<Link
+							className="text-muted-foreground hover:underline"
+							href="/tasks"
+						>
+							課題一覧へ
+						</Link>
+					</div>
 				</div>
 			) : state.status === "error" ? (
 				<div className="mt-6 space-y-3">

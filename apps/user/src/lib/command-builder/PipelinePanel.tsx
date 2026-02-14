@@ -22,16 +22,12 @@ import {
 } from "@/lib/terminal/runnerIo";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
 
-type UiMode = "beginner" | "normal";
-
 type CommandDraft = {
 	id: string;
 	value: unknown;
 };
 
 type Props = {
-	uiMode?: UiMode;
-
 	commands: CommandDraft[];
 	selectedId: string | null;
 
@@ -98,7 +94,6 @@ export function PipelinePanel(props: Props) {
 	}, []);
 
 	const {
-		uiMode = "normal",
 		commands,
 		selectedId,
 		selectedIndex,
@@ -133,8 +128,7 @@ export function PipelinePanel(props: Props) {
 	const setRunnerInput = useCommandBuilderStore((s) => s.setRunnerInput);
 	const setRunnerOutput = useCommandBuilderStore((s) => s.setRunnerOutput);
 
-	const needsRunnerIo = uiMode !== "beginner";
-	const runnerOk = !needsRunnerIo || isRunnerIoCorrect(runnerIo);
+	const runnerOk = isRunnerIoCorrect(runnerIo);
 
 	const runDisabled = run.disabled || !runnerOk;
 	const runTitle = !runnerOk
@@ -219,7 +213,8 @@ export function PipelinePanel(props: Props) {
 		const left = runnerInputCmd(runnerIo.input);
 		const right = runnerOutputCmd(runnerIo.output);
 		const mids = commands.map((c) => unixHintFor(c.value)).join(" | ");
-		return mids ? `${left} | ${mids} ${right}` : `${left} ${right}`;
+		const mid = mids || "未選択";
+		return `${left} | ${mid} ${right}`;
 	}, [commands, runnerIo]);
 
 	return (
@@ -232,9 +227,13 @@ export function PipelinePanel(props: Props) {
 						入力
 						<select
 							className="rounded border px-2 py-1 text-xs"
-							value={runnerIo.input}
+							value={runnerIo.input ?? "unset"}
 							onChange={(e) =>
-								setRunnerInput(e.target.value as RunnerInputPreset)
+								setRunnerInput(
+									e.target.value === "unset"
+										? null
+										: (e.target.value as RunnerInputPreset),
+								)
 							}
 						>
 							{RUNNER_INPUT_PRESETS.map((p) => (
@@ -249,9 +248,13 @@ export function PipelinePanel(props: Props) {
 						出力
 						<select
 							className="rounded border px-2 py-1 text-xs"
-							value={runnerIo.output}
+							value={runnerIo.output ?? "unset"}
 							onChange={(e) =>
-								setRunnerOutput(e.target.value as RunnerOutputPreset)
+								setRunnerOutput(
+									e.target.value === "unset"
+										? null
+										: (e.target.value as RunnerOutputPreset),
+								)
 							}
 						>
 							{RUNNER_OUTPUT_PRESETS.map((p) => (
@@ -277,8 +280,7 @@ export function PipelinePanel(props: Props) {
 
 			{!runnerOk ? (
 				<div className="mb-2 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
-					入力(cat …) と 出力(…&gt; output.csv)
-					を選ぶと実行できるよ（初心者モードでは省略OK）
+					stdin は入力、stdout は出力。cat と &gt;&gt; を選ぶと実行できるよ
 				</div>
 			) : null}
 

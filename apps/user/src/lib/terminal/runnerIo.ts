@@ -72,23 +72,27 @@ export function isRunnerIoCorrect(io: RunnerIoPreset): boolean {
 	return io.input === "cat_input_csv" && io.output === "append_output_csv";
 }
 
-export function runnerInputCmd(preset: RunnerInputPreset): string {
+export function runnerInputCmd(
+	preset: RunnerInputPreset | null | undefined,
+): string {
 	switch (preset) {
 		case "cat_input_csv":
 			return "cat input.csv";
 		default:
-			return "□";
+			return "入力未設定";
 	}
 }
 
-export function runnerOutputCmd(preset: RunnerOutputPreset): string {
+export function runnerOutputCmd(
+	preset: RunnerOutputPreset | null | undefined,
+): string {
 	switch (preset) {
 		case "redirect_output_csv":
 			return "> output.csv";
 		case "append_output_csv":
 			return ">> output.csv";
 		default:
-			return "□";
+			return "出力未設定";
 	}
 }
 

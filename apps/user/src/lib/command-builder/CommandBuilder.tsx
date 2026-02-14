@@ -9,6 +9,14 @@ import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStor
 import { buildResetKey } from "@/lib/command-builder/serialize";
 import { getString, isRecord } from "@/lib/shared/unknown";
 import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
+import {
+	RUNNER_INPUT_PRESETS,
+	RUNNER_OUTPUT_PRESETS,
+	type RunnerInputPreset,
+	type RunnerOutputPreset,
+	runnerInputCmd,
+	runnerOutputCmd,
+} from "@/lib/terminal/runnerIo";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
@@ -54,6 +62,8 @@ export function CommandBuilder(props: Props) {
 	const openEditor = useCommandBuilderStore((s) => s.openEditor);
 	const move = useCommandBuilderStore((s) => s.move);
 	const runnerIo = useCommandBuilderStore((s) => s.runnerIo);
+	const setRunnerInput = useCommandBuilderStore((s) => s.setRunnerInput);
+	const setRunnerOutput = useCommandBuilderStore((s) => s.setRunnerOutput);
 
 	React.useEffect(() => {
 		if (!task.id) return;
@@ -69,9 +79,12 @@ export function CommandBuilder(props: Props) {
 
 	// 表示用: パイプライン1行（Domainの真実ではなくUIの見せ方）
 	const pipelineText = React.useMemo(() => {
-		const tokens = commands.map((c) => toCommandToken(c));
-		return ["input.csv", ...tokens, "output.csv"].join(" | ");
-	}, [commands]);
+		const left = runnerInputCmd(runnerIo.input);
+		const right = runnerOutputCmd(runnerIo.output);
+		const tokens = commands.map((c) => toCommandToken(c)).join(" | ");
+		const mid = tokens || "未選択";
+		return `${left} | ${mid} ${right}`;
+	}, [commands, runnerIo]);
 
 	const resetKey = React.useMemo(
 		() => buildResetKey(commands, runnerIo),
@@ -133,6 +146,52 @@ export function CommandBuilder(props: Props) {
 			<section className="rounded border p-4">
 				<div className="mb-2 text-xs font-semibold opacity-70">
 					コマンドライン
+				</div>
+
+				<div className="mb-3 flex flex-wrap items-center gap-3 text-xs">
+					<div className="text-xs font-semibold opacity-70">Runner</div>
+
+					<label className="flex items-center gap-2 text-xs">
+						入力
+						<select
+							className="rounded border px-2 py-1 text-xs"
+							value={runnerIo.input ?? "unset"}
+							onChange={(e) =>
+								setRunnerInput(
+									e.target.value === "unset"
+										? null
+										: (e.target.value as RunnerInputPreset),
+								)
+							}
+						>
+							{RUNNER_INPUT_PRESETS.map((p) => (
+								<option key={p} value={p}>
+									{runnerInputCmd(p)}
+								</option>
+							))}
+						</select>
+					</label>
+
+					<label className="flex items-center gap-2 text-xs">
+						出力
+						<select
+							className="rounded border px-2 py-1 text-xs"
+							value={runnerIo.output ?? "unset"}
+							onChange={(e) =>
+								setRunnerOutput(
+									e.target.value === "unset"
+										? null
+										: (e.target.value as RunnerOutputPreset),
+								)
+							}
+						>
+							{RUNNER_OUTPUT_PRESETS.map((p) => (
+								<option key={p} value={p}>
+									{runnerOutputCmd(p)}
+								</option>
+							))}
+						</select>
+					</label>
 				</div>
 
 				<div className="rounded border px-3 py-2 font-mono text-sm overflow-x-auto whitespace-nowrap">

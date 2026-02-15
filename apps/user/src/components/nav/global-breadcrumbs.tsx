@@ -20,23 +20,59 @@ function isHidden(pathname: string, prefixes: string[]): boolean {
 	return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+const ROUTE_META: Record<string, { beginner: string; advanced: string }> = {
+	"/": { beginner: "トップ", advanced: "Home" },
+	"/tasks": { beginner: "課題一覧", advanced: "Tasks" },
+	"/tasks/[id]": { beginner: "課題", advanced: "task" },
+	"/results/running": { beginner: "実行中", advanced: "running" },
+	"/results/[id]": { beginner: "結果", advanced: "result" },
+	"/account": { beginner: "アカウント", advanced: "account" },
+	"/credits": { beginner: "クレジット", advanced: "credits" },
+};
+
+function getRouteLabel(path: string, mode: UiMode): string | null {
+	const entry = ROUTE_META[path];
+	if (!entry) return null;
+	return mode === "beginner" ? entry.beginner : entry.advanced;
+}
+
 function mapSegmentLabelByMode(
 	mode: UiMode,
 	segment: string,
 	i: number,
 	segments: string[],
 ): string {
-	if (mode === "beginner") {
-		if (i === 0 && segment === "tasks") return "課題";
-		if (i === 0 && segment === "results") return "結果";
-		if (i === 0 && segment === "account") return "アカウント";
+	const fullPath = `/${segments.slice(0, i + 1).join("/")}`;
+	const exact = getRouteLabel(fullPath, mode);
+	if (exact) return exact;
+
+	if (i > 0) {
+		const parentPath = `/${segments.slice(0, i).join("/")}`;
+		const dynamic = getRouteLabel(`${parentPath}/[id]`, mode);
+		if (dynamic) return dynamic;
 	}
-	if (i === 0 && segment === "tasks") return "tasks";
-	if (i === 0 && segment === "results") return "results";
-	if (i === 0 && segment === "account") return "account";
-	if (segments[i - 1] === "tasks" && segment.length > 6) return "task";
-	if (segments[i - 1] === "results" && segment.length > 6) return "result";
+
 	return segment;
+}
+
+function buildCrumbs(
+	segments: string[],
+	mode: UiMode,
+): Array<{ href: string; label: string }> {
+	let acc = "";
+	const base = segments.map((seg, i) => {
+		acc += `/${segments[i]}`;
+		const label = mapSegmentLabelByMode(mode, seg, i, segments);
+		return { href: acc, label };
+	});
+
+	if (segments[0] === "results") {
+		const tasksLabel = getRouteLabel("/tasks", mode) ?? "Tasks";
+		const filtered = base.filter((crumb) => crumb.href !== "/results");
+		return [{ href: "/tasks", label: tasksLabel }, ...filtered];
+	}
+
+	return base;
 }
 
 export function GlobalBreadcrumbs({
@@ -54,12 +90,7 @@ export function GlobalBreadcrumbs({
 	if (!pathname || pathname === "/") return null;
 	if (isHidden(pathname, hiddenPathPrefixes)) return null;
 
-	let acc = "";
-	const crumbs = segments.map((seg, i) => {
-		acc += `/${segments[i]}`;
-		const label = mapSegmentLabelByMode(mode, seg, i, segments);
-		return { href: acc, label };
-	});
+	const crumbs = buildCrumbs(segments, mode);
 
 	return (
 		<nav className={`px-3 sm:px-4 ${className ?? ""}`} aria-label="breadcrumbs">
@@ -69,7 +100,7 @@ export function GlobalBreadcrumbs({
 						className="inline-flex items-center rounded px-2 py-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 						href="/"
 					>
-						home
+						{getRouteLabel("/", mode) ?? "Home"}
 					</Link>
 				</li>
 				{crumbs.map((c) => (

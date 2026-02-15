@@ -6,9 +6,9 @@ import {
 	type TaskDto,
 	updateTaskInputSchema,
 } from "@/lib/contracts/taskContract";
-import { DrizzleTaskRepository } from "../../../../../../../infra/drizzle/repositories/taskRepository";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function getRequiredEnv(name: string): string {
 	const v = process.env[name];
@@ -63,6 +63,13 @@ function toTaskDto(task: {
 	};
 }
 
+async function getRepository() {
+	const { DrizzleTaskRepository } = await import(
+		"../../../../../../../infra/drizzle/repositories/taskRepository"
+	);
+	return new DrizzleTaskRepository();
+}
+
 type Params = { params: { taskId: string } };
 
 export async function GET(req: Request, { params }: Params) {
@@ -70,7 +77,7 @@ export async function GET(req: Request, { params }: Params) {
 		const unauth = requireAdminToken(req);
 		if (unauth) return unauth;
 
-		const repository = new DrizzleTaskRepository();
+		const repository = await getRepository();
 		const task = await repository.findById(params.taskId);
 		if (!task) {
 			return NextResponse.json(apiError("not_found", "Task not found."), {
@@ -116,7 +123,7 @@ export async function PATCH(req: Request, { params }: Params) {
 			next.testCases = testResult.value;
 		}
 
-		const repository = new DrizzleTaskRepository();
+		const repository = await getRepository();
 		const updated = await repository.update(params.taskId, next);
 		if (!updated) {
 			return NextResponse.json(apiError("not_found", "Task not found."), {
@@ -137,7 +144,7 @@ export async function DELETE(req: Request, { params }: Params) {
 		const unauth = requireAdminToken(req);
 		if (unauth) return unauth;
 
-		const repository = new DrizzleTaskRepository();
+		const repository = await getRepository();
 		const ok = await repository.delete(params.taskId);
 		if (!ok) {
 			return NextResponse.json(apiError("not_found", "Task not found."), {

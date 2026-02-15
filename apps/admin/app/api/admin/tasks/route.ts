@@ -6,9 +6,9 @@ import {
 	createTaskInputSchema,
 	type TaskDto,
 } from "@/lib/contracts/taskContract";
-import { DrizzleTaskRepository } from "../../../../../../infra/drizzle/repositories/taskRepository";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function getRequiredEnv(name: string): string {
 	const v = process.env[name];
@@ -63,12 +63,19 @@ function toTaskDto(task: {
 	};
 }
 
+async function getRepository() {
+	const { DrizzleTaskRepository } = await import(
+		"../../../../../../infra/drizzle/repositories/taskRepository"
+	);
+	return new DrizzleTaskRepository();
+}
+
 export async function GET(req: Request) {
 	try {
 		const unauth = requireAdminToken(req);
 		if (unauth) return unauth;
 
-		const repository = new DrizzleTaskRepository();
+		const repository = await getRepository();
 		const tasks = await repository.findAll();
 		return NextResponse.json(apiOk(tasks.map(toTaskDto)));
 	} catch (error) {
@@ -103,7 +110,7 @@ export async function POST(req: Request) {
 			return NextResponse.json(testResult.error, { status: 400 });
 		}
 
-		const repository = new DrizzleTaskRepository();
+		const repository = await getRepository();
 		const task = await repository.create({
 			title: parsed.data.title,
 			description: parsed.data.description,

@@ -28,6 +28,7 @@ type State = {
 	// 選択（ハイライト）と編集（シート）
 	selectedId: string | null;
 	editingId: string | null;
+	editingDraft: { id: string; value: unknown } | null;
 
 	// Runner I/O（cat input.csv / >> output.csv 等）
 	runnerIo: RunnerIoPreset;
@@ -37,6 +38,8 @@ type State = {
 	select: (id: string | null) => void;
 	openEditor: (id: string) => void;
 	closeEditor: () => void;
+	setEditingDraft: (id: string, value: unknown) => void;
+	clearEditingDraft: () => void;
 
 	add: (type: CommandType | string) => void;
 	remove: (id: string) => void;
@@ -58,6 +61,7 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
 	commands: [],
 	selectedId: null,
 	editingId: null,
+	editingDraft: null,
 
 	runnerIo: DEFAULT_RUNNER_IO,
 
@@ -66,13 +70,23 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
 			commands: [],
 			selectedId: null,
 			editingId: null,
+			editingDraft: null,
 		});
 	},
 
 	select: (id) => set({ selectedId: id }),
 
-	openEditor: (id) => set({ editingId: id }),
-	closeEditor: () => set({ editingId: null }),
+	openEditor: (id) =>
+		set((s) => {
+			const target = s.commands.find((c) => c.id === id) ?? null;
+			return {
+				editingId: id,
+				editingDraft: target ? { id, value: target.value } : null,
+			};
+		}),
+	closeEditor: () => set({ editingId: null, editingDraft: null }),
+	setEditingDraft: (id, value) => set({ editingDraft: { id, value } }),
+	clearEditingDraft: () => set({ editingDraft: null }),
 
 	add: (type) => {
 		// UI 側で string になっても落とさない（安全にガード）
@@ -125,6 +139,7 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
 				commands: nextCommands,
 				selectedId: nextSelectedId,
 				editingId: nextEditingId,
+				editingDraft: nextEditingId ? s.editingDraft : null,
 			};
 		});
 	},

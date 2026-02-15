@@ -8,7 +8,7 @@ import { isRecord } from "@/lib/shared/unknown";
 import type { RunnerIoPreset } from "@/lib/terminal/runnerIo";
 import { safeJsonCompact } from "@/lib/utils/safeStringify";
 
-type AnyCommand = { value: unknown };
+type AnyCommand = { id: string; value: unknown };
 
 /**
  * コマンド列 + Runner I/O の内容が変わったかを判定するためのキー。
@@ -40,10 +40,14 @@ function formatParamValue(value: unknown): string {
 	return String(value);
 }
 
-export function serializeCommandsForDisplay(commands: AnyCommand[]): string[] {
+export function serializeCommandsForDisplay(
+	commands: AnyCommand[],
+	draft?: { id: string; value: unknown } | null,
+): string[] {
 	return commands.map((cmd) => {
-		const record = isRecord(cmd.value) ? cmd.value : null;
-		const type = cmdTypeOf(cmd.value);
+		const value = draft?.id === cmd.id ? draft.value : cmd.value;
+		const record = isRecord(value) ? value : null;
+		const type = cmdTypeOf(value);
 		if (!type) return "UNKNOWN";
 
 		const item = getCatalogItem(type);

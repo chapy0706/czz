@@ -3,7 +3,10 @@
 
 import * as React from "react";
 
-import type { CommandDraft } from "@/lib/command-builder/commandBuilderStore";
+import {
+	type CommandDraft,
+	useCommandBuilderStore,
+} from "@/lib/command-builder/commandBuilderStore";
 import {
 	type CommandType,
 	getCatalogItem,
@@ -44,6 +47,8 @@ function stripHiddenKeys(
 export function CommandEditorSheet(props: Props) {
 	const { selected, onClose, onSave, onRemove } = props;
 	const isBeginner = useUiModeStore((s) => s.mode === "beginner");
+	const setEditingDraft = useCommandBuilderStore((s) => s.setEditingDraft);
+	const clearEditingDraft = useCommandBuilderStore((s) => s.clearEditingDraft);
 
 	const [mode, setMode] = React.useState<Mode>("basic");
 	const [advancedJson, setAdvancedJson] = React.useState<string>("");
@@ -145,6 +150,7 @@ export function CommandEditorSheet(props: Props) {
 			next[p.key] = parsedFixed.data;
 		}
 
+		clearEditingDraft();
 		onSave(next);
 		onClose();
 	}
@@ -169,6 +175,7 @@ export function CommandEditorSheet(props: Props) {
 				}
 				next[p.key] = parsedFixed.data;
 			}
+			clearEditingDraft();
 			onSave(next);
 			onClose();
 		} catch (e: unknown) {
@@ -197,7 +204,10 @@ export function CommandEditorSheet(props: Props) {
 
 					<button
 						type="button"
-						onClick={onClose}
+						onClick={() => {
+							clearEditingDraft();
+							onClose();
+						}}
 						className="rounded-lg border px-3 py-2 text-sm hover:bg-muted"
 					>
 						{isBeginner ? "閉じる" : "Close"}
@@ -290,10 +300,20 @@ export function CommandEditorSheet(props: Props) {
 										<input
 											value={String(v)}
 											onChange={(e) =>
-												setBasicValues((prev) => ({
-													...prev,
-													[p.key]: e.target.value,
-												}))
+												setBasicValues((prev) => {
+													const next = {
+														...prev,
+														[p.key]: e.target.value,
+													};
+													const base = asObject(selected.value);
+													const draftValue = {
+														...base,
+														type: typeRaw,
+														...next,
+													};
+													setEditingDraft(selected.id, draftValue);
+													return next;
+												})
 											}
 											className="w-full rounded-xl border px-3 py-2 text-sm"
 											placeholder={placeholder}
@@ -321,7 +341,10 @@ export function CommandEditorSheet(props: Props) {
 								</button>
 								<button
 									type="button"
-									onClick={onClose}
+									onClick={() => {
+										clearEditingDraft();
+										onClose();
+									}}
 									className="rounded-lg border px-4 py-2 text-sm hover:bg-muted"
 								>
 									{isBeginner ? "もどる" : "Cancel"}

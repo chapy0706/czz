@@ -66,6 +66,7 @@ export function PseudoTerminalRunner({
 	const [errorDetails, setErrorDetails] = React.useState<string | null>(null);
 	const mode = useUiModeStore((s) => s.mode);
 	const _commands = useCommandBuilderStore((s) => s.commands);
+	const editingDraft = useCommandBuilderStore((s) => s.editingDraft);
 
 	const inputNumbers =
 		presetKey === "random" ? randomInput : PRESET_VALUES[presetKey];
@@ -213,6 +214,11 @@ export function PseudoTerminalRunner({
 		mode,
 	]);
 
+	const displayCommandLines = React.useMemo(
+		() => serializeCommandsForDisplay(_commands, editingDraft),
+		[_commands, editingDraft],
+	);
+
 	if (!resolvedTaskId) {
 		return (
 			<div className="rounded-2xl border bg-card p-4 text-sm">
@@ -337,9 +343,9 @@ export function PseudoTerminalRunner({
 						<div>
 							<div className="text-xs text-muted-foreground">コマンド列</div>
 							<div className="mt-1 rounded-md border bg-background px-2 py-2 text-xs">
-								{result.commandLines.length > 0 ? (
+								{displayCommandLines.length > 0 ? (
 									<div className="whitespace-pre-wrap">
-										{result.commandLines.join("\n")}
+										{displayCommandLines.join("\n")}
 									</div>
 								) : (
 									"—"

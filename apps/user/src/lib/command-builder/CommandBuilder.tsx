@@ -178,6 +178,7 @@ export function CommandBuilder(props: Props) {
 		index: number;
 	} | null>(null);
 	const undoTimerRef = React.useRef<number | null>(null);
+	const [isPlaygroundOpen, setIsPlaygroundOpen] = React.useState(false);
 
 	React.useEffect(() => {
 		if (!task.id) return;
@@ -406,12 +407,28 @@ export function CommandBuilder(props: Props) {
 				) : null}
 			</section>
 
-			<PseudoTerminalRunner
-				taskId={task.id}
-				getSubmittedProgram={() =>
-					useCommandBuilderStore.getState().serializeProgram()
-				}
-			/>
+			<div className="mt-4 rounded border">
+				<button
+					type="button"
+					className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold"
+					onClick={() => setIsPlaygroundOpen((v) => !v)}
+					aria-expanded={isPlaygroundOpen}
+				>
+					<span>プレイグラウンド</span>
+					<span aria-hidden="true">{isPlaygroundOpen ? "▼" : "▶"}</span>
+				</button>
+
+				{isPlaygroundOpen ? (
+					<div className="border-t px-3 py-3">
+						<PseudoTerminalRunner
+							taskId={task.id}
+							getSubmittedProgram={() =>
+								useCommandBuilderStore.getState().serializeProgram()
+							}
+						/>
+					</div>
+				) : null}
+			</div>
 
 			{editingCommand ? (
 				<CommandEditorSheet

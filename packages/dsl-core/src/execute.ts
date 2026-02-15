@@ -26,6 +26,12 @@ function applyCommand(command: DslCommand, input: DslInput): DslOutput {
 		case "FILTER_GT":
 			return input.filter((v) => v > command.value);
 
+		case "FILTER_LT":
+			return input.filter((v) => v < command.value);
+
+		case "FILTER_BETWEEN":
+			return input.filter((v) => v >= command.min && v <= command.max);
+
 		case "MAP_ADD":
 			return input.map((v) => v + command.value);
 

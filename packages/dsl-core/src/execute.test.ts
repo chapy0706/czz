@@ -16,6 +16,54 @@ describe("execute - 基本命令", () => {
 		expect(result).toEqual([2, 2]);
 	});
 
+	it("FILTER_EQUALS は文字列数値を許容する", () => {
+		const programJson = {
+			commands: [{ type: "FILTER_EQUALS", value: "2" }],
+		} as const;
+
+		const program = dslProgramSchema.parse(programJson);
+
+		const result = execute(program, [1, 2, 2, 3]);
+
+		expect(result).toEqual([2, 2]);
+	});
+
+	it("FILTER_BETWEEN は from==to でも一致を残す", () => {
+		const programJson = {
+			commands: [{ type: "FILTER_BETWEEN", min: 2, max: 2 }],
+		};
+
+		const program = dslProgramSchema.parse(programJson);
+
+		const result = execute(program, [1, 2, 2, 3]);
+
+		expect(result).toEqual([2, 2]);
+	});
+
+	it("FILTER_BETWEEN は範囲内を残す", () => {
+		const programJson = {
+			commands: [{ type: "FILTER_BETWEEN", min: 2, max: 4 }],
+		};
+
+		const program = dslProgramSchema.parse(programJson);
+
+		const result = execute(program, [1, 2, 3, 4, 5]);
+
+		expect(result).toEqual([2, 3, 4]);
+	});
+
+	it("FILTER_LT は指定値未満を残す", () => {
+		const programJson = {
+			commands: [{ type: "FILTER_LT", value: 3 }],
+		};
+
+		const program = dslProgramSchema.parse(programJson);
+
+		const result = execute(program, [1, 2, 3, 4, 5]);
+
+		expect(result).toEqual([1, 2]);
+	});
+
 	it("MAP_ADD で値を加算する", () => {
 		const programJson = {
 			commands: [{ type: "MAP_ADD", value: 10 }],

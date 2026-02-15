@@ -3,17 +3,28 @@ import { z } from "zod";
 
 export const filterEqualsCommandSchema = z.object({
 	type: z.literal("FILTER_EQUALS"),
-	value: z.number(),
+	value: z.coerce.number(),
 });
 
 export const filterNotEqualsCommandSchema = z.object({
 	type: z.literal("FILTER_NOT_EQUALS"),
-	value: z.number(),
+	value: z.coerce.number(),
 });
 
 export const filterGtCommandSchema = z.object({
 	type: z.literal("FILTER_GT"),
-	value: z.number(),
+	value: z.coerce.number(),
+});
+
+export const filterLtCommandSchema = z.object({
+	type: z.literal("FILTER_LT"),
+	value: z.coerce.number(),
+});
+
+export const filterBetweenCommandSchema = z.object({
+	type: z.literal("FILTER_BETWEEN"),
+	min: z.coerce.number(),
+	max: z.coerce.number(),
 });
 
 export const mapAddCommandSchema = z.object({
@@ -50,6 +61,8 @@ export const dslCommandSchema = z.discriminatedUnion("type", [
 	filterEqualsCommandSchema,
 	filterNotEqualsCommandSchema,
 	filterGtCommandSchema,
+	filterLtCommandSchema,
+	filterBetweenCommandSchema,
 	mapAddCommandSchema,
 	mapMultiplyCommandSchema,
 	sortAscCommandSchema,

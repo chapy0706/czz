@@ -2,7 +2,6 @@
 "use client";
 
 import * as React from "react";
-import { debugRegistry } from "@/components/debug/debugRegistry";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import { serializeCommandsForDisplay } from "@/lib/command-builder/serialize";
 import { runPlayground } from "@/lib/terminal/playgroundClient";
@@ -53,11 +52,6 @@ export function PseudoTerminalRunner({
 	getSubmittedProgram,
 }: Props) {
 	// Debug: rendered marker（Hook は必ずコンポーネント内）
-	React.useEffect(() => {
-		debugRegistry.markRendered("PseudoTerminalRunner");
-		return () => debugRegistry.unmarkRendered("PseudoTerminalRunner");
-	}, []);
-
 	const resolvedTaskId = taskId ?? task?.id;
 
 	const [running, setRunning] = React.useState(false);

@@ -9,7 +9,6 @@ import { AuthUserBadge } from "@/components/auth/auth-user-badge";
 import { BeginnerBgmController } from "@/components/beginner/beginner-bgm-controller";
 import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
 import { GlobalBreadcrumbs } from "@/components/nav/global-breadcrumbs";
-import { DebugPanelGate } from "@/components/providers/DebugPanelGate";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 
@@ -34,8 +33,6 @@ export default function RootLayout({
 			{FEATURES.breadcrumbs ? <GlobalBreadcrumbs /> : null}
 
 			{children}
-
-			<DebugPanelGate />
 
 			{FEATURES.authUserBadge ? <AuthUserBadge /> : null}
 

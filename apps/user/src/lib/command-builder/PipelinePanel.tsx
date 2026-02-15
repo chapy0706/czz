@@ -3,7 +3,6 @@
 
 import { useParams } from "next/navigation";
 import * as React from "react";
-import { debugRegistry } from "@/components/debug/debugRegistry";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import {
 	type CommandType,
@@ -88,11 +87,6 @@ type DragState = {
 };
 
 export function PipelinePanel(props: Props) {
-	React.useEffect(() => {
-		debugRegistry.markRendered("PipelinePanel");
-		return () => debugRegistry.unmarkRendered("PipelinePanel");
-	}, []);
-
 	const {
 		commands,
 		selectedId,

@@ -4,14 +4,31 @@
 import { RotateCcw } from "lucide-react";
 import Image from "next/image";
 import * as React from "react";
+import { useMascotVariantStore } from "@/components/beginner/mascotVariantStore";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
-const DEFAULT_SRC = "/assets/characters/studying.gif";
 const DEFAULT_ALT = "初心者モードの案内キャラクター";
 const STORAGE_KEY = "czz:beginner-dock-pos";
 const DRAG_THRESHOLD_PX = 6;
 const DEFAULT_MARGIN = 12;
 const DEFAULT_SIZE = { w: 240, h: 72 };
+const VARIANT_TABLE = {
+	studying: {
+		src: "/assets/characters/studying.gif",
+		message: "いっしょにやろう",
+		sub: "まずは日本語の指示だけで組み立てよう。",
+	},
+	success: {
+		src: "/assets/characters/indicating.gif",
+		message: "おめでとう！",
+		sub: null,
+	},
+	encourage: {
+		src: "/assets/characters/cheering.gif",
+		message: "もう一回見直してみよう",
+		sub: null,
+	},
+} as const;
 
 type DragState = {
 	dragging: boolean;
@@ -37,6 +54,8 @@ function clamp(n: number, min: number, max: number) {
 export function BeginnerMascotDock() {
 	const mode = useUiModeStore((s) => s.mode);
 	const isBeginner = mode === "beginner";
+	const variant = useMascotVariantStore((s) => s.variant);
+	const variantData = VARIANT_TABLE[variant];
 
 	const containerRef = React.useRef<HTMLDivElement | null>(null);
 	const dragRef = React.useRef<DragState>({
@@ -226,7 +245,7 @@ export function BeginnerMascotDock() {
 							`${desktopQuery}:w-14`,
 						].join(" ")}
 					>
-						<Image src={DEFAULT_SRC} alt={DEFAULT_ALT} fill sizes="56px" />
+						<Image src={variantData.src} alt={DEFAULT_ALT} fill sizes="56px" />
 					</div>
 
 					<div className="min-w-0">
@@ -237,19 +256,21 @@ export function BeginnerMascotDock() {
 								`${desktopQuery}:text-sm`,
 							].join(" ")}
 						>
-							いっしょにやろう
+							{variantData.message}
 						</div>
 
-						<div
-							className={[
-								"mt-0.5 text-muted-foreground",
-								"hidden",
-								`${desktopQuery}:block`,
-								"text-xs",
-							].join(" ")}
-						>
-							まずは日本語の指示だけで組み立てよう。
-						</div>
+						{variantData.sub ? (
+							<div
+								className={[
+									"mt-0.5 text-muted-foreground",
+									"hidden",
+									`${desktopQuery}:block`,
+									"text-xs",
+								].join(" ")}
+							>
+								{variantData.sub}
+							</div>
+						) : null}
 					</div>
 
 					<button

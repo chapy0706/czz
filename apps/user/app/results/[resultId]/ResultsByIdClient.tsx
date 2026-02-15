@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import * as React from "react";
+import { useMascotVariantStore } from "@/components/beginner/mascotVariantStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
@@ -52,6 +53,8 @@ function normalizeApiResponse(json: unknown): ApiOk | ApiErr {
 export default function ResultsByIdClient({ resultId }: Props) {
 	const mode = useUiModeStore((s) => s.mode);
 	const isBeginner = mode === "beginner";
+	const setVariant = useMascotVariantStore((s) => s.setVariant);
+	const resetVariant = useMascotVariantStore((s) => s.resetVariant);
 	const [state, setState] = React.useState<
 		| { status: "loading" }
 		| { status: "error"; message: string }
@@ -59,6 +62,7 @@ export default function ResultsByIdClient({ resultId }: Props) {
 		| { status: "notfound" }
 		| { status: "ok"; data: ApiOk }
 	>({ status: "loading" });
+	const loadedData = state.status === "ok" ? state.data : null;
 
 	React.useEffect(() => {
 		let cancelled = false;
@@ -115,6 +119,15 @@ export default function ResultsByIdClient({ resultId }: Props) {
 			cancelled = true;
 		};
 	}, [resultId]);
+
+	React.useEffect(() => {
+		if (!loadedData) return;
+		const isSuccess = loadedData.passed === loadedData.total;
+		setVariant(isSuccess ? "success" : "encourage");
+		return () => {
+			resetVariant();
+		};
+	}, [loadedData, resetVariant, setVariant]);
 
 	return (
 		<main

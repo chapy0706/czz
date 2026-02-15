@@ -72,6 +72,10 @@ function normalizeRunnerIo(
 	return { input: null, output: null } satisfies RunnerIo;
 }
 
+function isRunnerIoUnset(io: RunnerIo): boolean {
+	return !io.input && !io.output;
+}
+
 export function useRunToResultButton({
 	taskId,
 	resetKey: _resetKey,
@@ -86,6 +90,7 @@ export function useRunToResultButton({
 	const [error, setError] = useState<string | null>(null);
 
 	const mode = useUiModeStore((s) => s.mode);
+	const isBeginner = mode === "beginner";
 
 	const to = useMemo(() => {
 		const nav = navigateTo ?? "/result";
@@ -110,7 +115,13 @@ export function useRunToResultButton({
 			const submittedProgram = getSubmittedProgram
 				? await getSubmittedProgram()
 				: undefined;
-			const runnerIo = normalizeRunnerIo(getRunnerIo?.());
+			let runnerIo = normalizeRunnerIo(getRunnerIo?.());
+			if (isBeginner && isRunnerIoUnset(runnerIo)) {
+				runnerIo = toRunnerIo({
+					input: "cat_input_csv",
+					output: "append_output_csv",
+				});
+			}
 
 			const evaluated = await evaluateTask({
 				taskId,
@@ -150,6 +161,7 @@ export function useRunToResultButton({
 		taskId,
 		to,
 		userId,
+		isBeginner,
 	]);
 
 	return {

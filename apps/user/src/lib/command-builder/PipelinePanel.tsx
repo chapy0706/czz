@@ -150,7 +150,8 @@ export function PipelinePanel(props: Props) {
 	const setRunnerOutput = useCommandBuilderStore((s) => s.setRunnerOutput);
 	const mode = useUiModeStore((s) => s.mode);
 
-	const runnerOk = isRunnerIoCorrect(runnerIo);
+	const isBeginner = mode === "beginner";
+	const runnerOk = isBeginner || isRunnerIoCorrect(runnerIo);
 
 	const runDisabled = run.disabled || !runnerOk;
 	const runTitle = !runnerOk
@@ -232,12 +233,13 @@ export function PipelinePanel(props: Props) {
 	}, [commands, selectedIndex, revealIndex]);
 
 	const pipelineText = React.useMemo(() => {
-		const left = runnerInputCmd(runnerIo.input);
-		const right = runnerOutputCmd(runnerIo.output);
 		const mids = commands.map((c) => unixHintFor(c.value)).join(" | ");
 		const mid = mids || "未選択";
+		if (isBeginner) return mid;
+		const left = runnerInputCmd(runnerIo.input);
+		const right = runnerOutputCmd(runnerIo.output);
 		return `${left} | ${mid} ${right}`;
-	}, [commands, runnerIo]);
+	}, [commands, isBeginner, runnerIo]);
 
 	return (
 		<div className="rounded border p-3">
@@ -300,7 +302,7 @@ export function PipelinePanel(props: Props) {
 				</button>
 			</div>
 
-			{!runnerOk ? (
+			{!isBeginner && !runnerOk ? (
 				<div className="mb-2 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
 					stdin は入力、stdout は出力。cat と &gt;&gt; を選ぶと実行できるよ
 				</div>

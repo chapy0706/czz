@@ -154,12 +154,13 @@ export function CommandBuilder(props: Props) {
 
 	// 表示用: パイプライン1行（Domainの真実ではなくUIの見せ方）
 	const pipelineText = React.useMemo(() => {
-		const left = runnerInputDisplay(runnerIo.input, mode);
-		const right = runnerOutputDisplay(runnerIo.output, mode);
 		const tokens = commands.map((c) => toCommandToken(c, mode)).join(" | ");
 		const mid = tokens || "未選択";
+		if (isBeginner) return mid;
+		const left = runnerInputDisplay(runnerIo.input, mode);
+		const right = runnerOutputDisplay(runnerIo.output, mode);
 		return `${left} | ${mid} ${right}`;
-	}, [commands, mode, runnerIo]);
+	}, [commands, isBeginner, mode, runnerIo]);
 
 	const editingCommand = React.useMemo(() => {
 		if (!editingId) return null;
@@ -199,7 +200,8 @@ export function CommandBuilder(props: Props) {
 
 		// storeの「確実に存在する」APIだけで初期化する
 		initForTask(task.id);
-	}, [initForTask, run.running, task.id]);
+		select(null);
+	}, [initForTask, run.running, select, task.id]);
 
 	return (
 		<div className="space-y-4">
@@ -228,51 +230,53 @@ export function CommandBuilder(props: Props) {
 					コマンドライン
 				</div>
 
-				<div className="mb-3 flex flex-wrap items-center gap-3 text-xs">
-					<div className="text-xs font-semibold opacity-70">Runner</div>
+				{!isBeginner ? (
+					<div className="mb-3 flex flex-wrap items-center gap-3 text-xs">
+						<div className="text-xs font-semibold opacity-70">Runner</div>
 
-					<label className="flex items-center gap-2 text-xs">
-						入力
-						<select
-							className="rounded border px-2 py-1 text-xs"
-							value={runnerIo.input ?? "unset"}
-							onChange={(e) =>
-								setRunnerInput(
-									e.target.value === "unset"
-										? null
-										: (e.target.value as RunnerInputPreset),
-								)
-							}
-						>
-							{RUNNER_INPUT_PRESETS.map((p) => (
-								<option key={p} value={p}>
-									{runnerInputOptionLabel(p, mode)}
-								</option>
-							))}
-						</select>
-					</label>
+						<label className="flex items-center gap-2 text-xs">
+							入力
+							<select
+								className="rounded border px-2 py-1 text-xs"
+								value={runnerIo.input ?? "unset"}
+								onChange={(e) =>
+									setRunnerInput(
+										e.target.value === "unset"
+											? null
+											: (e.target.value as RunnerInputPreset),
+									)
+								}
+							>
+								{RUNNER_INPUT_PRESETS.map((p) => (
+									<option key={p} value={p}>
+										{runnerInputOptionLabel(p, mode)}
+									</option>
+								))}
+							</select>
+						</label>
 
-					<label className="flex items-center gap-2 text-xs">
-						出力
-						<select
-							className="rounded border px-2 py-1 text-xs"
-							value={runnerIo.output ?? "unset"}
-							onChange={(e) =>
-								setRunnerOutput(
-									e.target.value === "unset"
-										? null
-										: (e.target.value as RunnerOutputPreset),
-								)
-							}
-						>
-							{RUNNER_OUTPUT_PRESETS.map((p) => (
-								<option key={p} value={p}>
-									{runnerOutputOptionLabel(p, mode)}
-								</option>
-							))}
-						</select>
-					</label>
-				</div>
+						<label className="flex items-center gap-2 text-xs">
+							出力
+							<select
+								className="rounded border px-2 py-1 text-xs"
+								value={runnerIo.output ?? "unset"}
+								onChange={(e) =>
+									setRunnerOutput(
+										e.target.value === "unset"
+											? null
+											: (e.target.value as RunnerOutputPreset),
+									)
+								}
+							>
+								{RUNNER_OUTPUT_PRESETS.map((p) => (
+									<option key={p} value={p}>
+										{runnerOutputOptionLabel(p, mode)}
+									</option>
+								))}
+							</select>
+						</label>
+					</div>
+				) : null}
 
 				<div className="rounded border px-3 py-2 font-mono text-sm overflow-x-auto whitespace-nowrap">
 					{pipelineText}

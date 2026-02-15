@@ -51,22 +51,54 @@ function resolveCommandType(command: unknown): CommandType | null {
 	return isCommandType(t) ? t : null;
 }
 
-function toCommandToken(
-	command: unknown,
-	mode: "beginner" | "advanced",
-): string {
-	const c = isRecord(command) ? command : null;
-	const v = isRecord(c?.value) ? c?.value : null;
-	const t1 = getString(v, "type");
-	const t2 = getString(c, "type");
-	const t = t1 ?? t2 ?? "CMD";
-	const type = resolveCommandType(command);
-	if (!type) return String(t);
+function substitute(template: string, value: unknown) {
+	if (!isRecord(value)) return template;
+	return template.replace(/\{\{(\w+)\}\}/g, (_m, key) => {
+		const v = value[key];
+		if (v === undefined || v === null) return "";
+		if (Array.isArray(v)) return v.join(", ");
+		return String(v);
+	});
+}
+
+function unixHintFor(value: unknown): string {
+	const type = resolveCommandType({ value });
+	if (!type) return "<?>";
 	const item = getCatalogItem(type);
-	if (!item) return String(t);
-	return mode === "beginner"
-		? (item.ui.beginnerLabel ?? item.label ?? String(t))
-		: (item.label ?? String(t));
+	if (!item?.unixHint) return item?.label ?? type;
+	return substitute(item.unixHint, value);
+}
+
+function formatParamValue(value: unknown): string {
+	if (value === undefined || value === null || value === "") return "?";
+	if (Array.isArray(value)) return value.map((v) => String(v)).join(", ");
+	return String(value);
+}
+
+function beginnerDisplayFor(value: unknown): string {
+	const type = resolveCommandType({ value });
+	if (!type) return "UNKNOWN";
+	const item = getCatalogItem(type);
+	const label = item?.ui.beginnerLabel ?? item?.label ?? type;
+	const params = item?.params ?? [];
+	if (params.length === 0) return label;
+
+	const record = isRecord(value) ? value : null;
+	const visibleParams = params.filter((p) => {
+		const text = `${p.beginnerLabel ?? ""}${p.label ?? ""}`;
+		return !text.includes("どの列？");
+	});
+	if (visibleParams.length === 0) return label;
+
+	const paramText = visibleParams
+		.map((p) => {
+			const raw = record ? record[p.key] : undefined;
+			const pLabel = p.beginnerLabel ?? p.label ?? p.key;
+			return `${pLabel}=${formatParamValue(raw)}`;
+		})
+		.join(", ");
+
+	return `${label} (${paramText})`;
 }
 
 function runnerInputDisplay(
@@ -138,6 +170,7 @@ export function CommandBuilder(props: Props) {
 	const move = useCommandBuilderStore((s) => s.move);
 	const clearCommands = useCommandBuilderStore((s) => s.clearCommands);
 	const runnerIo = useCommandBuilderStore((s) => s.runnerIo);
+	const editingDraft = useCommandBuilderStore((s) => s.editingDraft);
 	const setRunnerInput = useCommandBuilderStore((s) => s.setRunnerInput);
 	const setRunnerOutput = useCommandBuilderStore((s) => s.setRunnerOutput);
 	const [undo, setUndo] = React.useState<{
@@ -188,13 +221,20 @@ export function CommandBuilder(props: Props) {
 
 	// 表示用: パイプライン1行（Domainの真実ではなくUIの見せ方）
 	const pipelineText = React.useMemo(() => {
-		const tokens = commands.map((c) => toCommandToken(c, mode)).join(" | ");
+		const tokens = commands
+			.map((c) => {
+				const value = editingDraft?.id === c.id ? editingDraft.value : c.value;
+				return mode === "beginner"
+					? beginnerDisplayFor(value)
+					: unixHintFor(value);
+			})
+			.join(" | ");
 		const mid = tokens || "未選択";
 		if (isBeginner) return mid;
 		const left = runnerInputDisplay(runnerIo.input, mode);
 		const right = runnerOutputDisplay(runnerIo.output, mode);
 		return `${left} | ${mid} ${right}`;
-	}, [commands, isBeginner, mode, runnerIo]);
+	}, [commands, editingDraft, isBeginner, mode, runnerIo]);
 
 	const editingCommand = React.useMemo(() => {
 		if (!editingId) return null;

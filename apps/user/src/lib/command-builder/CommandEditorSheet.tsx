@@ -56,6 +56,14 @@ export function CommandEditorSheet(props: Props) {
 		{},
 	);
 	const [error, setError] = React.useState<string | null>(null);
+	const typeRaw = selected ? extractType(selected.value) : "UNKNOWN";
+
+	React.useEffect(() => {
+		if (!selected) return;
+		const base = asObject(selected.value);
+		const draftValue = { ...base, type: typeRaw, ...basicValues };
+		setEditingDraft(selected.id, draftValue);
+	}, [basicValues, selected, setEditingDraft, typeRaw]);
 
 	React.useEffect(() => {
 		if (!selected) return;
@@ -82,7 +90,6 @@ export function CommandEditorSheet(props: Props) {
 
 	if (!selected) return null;
 
-	const typeRaw = extractType(selected.value);
 	const cat = getCatalogItem(typeRaw as CommandType);
 
 	const title = isBeginner ? "コマンドの設定" : "Command Editor";
@@ -305,13 +312,6 @@ export function CommandEditorSheet(props: Props) {
 														...prev,
 														[p.key]: e.target.value,
 													};
-													const base = asObject(selected.value);
-													const draftValue = {
-														...base,
-														type: typeRaw,
-														...next,
-													};
-													setEditingDraft(selected.id, draftValue);
 													return next;
 												})
 											}

@@ -295,7 +295,7 @@ export function CommandBuilder(props: Props) {
 	}, [add, move, select, undo, updateCommandJson]);
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-4" data-testid="command-builder">
 			<CommandPalette onAdd={add} uiMode={uiModeForPanels} />
 
 			{/* コマンド列（編集UI） */}
@@ -386,6 +386,7 @@ export function CommandBuilder(props: Props) {
 						className="rounded border px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50"
 						onClick={run.onClick}
 						disabled={!canRun}
+						data-testid="cb-run"
 					>
 						{run.running ? "うごかしてる…" : "結果を見る"}
 					</button>

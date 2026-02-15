@@ -11,7 +11,7 @@ import {
 } from "./_helpers/ui";
 
 const TASK_ID =
-	process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
+	process.env.E2E_TASK_ID ?? "00000000-0000-4000-8000-000000000201";
 
 test("command builder: MAP_ADD param form updates JSON and run returns result", async ({
 	page,
@@ -23,15 +23,12 @@ test("command builder: MAP_ADD param form updates JSON and run returns result", 
 
 	await ensureAtLeastOneCommand(page);
 
-	// 追加UIがある場合は MAP_ADD を追加（無ければ既存で続行）
-	if (await page.getByTestId("cb-add-open").count()) {
-		await addCommandByType(page, "MAP_ADD");
-	}
+	await addCommandByType(page, "MAP_ADD");
 
 	await selectFirstCommandRow(page);
 
 	const editor = await openEditorFromIndex(page, 0);
-	const add = editor.getByTestId("param-add");
+	const add = editor.getByTestId("param-value");
 	if (await add.count()) {
 		await add.fill("1");
 	}

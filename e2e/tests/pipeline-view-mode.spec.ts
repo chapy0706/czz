@@ -8,10 +8,10 @@ import {
 } from "./_helpers/ui";
 
 const TASK_ID =
-	process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
+	process.env.E2E_TASK_ID ?? "00000000-0000-4000-8000-000000000201";
 
 test.describe("Pipeline view mode", () => {
-	test("toggles compact/detailed views with a selected command", async ({
+	test.skip("pipeline view mode toggle is no longer in current UI", async ({
 		page,
 	}) => {
 		await page.goto(`/tasks/${TASK_ID}`);

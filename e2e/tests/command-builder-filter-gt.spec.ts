@@ -11,7 +11,7 @@ import {
 } from "./_helpers/ui";
 
 const TASK_ID =
-	process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
+	process.env.E2E_TASK_ID ?? "00000000-0000-4000-8000-000000000201";
 
 test("command builder: FILTER_GT param form updates JSON and run returns result", async ({
 	page,
@@ -23,16 +23,12 @@ test("command builder: FILTER_GT param form updates JSON and run returns result"
 
 	await ensureAtLeastOneCommand(page);
 
-	if (await page.getByTestId("cb-add-open").count()) {
-		await addCommandByType(page, "FILTER_GT");
-	}
+	await addCommandByType(page, "FILTER_GT");
 
 	await selectFirstCommandRow(page);
 
 	const editor = await openEditorFromIndex(page, 0);
-	const key = editor.getByTestId("param-key");
-	if (await key.count()) await key.fill("age");
-	const gt = editor.getByTestId("param-gt");
+	const gt = editor.getByTestId("param-value");
 	if (await gt.count()) await gt.fill("30");
 	await clickSaveIfExists(editor, page);
 

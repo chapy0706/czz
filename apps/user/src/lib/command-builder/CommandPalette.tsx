@@ -53,6 +53,7 @@ export function CommandPalette(props: Props) {
 							className="rounded border px-2 py-1 font-mono text-sm hover:bg-muted"
 							onClick={() => onAdd(item.type)}
 							title={item.unixHint}
+							data-testid={`cb-add-${item.type}`}
 						>
 							{label}
 						</button>

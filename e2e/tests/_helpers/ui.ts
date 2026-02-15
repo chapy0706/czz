@@ -48,21 +48,11 @@ export async function ensureAtLeastOneCommand(page: Page) {
 	const row0 = page.locator('[data-testid-index="cmd-row-0"]');
 	if (await row0.count()) return;
 
-	// 追加UIがある前提でのみ追加を試みる
-	const open = page.getByTestId("cb-add-open");
-	if (await open.count()) {
-		await clickByTestIdRobust(page, "cb-add-open");
-
-		for (const id of [
-			"cb-add-MAP_ADD",
-			"cb-add-FILTER_GT",
-			"cb-add-SORT_ASC",
-		]) {
-			const add = page.getByTestId(id);
-			if (await add.count()) {
-				await clickByTestIdRobust(page, id);
-				break;
-			}
+	for (const id of ["cb-add-MAP_ADD", "cb-add-FILTER_GT", "cb-add-SORT_ASC"]) {
+		const add = page.getByTestId(id);
+		if (await add.count()) {
+			await clickByTestIdRobust(page, id);
+			break;
 		}
 	}
 
@@ -72,7 +62,6 @@ export async function ensureAtLeastOneCommand(page: Page) {
 }
 
 export async function addCommandByType(page: Page, type: string) {
-	await clickByTestIdRobust(page, "cb-add-open");
 	await clickByTestIdRobust(page, `cb-add-${type}`);
 }
 
@@ -87,7 +76,10 @@ export async function openEditorFromIndex(
 	page: Page,
 	index = 0,
 ): Promise<Locator> {
-	await clickByTestIdRobust(page, `cmd-edit-${index}`);
+	const row = page.locator(`[data-testid-index="cmd-row-${index}"]`).first();
+	await expect(row).toBeVisible({ timeout: 10_000 });
+	await closeAnyOverlay(page);
+	await row.locator("button").first().click({ force: true });
 
 	// role=dialog があれば優先
 	const dialog = page.getByRole("dialog").first();
@@ -142,17 +134,11 @@ export async function clickRunRobust(page: Page) {
 }
 
 export async function waitCbResultChange(page: Page, timeoutMs = 20_000) {
-	const cbResult = page.getByTestId("cb-result").first();
-	await expect(cbResult).toBeVisible({ timeout: 10_000 });
-
-	const before = await cbResult.innerText();
-
-	await expect
-		.poll(async () => await cbResult.innerText(), { timeout: timeoutMs })
-		.not.toBe(before);
-
-	const after = await cbResult.innerText();
-	if (after.includes("(no result)")) {
-		throw new Error("cb-result changed but still shows (no result).");
-	}
+	await expect(page).toHaveURL(/\/result$/, { timeout: timeoutMs });
+	await expect(page.getByTestId("result-page")).toBeVisible({
+		timeout: timeoutMs,
+	});
+	await expect(page.getByTestId("result-status")).toBeVisible({
+		timeout: timeoutMs,
+	});
 }

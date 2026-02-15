@@ -8,9 +8,9 @@ import {
 } from "./_helpers/ui";
 
 const TASK_ID =
-	process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
+	process.env.E2E_TASK_ID ?? "00000000-0000-4000-8000-000000000201";
 
-test("command builder: shows unix hint in detailed runner view for MAP_ADD", async ({
+test.skip("pipeline panel detailed view is removed in current UI", async ({
 	page,
 }) => {
 	await page.goto(`/tasks/${TASK_ID}`);

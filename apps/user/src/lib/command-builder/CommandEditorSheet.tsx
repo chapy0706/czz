@@ -305,6 +305,7 @@ export function CommandEditorSheet(props: Props) {
 										</div>
 
 										<input
+											data-testid={`param-${p.key}`}
 											value={String(v)}
 											onChange={(e) =>
 												setBasicValues((prev) => {
@@ -336,6 +337,7 @@ export function CommandEditorSheet(props: Props) {
 										onRemove();
 									}}
 									className="rounded-lg border px-4 py-2 text-sm text-destructive hover:bg-muted"
+									data-testid="cmd-delete"
 								>
 									{isBeginner ? "コマンド削除" : "Delete"}
 								</button>

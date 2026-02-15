@@ -2,9 +2,9 @@
 import { expect, test } from "@playwright/test";
 
 const TASK_ID =
-	process.env.E2E_TASK_ID ?? "00000000-0000-0000-0000-000000000202";
+	process.env.E2E_TASK_ID ?? "00000000-0000-4000-8000-000000000201";
 
-test("pseudo terminal: invalid json shows stderr and exit 1, :clear clears logs", async ({
+test.skip("debug drawer pseudo-terminal is removed; playground UI is now accordion", async ({
 	page,
 }) => {
 	await page.goto(`/tasks/${TASK_ID}`);

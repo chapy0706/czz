@@ -123,14 +123,11 @@ export default function ResultsByIdClient({ resultId }: Props) {
 		>
 			<div className="space-y-2">
 				<h1 className="text-2xl font-bold tracking-tight">実行結果</h1>
-				<p className="text-sm text-muted-foreground">
-					Result ID: <span className="font-mono">{resultId}</span>
-				</p>
 			</div>
 
 			{state.status === "loading" ? (
 				<div className="mt-6 rounded border bg-muted/30 p-4 text-sm text-muted-foreground">
-					loading…
+					{isBeginner ? "読み込み中…" : "loading…"}
 				</div>
 			) : state.status === "unauthorized" ? (
 				<div className="mt-6 space-y-3">
@@ -176,7 +173,7 @@ export default function ResultsByIdClient({ resultId }: Props) {
 							className="text-muted-foreground hover:underline"
 							href="/results/running"
 						>
-							runningへ
+							{isBeginner ? "実行中へ" : "runningへ"}
 						</Link>
 						<Link
 							className="text-muted-foreground hover:underline"
@@ -216,34 +213,46 @@ export default function ResultsByIdClient({ resultId }: Props) {
 								>
 									{state.data.passed === state.data.total ? "成功" : "失敗"}
 								</span>
+								{/* biome-ignore lint/performance/noImgElement: static export */}
+								<img
+									src={
+										state.data.passed === state.data.total
+											? "/assets/characters/rejoicing.gif"
+											: "/assets/characters/failing.gif"
+									}
+									alt={
+										state.data.passed === state.data.total
+											? isBeginner
+												? "やったね！"
+												: "Success"
+											: isBeginner
+												? "うまくいかなかった…"
+												: "Failed"
+									}
+									className="mx-auto h-32 w-32 object-contain"
+								/>
 								<span className="font-medium">
 									{state.data.passed} / {state.data.total}
 								</span>
 							</div>
 
-							{state.data.createdAt ? (
-								<div className="text-sm text-muted-foreground">
-									実行時刻: {new Date(state.data.createdAt).toLocaleString()}
-								</div>
-							) : null}
-
 							<div className="flex flex-wrap items-center gap-3 text-sm">
 								{state.data.taskId ? (
 									<Link
-										className="text-muted-foreground hover:underline"
+										className="rounded border px-3 py-1.5 text-sm hover:bg-muted"
 										href={`/tasks/${state.data.taskId}`}
 									>
 										タスクへ戻る
 									</Link>
 								) : null}
 								<Link
-									className="text-muted-foreground hover:underline"
+									className="rounded border px-3 py-1.5 text-sm hover:bg-muted"
 									href="/tasks"
 								>
 									課題一覧へ
 								</Link>
 								<Link
-									className="text-muted-foreground hover:underline"
+									className="rounded border px-3 py-1.5 text-sm hover:bg-muted"
 									href="/results/running"
 								>
 									もう一度実行
@@ -275,7 +284,13 @@ export default function ResultsByIdClient({ resultId }: Props) {
 															: "bg-rose-100 text-rose-700",
 													].join(" ")}
 												>
-													{c.passed ? "passed" : "failed"}
+													{c.passed
+														? isBeginner
+															? "正解"
+															: "passed"
+														: isBeginner
+															? "不正解"
+															: "failed"}
 												</span>
 											</div>
 										</summary>

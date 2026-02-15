@@ -84,7 +84,7 @@ function runnerOutputDisplay(
 	if (mode !== "beginner") return runnerOutputCmd(preset);
 	switch (preset) {
 		case "append_output_csv":
-			return "出力データ（追記）";
+			return "出力データ";
 		default:
 			return "出力未設定";
 	}
@@ -110,7 +110,7 @@ function runnerOutputOptionLabel(
 	if (mode !== "beginner") return runnerOutputCmd(preset);
 	switch (preset) {
 		case "append_output_csv":
-			return "出力データ（追記）";
+			return "出力データ";
 		default:
 			return "未選択";
 	}
@@ -377,6 +377,10 @@ export function CommandBuilder(props: Props) {
 				<CommandEditorSheet
 					selected={editingCommand}
 					onClose={closeEditor}
+					onRemove={() => {
+						onRemoveCommand(editingCommand.id);
+						closeEditor();
+					}}
 					onSave={(nextValue) => {
 						updateCommandJson(editingCommand.id, nextValue);
 						closeEditor();

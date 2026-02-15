@@ -15,6 +15,7 @@ type Props = {
 	selected: CommandDraft | null;
 	onClose: () => void;
 	onSave: (nextValue: unknown) => void;
+	onRemove: () => void;
 };
 
 type Mode = "basic" | "advanced";
@@ -41,7 +42,7 @@ function stripHiddenKeys(
 }
 
 export function CommandEditorSheet(props: Props) {
-	const { selected, onClose, onSave } = props;
+	const { selected, onClose, onSave, onRemove } = props;
 	const isBeginner = useUiModeStore((s) => s.mode === "beginner");
 
 	const [mode, setMode] = React.useState<Mode>("basic");
@@ -308,6 +309,16 @@ export function CommandEditorSheet(props: Props) {
 							})}
 
 							<div className="flex justify-end gap-2 pt-2">
+								<button
+									type="button"
+									onClick={() => {
+										if (!window.confirm("このコマンドを削除しますか？")) return;
+										onRemove();
+									}}
+									className="rounded-lg border px-4 py-2 text-sm text-destructive hover:bg-muted"
+								>
+									{isBeginner ? "コマンド削除" : "Delete"}
+								</button>
 								<button
 									type="button"
 									onClick={onClose}

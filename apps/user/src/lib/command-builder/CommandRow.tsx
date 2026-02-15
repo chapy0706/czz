@@ -5,7 +5,6 @@ import {
 	type CommandType,
 	getCatalogItem,
 } from "@/lib/command-builder/commandCatalog";
-import { useSwipeActions } from "@/lib/command-builder/useSwipeActions";
 import { getString, isRecord } from "@/lib/shared/unknown";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
@@ -24,7 +23,7 @@ export function CommandRow({
 	index,
 	isSelected,
 	onEdit,
-	onRemove,
+	onRemove: _onRemove,
 	onReorder: _onReorder,
 	variant,
 }: Props) {
@@ -43,18 +42,7 @@ export function CommandRow({
 		: (type ?? "UNKNOWN");
 
 	const _isChip = variant === "chip";
-	const sub = isBeginner
-		? (cat?.ui.beginnerExample ?? "")
-		: "Swipe: → edit / ← delete";
-
-	const swipe = useSwipeActions({
-		onSwipeLeft: () => {
-			onRemove();
-		},
-		onSwipeRight: () => {
-			onEdit();
-		},
-	});
+	const sub = isBeginner ? "タップで編集" : "Click to edit";
 
 	const base =
 		variant === "chip"
@@ -70,10 +58,6 @@ export function CommandRow({
 			className={`${base} ${isSelected ? selected : normal}`}
 			data-testid-index={`cmd-row-${index}`}
 			data-testid={`cb-item-${type}`}
-			onPointerDown={swipe.handlers.onPointerDown}
-			onPointerMove={swipe.handlers.onPointerMove}
-			onPointerUp={swipe.handlers.onPointerUp}
-			onPointerCancel={swipe.handlers.onPointerCancel}
 		>
 			<div
 				className={`absolute left-0 top-0 h-full w-1 rounded-l ${
@@ -86,7 +70,6 @@ export function CommandRow({
 				type="button"
 				className="min-w-0 flex-1 text-left"
 				onClick={() => {
-					if (swipe.isSwiping) return;
 					onEdit();
 				}}
 				onKeyDown={(e) => {

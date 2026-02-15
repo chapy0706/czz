@@ -12,11 +12,15 @@ const STORAGE_KEY = "czz:beginner-dock-pos";
 const DRAG_THRESHOLD_PX = 6;
 const DEFAULT_MARGIN = 12;
 const DEFAULT_SIZE = { w: 240, h: 72 };
+const HINTS = [
+	"コマンドを触ると細かい設定ができるよ",
+	"コマンドの編集画面から削除もできるよ",
+];
 const VARIANT_TABLE = {
 	studying: {
 		src: "/assets/characters/studying.gif",
 		message: "いっしょにやろう",
-		sub: "まずは日本語の指示だけで組み立てよう。",
+		sub: null,
 	},
 	success: {
 		src: "/assets/characters/indicating.gif",
@@ -56,6 +60,7 @@ export function BeginnerMascotDock() {
 	const isBeginner = mode === "beginner";
 	const variant = useMascotVariantStore((s) => s.variant);
 	const variantData = VARIANT_TABLE[variant];
+	const [hintIndex, setHintIndex] = React.useState<0 | 1>(0);
 
 	const containerRef = React.useRef<HTMLDivElement | null>(null);
 	const dragRef = React.useRef<DragState>({
@@ -156,6 +161,16 @@ export function BeginnerMascotDock() {
 		window.addEventListener("resize", onResize);
 		return () => window.removeEventListener("resize", onResize);
 	}, [computeBounds, isBeginner]);
+
+	React.useEffect(() => {
+		if (!isBeginner) return;
+		const onInteraction = () => {
+			setHintIndex((v) => (v === 0 ? 1 : 0));
+		};
+		window.addEventListener("czz:command-interaction", onInteraction);
+		return () =>
+			window.removeEventListener("czz:command-interaction", onInteraction);
+	}, [isBeginner]);
 
 	const onPointerDown = (e: React.PointerEvent) => {
 		const el = containerRef.current;
@@ -259,7 +274,7 @@ export function BeginnerMascotDock() {
 							{variantData.message}
 						</div>
 
-						{variantData.sub ? (
+						{variant === "studying" ? (
 							<div
 								className={[
 									"mt-0.5 text-muted-foreground",
@@ -268,7 +283,7 @@ export function BeginnerMascotDock() {
 									"text-xs",
 								].join(" ")}
 							>
-								{variantData.sub}
+								{HINTS[hintIndex]}
 							</div>
 						) : null}
 					</div>

@@ -3,6 +3,7 @@
 
 import * as React from "react";
 
+import { CommandEditorSheet } from "@/lib/command-builder/CommandEditorSheet";
 import { CommandList } from "@/lib/command-builder/CommandList";
 import { CommandPalette } from "@/lib/command-builder/CommandPalette";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
@@ -55,11 +56,14 @@ export function CommandBuilder(props: Props) {
 	const initForTask = useCommandBuilderStore((s) => s.initForTask);
 	const commands = useCommandBuilderStore((s) => s.commands);
 	const selectedId = useCommandBuilderStore((s) => s.selectedId);
+	const editingId = useCommandBuilderStore((s) => s.editingId);
 
 	const add = useCommandBuilderStore((s) => s.add);
 	const remove = useCommandBuilderStore((s) => s.remove);
 	const select = useCommandBuilderStore((s) => s.select);
 	const openEditor = useCommandBuilderStore((s) => s.openEditor);
+	const closeEditor = useCommandBuilderStore((s) => s.closeEditor);
+	const updateCommandJson = useCommandBuilderStore((s) => s.updateCommandJson);
 	const move = useCommandBuilderStore((s) => s.move);
 	const runnerIo = useCommandBuilderStore((s) => s.runnerIo);
 	const setRunnerInput = useCommandBuilderStore((s) => s.setRunnerInput);
@@ -85,6 +89,11 @@ export function CommandBuilder(props: Props) {
 		const mid = tokens || "未選択";
 		return `${left} | ${mid} ${right}`;
 	}, [commands, runnerIo]);
+
+	const editingCommand = React.useMemo(() => {
+		if (!editingId) return null;
+		return commands.find((c) => c.id === editingId) ?? null;
+	}, [commands, editingId]);
 
 	const resetKey = React.useMemo(
 		() => buildResetKey(commands, runnerIo),
@@ -244,6 +253,17 @@ export function CommandBuilder(props: Props) {
 					useCommandBuilderStore.getState().serializeProgram()
 				}
 			/>
+
+			{editingCommand ? (
+				<CommandEditorSheet
+					selected={editingCommand}
+					onClose={closeEditor}
+					onSave={(nextValue) => {
+						updateCommandJson(editingCommand.id, nextValue);
+						closeEditor();
+					}}
+				/>
+			) : null}
 		</div>
 	);
 }

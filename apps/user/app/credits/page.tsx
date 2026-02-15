@@ -9,6 +9,12 @@ type CreditItem = {
 	note?: string;
 };
 
+type LogoItem = {
+	name: string;
+	fileName: string;
+	href?: string;
+};
+
 const CREDITS: CreditItem[] = [
 	{
 		label: "キャラクターアイコン",
@@ -31,6 +37,46 @@ const CREDITS: CreditItem[] = [
 		url: "https://soundeffect-lab.info/",
 	},
 ];
+
+const LOGOS: LogoItem[] = [
+	{
+		name: "Next.js",
+		fileName: "Next.js.png",
+		href: "https://nextjs.org",
+	},
+	{
+		name: "React",
+		fileName: "React.png",
+		href: "https://react.dev",
+	},
+	{
+		name: "Tailwind CSS",
+		fileName: "Tailwindcss.png",
+		href: "https://tailwindcss.com",
+	},
+	{
+		name: "TypeScript",
+		fileName: "TypeScript.png",
+		href: "https://www.typescriptlang.org",
+	},
+	{
+		name: "GitHub",
+		fileName: "GitHub.png",
+		href: "https://github.com",
+	},
+];
+
+const LOGO_BY_NAME = new Map(LOGOS.map((logo) => [logo.name, logo]));
+
+const LIBRARIES = [
+	"Next.js",
+	"React",
+	"Tailwind CSS",
+	"TypeScript",
+	"GitHub",
+	"shadcn/ui",
+	"Neon Auth",
+] as const;
 
 export const dynamic = "force-static";
 
@@ -95,13 +141,62 @@ export default function CreditsPage() {
 			</section>
 
 			<section className="mt-6 rounded-2xl border p-5">
-				<h2 className="text-base font-semibold">使用ライブラリ（例）</h2>
-				<ul className="mt-3 list-disc space-y-2 pl-5 text-sm">
-					<li>Next.js / React</li>
-					<li>Tailwind CSS</li>
-					<li>shadcn/ui</li>
-					<li>Neon Auth</li>
+				<h2 className="text-base font-semibold">使用ライブラリ</h2>
+				<ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+					{LIBRARIES.map((name) => {
+						const logo = LOGO_BY_NAME.get(name);
+						const src = logo
+							? `/logos/${encodeURIComponent(logo.fileName)}`
+							: null;
+						return (
+							<li
+								key={name}
+								className="flex flex-col gap-2 rounded-xl border bg-card/60 p-3 text-sm"
+							>
+								{src ? (
+									<div className="flex h-20 items-center justify-center rounded-lg bg-muted/30 p-2">
+										{/* biome-ignore lint/performance/noImgElement: static export 互換のため */}
+										<img
+											src={src}
+											alt={name}
+											className="max-h-full w-full object-contain"
+										/>
+									</div>
+								) : null}
+								<div className="font-semibold">{name}</div>
+								{logo?.href ? (
+									<a
+										href={logo.href}
+										target="_blank"
+										rel="noreferrer noopener"
+										className="text-xs text-muted-foreground hover:underline"
+									>
+										公式サイト
+									</a>
+								) : null}
+							</li>
+						);
+					})}
 				</ul>
+
+				<div className="mt-4 space-y-2 text-xs text-muted-foreground">
+					<div>
+						※ ロゴ画像は SAWARATSUKI 様の制作ロゴです:{" "}
+						<a
+							href="https://github.com/SAWARATSUKI/KawaiiLogos"
+							target="_blank"
+							rel="noreferrer noopener"
+							className="underline"
+						>
+							https://github.com/SAWARATSUKI/KawaiiLogos
+						</a>
+					</div>
+					<div>
+						※ AI
+						利用・商用利用に制限があります。詳細は出典のライセンスを参照してください
+					</div>
+					<div>各ロゴ・名称は各社の商標または登録商標です</div>
+				</div>
 			</section>
 		</main>
 	);

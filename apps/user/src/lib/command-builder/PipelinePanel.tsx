@@ -20,6 +20,7 @@ import {
 	runnerOutputCmd,
 } from "@/lib/terminal/runnerIo";
 import { useRunToResultButton } from "@/lib/terminal/useRunToResultButton";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type CommandDraft = {
 	id: string;
@@ -77,6 +78,32 @@ function unixHintFor(value: unknown): string {
 	return substitute(item.unixHint, value);
 }
 
+function runnerInputOptionLabel(
+	preset: RunnerInputPreset,
+	mode: "beginner" | "advanced",
+): string {
+	if (mode !== "beginner") return runnerInputCmd(preset);
+	switch (preset) {
+		case "cat_input_csv":
+			return "入力データ";
+		default:
+			return "未選択";
+	}
+}
+
+function runnerOutputOptionLabel(
+	preset: RunnerOutputPreset,
+	mode: "beginner" | "advanced",
+): string {
+	if (mode !== "beginner") return runnerOutputCmd(preset);
+	switch (preset) {
+		case "append_output_csv":
+			return "出力データ（追記）";
+		default:
+			return "未選択";
+	}
+}
+
 type DragState = {
 	active: boolean;
 	startX: number;
@@ -121,6 +148,7 @@ export function PipelinePanel(props: Props) {
 	const runnerIo = useCommandBuilderStore((s) => s.runnerIo);
 	const setRunnerInput = useCommandBuilderStore((s) => s.setRunnerInput);
 	const setRunnerOutput = useCommandBuilderStore((s) => s.setRunnerOutput);
+	const mode = useUiModeStore((s) => s.mode);
 
 	const runnerOk = isRunnerIoCorrect(runnerIo);
 
@@ -232,7 +260,7 @@ export function PipelinePanel(props: Props) {
 						>
 							{RUNNER_INPUT_PRESETS.map((p) => (
 								<option key={p} value={p}>
-									{runnerInputCmd(p)}
+									{runnerInputOptionLabel(p, mode)}
 								</option>
 							))}
 						</select>
@@ -253,7 +281,7 @@ export function PipelinePanel(props: Props) {
 						>
 							{RUNNER_OUTPUT_PRESETS.map((p) => (
 								<option key={p} value={p}>
-									{runnerOutputCmd(p)}
+									{runnerOutputOptionLabel(p, mode)}
 								</option>
 							))}
 						</select>

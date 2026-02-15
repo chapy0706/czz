@@ -15,10 +15,7 @@ export type RunnerIo = {
 };
 
 export type RunnerInputPreset = "unset" | "cat_input_csv";
-export type RunnerOutputPreset =
-	| "unset"
-	| "redirect_output_csv"
-	| "append_output_csv";
+export type RunnerOutputPreset = "unset" | "append_output_csv";
 
 export type RunnerIoPreset = {
 	input: RunnerInputPreset;
@@ -32,7 +29,6 @@ export const RUNNER_INPUT_PRESETS: ReadonlyArray<RunnerInputPreset> = [
 
 export const RUNNER_OUTPUT_PRESETS: ReadonlyArray<RunnerOutputPreset> = [
 	"unset",
-	"redirect_output_csv",
 	"append_output_csv",
 ];
 
@@ -59,9 +55,7 @@ export function toRunnerIo(
 			: null;
 
 	let output: RunnerOutput | null = null;
-	if (preset.output === "redirect_output_csv") {
-		output = { kind: "overwrite", file: "output.csv" };
-	} else if (preset.output === "append_output_csv") {
+	if (preset.output === "append_output_csv") {
 		output = { kind: "append", file: "output.csv" };
 	}
 
@@ -87,8 +81,6 @@ export function runnerOutputCmd(
 	preset: RunnerOutputPreset | null | undefined,
 ): string {
 	switch (preset) {
-		case "redirect_output_csv":
-			return "> output.csv";
 		case "append_output_csv":
 			return ">> output.csv";
 		default:
@@ -107,8 +99,6 @@ export function runnerInputLabel(preset: RunnerInputPreset): string {
 
 export function runnerOutputLabel(preset: RunnerOutputPreset): string {
 	switch (preset) {
-		case "redirect_output_csv":
-			return "> output.csv（上書き）";
 		case "append_output_csv":
 			return ">> output.csv（追記）";
 		default:
@@ -126,14 +116,11 @@ export function formatRunnerOutput(output: RunnerOutput | null): string {
 }
 
 /**
- * Output は 3段階で回す：未設定 → overwrite(>) → append(>>) → 未設定
- * （わざと “間違える余地” を残して学習用にする）
+ * Output は 2段階で回す：未設定 → append(>>) → 未設定
  */
 export function cycleRunnerOutput(
 	current: RunnerOutput | null,
 ): RunnerOutput | null {
-	if (!current) return { kind: "overwrite", file: "output.csv" };
-	if (current.kind === "overwrite")
-		return { kind: "append", file: "output.csv" };
+	if (!current) return { kind: "append", file: "output.csv" };
 	return null;
 }

@@ -5,6 +5,8 @@ import * as React from "react";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import { serializeCommandsForDisplay } from "@/lib/command-builder/serialize";
 import { runPlayground } from "@/lib/terminal/playgroundClient";
+import { tTerminal } from "@/lib/terminal/terminalStrings";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 import { formatOutputHuman } from "@/lib/utils/formatOutput";
 
 type Props = {
@@ -62,6 +64,7 @@ export function PseudoTerminalRunner({
 	const [result, setResult] = React.useState<DryRunResult | null>(null);
 	const [errorSummary, setErrorSummary] = React.useState<string | null>(null);
 	const [errorDetails, setErrorDetails] = React.useState<string | null>(null);
+	const mode = useUiModeStore((s) => s.mode);
 
 	const inputNumbers =
 		presetKey === "random" ? randomInput : PRESET_VALUES[presetKey];
@@ -104,7 +107,7 @@ export function PseudoTerminalRunner({
 
 		if (!res.ok) {
 			const err = "error" in res ? res.error : undefined;
-			const msg = err?.message ?? "Unknown error";
+			const msg = err?.message ?? tTerminal("unknownError", mode);
 			setErrorSummary(msg);
 			setErrorDetails(
 				err?.details !== undefined
@@ -133,6 +136,7 @@ export function PseudoTerminalRunner({
 		randomInput.length,
 		inputNumbers,
 		getSubmittedProgram,
+		mode,
 	]);
 
 	if (!resolvedTaskId) {

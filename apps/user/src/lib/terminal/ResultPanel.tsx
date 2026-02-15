@@ -2,6 +2,8 @@
 "use client";
 
 import * as React from "react";
+import { tTerminal } from "@/lib/terminal/terminalStrings";
+import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type ResultStatus = "success" | "failure";
 
@@ -66,6 +68,8 @@ export function ResultPanel(props: Props) {
 		maxPreviewLines = 12,
 	} = props;
 
+	const mode = useUiModeStore((s) => s.mode);
+
 	const { preview: outPreview, omitted: outOmitted } = React.useMemo(
 		() => takeFirstLines(outputText ?? "", maxPreviewLines),
 		[outputText, maxPreviewLines],
@@ -87,7 +91,9 @@ export function ResultPanel(props: Props) {
 		>
 			<header className="flex items-start justify-between gap-3">
 				<div className="space-y-1">
-					<div className="text-sm font-semibold">Result</div>
+					<div className="text-sm font-semibold">
+						{tTerminal("result", mode)}
+					</div>
 					<div
 						className={[
 							"inline-flex items-center gap-2 rounded border px-2 py-1 text-xs",
@@ -103,7 +109,9 @@ export function ResultPanel(props: Props) {
 							aria-hidden="true"
 						/>
 						<span className="text-muted-foreground">
-							{isSuccess ? "SUCCESS" : "FAILURE"}
+							{isSuccess
+								? tTerminal("success", mode)
+								: tTerminal("failure", mode)}
 						</span>
 					</div>
 				</div>
@@ -138,7 +146,9 @@ export function ResultPanel(props: Props) {
 					className="mt-3 rounded border bg-muted/30 p-3"
 					data-testid="result-hint"
 				>
-					<div className="text-xs font-semibold">{hint.title ?? "Hint"}</div>
+					<div className="text-xs font-semibold">
+						{hint.title ?? tTerminal("hint", mode)}
+					</div>
 					<div className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
 						{hint.detail}
 					</div>
@@ -148,7 +158,9 @@ export function ResultPanel(props: Props) {
 			{/* Output */}
 			<div className="mt-4">
 				<div className="flex items-center justify-between">
-					<div className="text-xs font-semibold">Output</div>
+					<div className="text-xs font-semibold">
+						{tTerminal("output", mode)}
+					</div>
 					{outOmitted > 0 ? (
 						<div className="text-xs text-muted-foreground">
 							（先頭 {maxPreviewLines} 行のみ表示 / 省略 {outOmitted} 行）
@@ -159,7 +171,7 @@ export function ResultPanel(props: Props) {
 					className="mt-2 max-h-[280px] overflow-auto rounded border bg-background p-3 text-xs leading-5"
 					data-testid="result-output"
 				>
-					{outPreview.length > 0 ? outPreview : "(empty)"}
+					{outPreview.length > 0 ? outPreview : tTerminal("empty", mode)}
 				</pre>
 			</div>
 
@@ -167,7 +179,9 @@ export function ResultPanel(props: Props) {
 			{expectedText != null ? (
 				<div className="mt-4">
 					<div className="flex items-center justify-between">
-						<div className="text-xs font-semibold">Expected</div>
+						<div className="text-xs font-semibold">
+							{tTerminal("expected", mode)}
+						</div>
 						{expOmitted > 0 ? (
 							<div className="text-xs text-muted-foreground">
 								（先頭 {maxPreviewLines} 行のみ表示 / 省略 {expOmitted} 行）
@@ -178,7 +192,7 @@ export function ResultPanel(props: Props) {
 						className="mt-2 max-h-[280px] overflow-auto rounded border bg-background p-3 text-xs leading-5"
 						data-testid="result-expected"
 					>
-						{expPreview.length > 0 ? expPreview : "(empty)"}
+						{expPreview.length > 0 ? expPreview : tTerminal("empty", mode)}
 					</pre>
 				</div>
 			) : null}

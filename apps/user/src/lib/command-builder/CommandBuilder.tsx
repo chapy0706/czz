@@ -7,6 +7,11 @@ import { CommandEditorSheet } from "@/lib/command-builder/CommandEditorSheet";
 import { CommandList } from "@/lib/command-builder/CommandList";
 import { CommandPalette } from "@/lib/command-builder/CommandPalette";
 import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
+import {
+	type CommandType,
+	getCatalogItem,
+	isCommandType,
+} from "@/lib/command-builder/commandCatalog";
 import { buildResetKey } from "@/lib/command-builder/serialize";
 import { getString, isRecord } from "@/lib/shared/unknown";
 import { PseudoTerminalRunner } from "@/lib/terminal/PseudoTerminalRunner";
@@ -35,14 +40,80 @@ type Props = {
 
 type UiModeForPanels = "beginner" | "normal";
 
-function toCommandToken(command: unknown): string {
+function resolveCommandType(command: unknown): CommandType | null {
 	// command は store の Draft なので、型を信用せずに "それっぽい" 文字列へ安全に落とす
 	const c = isRecord(command) ? command : null;
 	const v = isRecord(c?.value) ? c?.value : null;
 	const t1 = getString(v, "type");
 	const t2 = getString(c, "type");
+	const t = t1 ?? t2 ?? null;
+	if (!t) return null;
+	return isCommandType(t) ? t : null;
+}
+
+function toCommandToken(
+	command: unknown,
+	mode: "beginner" | "advanced",
+): string {
+	const c = isRecord(command) ? command : null;
+	const v = isRecord(c?.value) ? c?.value : null;
+	const t1 = getString(v, "type");
+	const t2 = getString(c, "type");
 	const t = t1 ?? t2 ?? "CMD";
-	return String(t);
+	const type = resolveCommandType(command);
+	if (!type) return String(t);
+	const item = getCatalogItem(type);
+	if (!item) return String(t);
+	return mode === "beginner"
+		? (item.ui.beginnerLabel ?? item.label ?? String(t))
+		: (item.label ?? String(t));
+}
+
+function runnerInputDisplay(
+	preset: RunnerInputPreset | null | undefined,
+	mode: "beginner" | "advanced",
+): string {
+	if (mode !== "beginner") return runnerInputCmd(preset);
+	return preset === "cat_input_csv" ? "入力データ" : "入力未設定";
+}
+
+function runnerOutputDisplay(
+	preset: RunnerOutputPreset | null | undefined,
+	mode: "beginner" | "advanced",
+): string {
+	if (mode !== "beginner") return runnerOutputCmd(preset);
+	switch (preset) {
+		case "append_output_csv":
+			return "出力データ（追記）";
+		default:
+			return "出力未設定";
+	}
+}
+
+function runnerInputOptionLabel(
+	preset: RunnerInputPreset,
+	mode: "beginner" | "advanced",
+): string {
+	if (mode !== "beginner") return runnerInputCmd(preset);
+	switch (preset) {
+		case "cat_input_csv":
+			return "入力データ";
+		default:
+			return "未選択";
+	}
+}
+
+function runnerOutputOptionLabel(
+	preset: RunnerOutputPreset,
+	mode: "beginner" | "advanced",
+): string {
+	if (mode !== "beginner") return runnerOutputCmd(preset);
+	switch (preset) {
+		case "append_output_csv":
+			return "出力データ（追記）";
+		default:
+			return "未選択";
+	}
 }
 
 export function CommandBuilder(props: Props) {
@@ -83,12 +154,12 @@ export function CommandBuilder(props: Props) {
 
 	// 表示用: パイプライン1行（Domainの真実ではなくUIの見せ方）
 	const pipelineText = React.useMemo(() => {
-		const left = runnerInputCmd(runnerIo.input);
-		const right = runnerOutputCmd(runnerIo.output);
-		const tokens = commands.map((c) => toCommandToken(c)).join(" | ");
+		const left = runnerInputDisplay(runnerIo.input, mode);
+		const right = runnerOutputDisplay(runnerIo.output, mode);
+		const tokens = commands.map((c) => toCommandToken(c, mode)).join(" | ");
 		const mid = tokens || "未選択";
 		return `${left} | ${mid} ${right}`;
-	}, [commands, runnerIo]);
+	}, [commands, mode, runnerIo]);
 
 	const editingCommand = React.useMemo(() => {
 		if (!editingId) return null;
@@ -175,7 +246,7 @@ export function CommandBuilder(props: Props) {
 						>
 							{RUNNER_INPUT_PRESETS.map((p) => (
 								<option key={p} value={p}>
-									{runnerInputCmd(p)}
+									{runnerInputOptionLabel(p, mode)}
 								</option>
 							))}
 						</select>
@@ -196,7 +267,7 @@ export function CommandBuilder(props: Props) {
 						>
 							{RUNNER_OUTPUT_PRESETS.map((p) => (
 								<option key={p} value={p}>
-									{runnerOutputCmd(p)}
+									{runnerOutputOptionLabel(p, mode)}
 								</option>
 							))}
 						</select>

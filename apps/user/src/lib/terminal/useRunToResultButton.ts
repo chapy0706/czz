@@ -12,6 +12,7 @@ import {
 	toRunnerIo,
 } from "@/lib/terminal/runnerIo";
 import { persistResult } from "@/lib/terminal/terminalStore";
+import { tTerminal } from "@/lib/terminal/terminalStrings";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type MaybePromise<T> = T | Promise<T>;
@@ -132,7 +133,10 @@ export function useRunToResultButton({
 				router.push(to);
 			}
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "Unknown error");
+			const mode = useUiModeStore.getState().mode;
+			setError(
+				e instanceof Error ? e.message : tTerminal("unknownError", mode),
+			);
 		} finally {
 			// 成功時はページ遷移するので気にしなくていい。失敗時だけ復帰できる。
 			setRunning(false);

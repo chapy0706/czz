@@ -27,6 +27,11 @@ export type ParamSpec = {
 	beginnerLabel?: string;
 	beginnerPlaceholder?: string;
 	beginnerHelp?: string;
+
+	ui?: {
+		hideInEditor?: boolean;
+		fixedValueInEditor?: unknown;
+	};
 };
 
 export type CommandCatalogItem = {

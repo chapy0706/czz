@@ -29,6 +29,17 @@ function asObject(value: unknown): Record<string, unknown> {
 	return {};
 }
 
+function stripHiddenKeys(
+	value: Record<string, unknown>,
+	params: NonNullable<ReturnType<typeof getCatalogItem>>["params"] | undefined,
+) {
+	const next = { ...value };
+	for (const p of params ?? []) {
+		if (p.ui?.hideInEditor) delete next[p.key];
+	}
+	return next;
+}
+
 export function CommandEditorSheet(props: Props) {
 	const { selected, onClose, onSave } = props;
 	const isBeginner = useUiModeStore((s) => s.mode === "beginner");
@@ -48,7 +59,9 @@ export function CommandEditorSheet(props: Props) {
 
 		// 初心者モードでは advanced は見せない想定（切替 UI も消してる）
 		setMode("basic");
-		setAdvancedJson(JSON.stringify(selected.value ?? {}, null, 2));
+		const base = asObject(selected.value);
+		const withoutHidden = stripHiddenKeys(base, cat?.params);
+		setAdvancedJson(JSON.stringify(withoutHidden, null, 2));
 
 		const init: Record<string, unknown> = {};
 		const obj = asObject(selected.value);
@@ -83,6 +96,7 @@ export function CommandEditorSheet(props: Props) {
 		const next: Record<string, unknown> = { ...base, type: typeRaw };
 
 		for (const p of cat?.params ?? []) {
+			if (p.ui?.hideInEditor) continue;
 			const raw = basicValues[p.key];
 
 			// required チェック（空文字も未入力扱い）
@@ -115,6 +129,21 @@ export function CommandEditorSheet(props: Props) {
 			next[p.key] = parsed.data;
 		}
 
+		for (const p of cat?.params ?? []) {
+			const fixed = p.ui?.fixedValueInEditor;
+			if (fixed === undefined) continue;
+			const parsedFixed = p.schema.safeParse(fixed);
+			if (!parsedFixed.success) {
+				setError(
+					isBeginner
+						? `「${p.beginnerLabel ?? p.label}」の固定値が不正だよ。`
+						: `${p.key} fixed value is invalid`,
+				);
+				return;
+			}
+			next[p.key] = parsedFixed.data;
+		}
+
 		onSave(next);
 		onClose();
 	}
@@ -128,7 +157,17 @@ export function CommandEditorSheet(props: Props) {
 				setError("JSON must be an object");
 				return;
 			}
-			const next = { ...parsed, type: typeRaw };
+			const next = { ...parsed, type: typeRaw } as Record<string, unknown>;
+			for (const p of cat?.params ?? []) {
+				const fixed = p.ui?.fixedValueInEditor;
+				if (fixed === undefined) continue;
+				const parsedFixed = p.schema.safeParse(fixed);
+				if (!parsedFixed.success) {
+					setError(`${p.key} fixed value is invalid`);
+					return;
+				}
+				next[p.key] = parsedFixed.data;
+			}
 			onSave(next);
 			onClose();
 		} catch (e: unknown) {
@@ -227,6 +266,7 @@ export function CommandEditorSheet(props: Props) {
 							) : null}
 
 							{cat?.params?.map((p) => {
+								if (p.ui?.hideInEditor) return null;
 								const fieldLabel = isBeginner
 									? (p.beginnerLabel ?? p.label)
 									: p.label;

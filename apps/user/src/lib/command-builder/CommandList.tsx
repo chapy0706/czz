@@ -9,7 +9,6 @@ type Props = {
 	layout?: "horizontal" | "vertical";
 	commands: Command[];
 	selectedId: string | null;
-	onSelect: (id: string) => void;
 	onEdit: (id: string) => void;
 	onRemove: (id: string) => void;
 	onReorder: (from: number, to: number) => void;
@@ -20,7 +19,6 @@ export function CommandList(props: Props) {
 		layout = "vertical",
 		commands,
 		selectedId,
-		onSelect,
 		onEdit,
 		onRemove,
 		onReorder,
@@ -46,7 +44,6 @@ export function CommandList(props: Props) {
 							command={cmd}
 							index={i}
 							isSelected={cmd.id === selectedId}
-							onSelect={() => onSelect(cmd.id)}
 							onEdit={() => onEdit(cmd.id)}
 							onRemove={() => onRemove(cmd.id)}
 							onReorder={onReorder}
@@ -67,7 +64,6 @@ export function CommandList(props: Props) {
 					command={cmd}
 					index={i}
 					isSelected={cmd.id === selectedId}
-					onSelect={() => onSelect(cmd.id)}
 					onEdit={() => onEdit(cmd.id)}
 					onRemove={() => onRemove(cmd.id)}
 					onReorder={onReorder}

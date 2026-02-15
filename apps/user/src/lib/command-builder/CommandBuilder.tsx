@@ -136,9 +136,15 @@ export function CommandBuilder(props: Props) {
 	const closeEditor = useCommandBuilderStore((s) => s.closeEditor);
 	const updateCommandJson = useCommandBuilderStore((s) => s.updateCommandJson);
 	const move = useCommandBuilderStore((s) => s.move);
+	const clearCommands = useCommandBuilderStore((s) => s.clearCommands);
 	const runnerIo = useCommandBuilderStore((s) => s.runnerIo);
 	const setRunnerInput = useCommandBuilderStore((s) => s.setRunnerInput);
 	const setRunnerOutput = useCommandBuilderStore((s) => s.setRunnerOutput);
+	const [undo, setUndo] = React.useState<{
+		command: { id: string; value: unknown };
+		index: number;
+	} | null>(null);
+	const undoTimerRef = React.useRef<number | null>(null);
 
 	React.useEffect(() => {
 		if (!task.id) return;
@@ -150,6 +156,34 @@ export function CommandBuilder(props: Props) {
 			move(fromIndex, toIndex);
 		},
 		[move],
+	);
+
+	const onEditCommand = React.useCallback(
+		(id: string) => {
+			select(id);
+			openEditor(id);
+		},
+		[openEditor, select],
+	);
+
+	const onRemoveCommand = React.useCallback(
+		(id: string) => {
+			const index = commands.findIndex((c) => c.id === id);
+			const target = commands[index];
+			if (!target) return;
+
+			remove(id);
+			setUndo({ command: target, index });
+
+			if (undoTimerRef.current) {
+				window.clearTimeout(undoTimerRef.current);
+			}
+			undoTimerRef.current = window.setTimeout(() => {
+				setUndo(null);
+				undoTimerRef.current = null;
+			}, 3000);
+		},
+		[commands, remove],
 	);
 
 	// 表示用: パイプライン1行（Domainの真実ではなくUIの見せ方）
@@ -194,14 +228,30 @@ export function CommandBuilder(props: Props) {
 				? "実行中…"
 				: null;
 
-	const onClear = React.useCallback(() => {
-		if (!task.id) return;
-		if (run.running) return;
+	const onUndoRemove = React.useCallback(() => {
+		if (!undo) return;
+		const valueRecord = isRecord(undo.command.value)
+			? undo.command.value
+			: null;
+		const type = getString(valueRecord, "type");
+		if (!type || !isCommandType(type)) {
+			setUndo(null);
+			return;
+		}
 
-		// storeの「確実に存在する」APIだけで初期化する
-		initForTask(task.id);
-		select(null);
-	}, [initForTask, run.running, select, task.id]);
+		add(type);
+		const nextCommands = useCommandBuilderStore.getState().commands;
+		const added = nextCommands[nextCommands.length - 1];
+		if (!added) {
+			setUndo(null);
+			return;
+		}
+		updateCommandJson(added.id, undo.command.value);
+		const toIndex = Math.max(0, Math.min(undo.index, nextCommands.length - 1));
+		move(nextCommands.length - 1, toIndex);
+		select(added.id);
+		setUndo(null);
+	}, [add, move, select, undo, updateCommandJson]);
 
 	return (
 		<div className="space-y-4">
@@ -212,9 +262,8 @@ export function CommandBuilder(props: Props) {
 				<CommandList
 					commands={commands}
 					selectedId={selectedId}
-					onSelect={(id) => select(id)}
-					onEdit={(id) => openEditor(id)}
-					onRemove={(id) => remove(id)}
+					onEdit={onEditCommand}
+					onRemove={onRemoveCommand}
 					onReorder={onReorder}
 					layout={isBeginner ? "horizontal" : "vertical"}
 				/>
@@ -227,7 +276,7 @@ export function CommandBuilder(props: Props) {
 			{/* P0: 初心者モードでも “Clear / Run” を常時表示して導線を切らない */}
 			<section className="rounded border p-4">
 				<div className="mb-2 text-xs font-semibold opacity-70">
-					コマンドライン
+					{isBeginner ? "コマンド一覧" : "コマンドライン"}
 				</div>
 
 				{!isBeginner ? (
@@ -282,28 +331,23 @@ export function CommandBuilder(props: Props) {
 					{pipelineText}
 				</div>
 
-				<div className="mt-3 flex items-center justify-between gap-3">
-					<div className="text-sm font-semibold">実行</div>
-
-					<div className="flex items-center gap-2">
-						<button
-							type="button"
-							className="rounded border px-3 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50"
-							onClick={onClear}
-							disabled={!task.id || run.running}
-						>
-							クリア
-						</button>
-
-						<button
-							type="button"
-							className="rounded border px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50"
-							onClick={run.onClick}
-							disabled={!canRun}
-						>
-							{run.running ? "うごかしてる…" : "ためす"}
-						</button>
-					</div>
+				<div className="mt-3 flex items-center justify-end gap-3">
+					<button
+						type="button"
+						className="rounded border px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50"
+						onClick={clearCommands}
+						disabled={commands.length === 0}
+					>
+						リセット
+					</button>
+					<button
+						type="button"
+						className="rounded border px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50"
+						onClick={run.onClick}
+						disabled={!canRun}
+					>
+						{run.running ? "うごかしてる…" : "結果を見る"}
+					</button>
 				</div>
 
 				{disabledReason ? (
@@ -338,6 +382,19 @@ export function CommandBuilder(props: Props) {
 						closeEditor();
 					}}
 				/>
+			) : null}
+
+			{undo ? (
+				<div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded border bg-background px-4 py-2 text-sm shadow">
+					削除しました
+					<button
+						type="button"
+						className="ml-3 underline"
+						onClick={onUndoRemove}
+					>
+						元に戻す
+					</button>
+				</div>
 			) : null}
 		</div>
 	);

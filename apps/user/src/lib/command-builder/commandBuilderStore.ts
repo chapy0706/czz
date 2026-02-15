@@ -42,6 +42,7 @@ type State = {
 	remove: (id: string) => void;
 	move: (fromIndex: number, toIndex: number) => void;
 	clear: () => void;
+	clearCommands: () => void;
 
 	updateCommandJson: (id: string, next: unknown) => void;
 
@@ -61,7 +62,11 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
 	runnerIo: DEFAULT_RUNNER_IO,
 
 	initForTask: (_taskId) => {
-		// 既存の初期化があるならここに寄せる。今回は noop でもOK。
+		set({
+			commands: [],
+			selectedId: null,
+			editingId: null,
+		});
 	},
 
 	select: (id) => set({ selectedId: id }),
@@ -141,6 +146,13 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
 			editingId: null,
 			runnerIo: DEFAULT_RUNNER_IO,
 		}),
+	clearCommands: () =>
+		set((s) => ({
+			commands: [],
+			selectedId: null,
+			editingId: null,
+			runnerIo: s.runnerIo,
+		})),
 
 	updateCommandJson: (id, next) => {
 		set((s) => ({

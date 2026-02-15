@@ -124,10 +124,13 @@ export default function ResultsByIdClient({ resultId }: Props) {
 		if (!loadedData) return;
 		const isSuccess = loadedData.passed === loadedData.total;
 		setVariant(isSuccess ? "success" : "encourage");
+	}, [loadedData, setVariant]);
+
+	React.useEffect(() => {
 		return () => {
 			resetVariant();
 		};
-	}, [loadedData, resetVariant, setVariant]);
+	}, [resetVariant]);
 
 	return (
 		<main

@@ -1,12 +1,11 @@
 // apps/user/src/lib/command-builder/CommandRow.tsx
 "use client";
 
-import * as React from "react";
-
 import {
 	type CommandType,
 	getCatalogItem,
 } from "@/lib/command-builder/commandCatalog";
+import { useSwipeActions } from "@/lib/command-builder/useSwipeActions";
 import { getString, isRecord } from "@/lib/shared/unknown";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
@@ -14,7 +13,6 @@ type Props = {
 	command: { id: string; value: unknown };
 	index: number;
 	isSelected: boolean;
-	onSelect: () => void;
 	onEdit: () => void;
 	onRemove: () => void;
 	onReorder: (from: number, to: number) => void;
@@ -25,7 +23,6 @@ export function CommandRow({
 	command,
 	index,
 	isSelected,
-	onSelect,
 	onEdit,
 	onRemove,
 	onReorder: _onReorder,
@@ -50,25 +47,14 @@ export function CommandRow({
 		? (cat?.ui.beginnerExample ?? "")
 		: "Swipe: → edit / ← delete";
 
-	const startXref = React.useRef<number | null>(null);
-
-	function onPointerDown(e: React.PointerEvent) {
-		startXref.current = e.clientX;
-	}
-
-	function onPointerUp(e: React.PointerEvent) {
-		const startX = startXref.current;
-		startXref.current = null;
-		if (startX == null) return;
-
-		const dx = e.clientX - startX;
-		const absDx = Math.abs(dx);
-
-		if (absDx < 20) return;
-
-		if (dx > 0) onEdit();
-		else onRemove();
-	}
+	const swipe = useSwipeActions({
+		onSwipeLeft: () => {
+			onRemove();
+		},
+		onSwipeRight: () => {
+			onEdit();
+		},
+	});
 
 	const base =
 		variant === "chip"
@@ -84,6 +70,10 @@ export function CommandRow({
 			className={`${base} ${isSelected ? selected : normal}`}
 			data-testid-index={`cmd-row-${index}`}
 			data-testid={`cb-item-${type}`}
+			onPointerDown={swipe.handlers.onPointerDown}
+			onPointerMove={swipe.handlers.onPointerMove}
+			onPointerUp={swipe.handlers.onPointerUp}
+			onPointerCancel={swipe.handlers.onPointerCancel}
 		>
 			<div
 				className={`absolute left-0 top-0 h-full w-1 rounded-l ${
@@ -95,11 +85,12 @@ export function CommandRow({
 			<button
 				type="button"
 				className="min-w-0 flex-1 text-left"
-				onClick={onSelect}
-				onPointerDown={onPointerDown}
-				onPointerUp={onPointerUp}
+				onClick={() => {
+					if (swipe.isSwiping) return;
+					onEdit();
+				}}
 				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") onSelect();
+					if (e.key === "Enter" || e.key === " ") onEdit();
 				}}
 			>
 				<div className="min-w-0">
@@ -118,36 +109,6 @@ export function CommandRow({
 					) : null}
 				</div>
 			</button>
-
-			<div className="flex items-center gap-2">
-				<button
-					type="button"
-					className="rounded border px-2 py-1 text-xs hover:bg-accent"
-					onClick={(e) => {
-						e.stopPropagation();
-						onEdit();
-					}}
-					data-testid={`cmd-edit-${index}`}
-					aria-label="edit command"
-					title="Edit"
-				>
-					{isBeginner ? "編集" : "Edit"}
-				</button>
-
-				<button
-					type="button"
-					className="rounded border px-2 py-1 text-xs hover:bg-accent"
-					onClick={(e) => {
-						e.stopPropagation();
-						onRemove();
-					}}
-					data-testid={`cmd-del-${index}`}
-					aria-label="delete command"
-					title="Delete"
-				>
-					{isBeginner ? "削除" : "Del"}
-				</button>
-			</div>
 		</div>
 	);
 }

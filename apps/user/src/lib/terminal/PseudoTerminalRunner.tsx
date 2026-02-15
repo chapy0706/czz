@@ -227,24 +227,6 @@ export function PseudoTerminalRunner({
 		<div className="space-y-3">
 			<div className="flex items-center justify-between">
 				<div className="text-sm text-muted-foreground">プレイグラウンド</div>
-				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						className="rounded-md border px-3 py-1 text-xs"
-						onClick={onClear}
-						disabled={running}
-					>
-						クリア
-					</button>
-					<button
-						type="button"
-						className="rounded-md border px-3 py-1 text-xs"
-						onClick={onRun}
-						disabled={!canRun}
-					>
-						{running ? "実行中…" : "実行"}
-					</button>
-				</div>
 			</div>
 
 			<div className="rounded-2xl border bg-card p-3">
@@ -305,6 +287,25 @@ export function PseudoTerminalRunner({
 
 					<div className="rounded-md border bg-background px-2 py-2 text-sm">
 						{inputNumbers.length > 0 ? inputNumbers.join(", ") : "—"}
+					</div>
+
+					<div className="flex items-center gap-2 pt-2">
+						<button
+							type="button"
+							className="rounded-md border px-3 py-1 text-xs"
+							onClick={onClear}
+							disabled={running}
+						>
+							クリア
+						</button>
+						<button
+							type="button"
+							className="rounded-md border px-3 py-1 text-xs"
+							onClick={onRun}
+							disabled={!canRun}
+						>
+							{running ? "チェック中…" : "コマンドチェック"}
+						</button>
 					</div>
 				</div>
 			</div>

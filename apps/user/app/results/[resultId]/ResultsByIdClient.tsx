@@ -251,12 +251,6 @@ export default function ResultsByIdClient({ resultId }: Props) {
 								>
 									課題一覧へ
 								</Link>
-								<Link
-									className="rounded border px-3 py-1.5 text-sm hover:bg-muted"
-									href="/results/running"
-								>
-									もう一度実行
-								</Link>
 							</div>
 						</CardContent>
 					</Card>

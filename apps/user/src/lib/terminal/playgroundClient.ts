@@ -5,11 +5,19 @@ import {
 	PlaygroundResponseSchema,
 } from "@/lib/terminal/playgroundContract";
 
-export async function runPlayground(params: {
+type RunPlaygroundParams = {
 	debugInput: number[];
 	submittedProgram: unknown;
-}): Promise<PlaygroundResponse> {
-	const parsedReq = PlaygroundRequestSchema.safeParse(params);
+	signal?: AbortSignal;
+};
+
+export async function runPlayground(
+	params: RunPlaygroundParams,
+): Promise<PlaygroundResponse> {
+	const parsedReq = PlaygroundRequestSchema.safeParse({
+		debugInput: params.debugInput,
+		submittedProgram: params.submittedProgram,
+	});
 	if (!parsedReq.success) {
 		return {
 			ok: false,
@@ -25,6 +33,7 @@ export async function runPlayground(params: {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(parsedReq.data),
+			signal: params.signal,
 		});
 
 		const data = await res.json().catch(() => null);

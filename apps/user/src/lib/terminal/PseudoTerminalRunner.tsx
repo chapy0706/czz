@@ -65,6 +65,7 @@ export function PseudoTerminalRunner({
 	const [errorSummary, setErrorSummary] = React.useState<string | null>(null);
 	const [errorDetails, setErrorDetails] = React.useState<string | null>(null);
 	const mode = useUiModeStore((s) => s.mode);
+	const _commands = useCommandBuilderStore((s) => s.commands);
 
 	const inputNumbers =
 		presetKey === "random" ? randomInput : PRESET_VALUES[presetKey];
@@ -74,6 +75,79 @@ export function PseudoTerminalRunner({
 		setErrorSummary(null);
 		setErrorDetails(null);
 	}, []);
+
+	React.useEffect(() => {
+		if (!resolvedTaskId) return;
+		if (presetKey === "random" && randomInput.length === 0) return;
+
+		const controller = new AbortController();
+		const handle = window.setTimeout(async () => {
+			setRunning(true);
+			setResult(null);
+			setErrorSummary(null);
+			setErrorDetails(null);
+
+			try {
+				const res = await runPlayground({
+					debugInput: inputNumbers,
+					submittedProgram: getSubmittedProgram(),
+					signal: controller.signal,
+				});
+
+				setRunning(false);
+
+				const inputText = formatOutputHuman(inputNumbers);
+				const commandLines = serializeCommandsForDisplay(_commands);
+
+				if (!res.ok) {
+					const err = "error" in res ? res.error : undefined;
+					const msg = err?.message ?? tTerminal("unknownError", mode);
+					setErrorSummary(msg);
+					setErrorDetails(
+						err?.details !== undefined
+							? formatOutputHuman(err.details)
+							: "詳細情報がありません。",
+					);
+					setResult({
+						status: "failure",
+						inputText,
+						commandLines,
+						outputText: "出力が取得できませんでした。",
+					});
+					return;
+				}
+
+				const outputText = formatOutputHuman(res.output);
+				setResult({
+					status: "success",
+					inputText,
+					commandLines,
+					outputText,
+				});
+			} catch (e) {
+				if (e instanceof DOMException && e.name === "AbortError") return;
+				const msg =
+					e instanceof Error ? e.message : tTerminal("unknownError", mode);
+				setErrorSummary(msg);
+				setErrorDetails("詳細情報がありません。");
+			} finally {
+				setRunning(false);
+			}
+		}, 300);
+
+		return () => {
+			controller.abort();
+			window.clearTimeout(handle);
+		};
+	}, [
+		_commands,
+		getSubmittedProgram,
+		inputNumbers,
+		mode,
+		presetKey,
+		randomInput.length,
+		resolvedTaskId,
+	]);
 
 	const generateRandom = React.useCallback(() => {
 		const length = Math.max(3, Math.min(10, randomLength));

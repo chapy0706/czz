@@ -2,14 +2,16 @@
 
 # docs
 
-ここは「仕様と運用の入口」。
+czz は「DSL を組み立てて課題を解く」学習アプリです。`apps/user` が学習者向けUI、`apps/admin` が管理画面です。UI には **初心者モード / 上級者（UNIX）モード** があります。
 
-## いま触る場所
-- docs/specs/README.md（Spec運用）
-- docs/specs/active/（進行中の仕様 = AIが読む）
-- docs/runbook/（調査・運用の型）
+## どこから読むか
+- SSOT（仕様の単一の真実）: `./specs/active/`
+- 運用手順: `./runbook/`
+- 仕様作成の流れ: `./czz_driven_development_doc.md`
 
-## 基本ルール
-- Issue は入口（短く、古くならない）
-- spec が真実（Single Source of Truth）
-- README は導線に徹し、詳細は specs / runbook に置く
+## 主要ドキュメント
+- 仕組みの概要: `./czz_architecture.md`
+- 技術スタック: `./tech-stacks.md`
+- コーディングルール: `./coding-guidelines.md`
+- DSL 一覧: `./dsl-cheatsheet.md`
+- 検証と手順: `./seed-and-test.md`

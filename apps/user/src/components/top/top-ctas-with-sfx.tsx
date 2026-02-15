@@ -47,15 +47,6 @@ export function TopCtasWithSfx({ className }: Props) {
 			>
 				スタート
 			</Link>
-
-			<Link
-				href="/result"
-				onClick={handleClick}
-				className="rounded border bg-background px-4 py-2 text-sm hover:bg-accent"
-				data-testid="top-cta-latest-result"
-			>
-				直近のリザルト
-			</Link>
 		</div>
 	);
 }

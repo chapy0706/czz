@@ -112,6 +112,20 @@ export async function POST(
 				});
 				resolvedUserId = created.id;
 			}
+		} else if (parsed.userId) {
+			const existing = await userRepo.findById(parsed.userId);
+			if (existing) {
+				// authUserId があるユーザーの id を使わせない
+				resolvedUserId = existing.authUserId ? undefined : existing.id;
+			} else {
+				const created = await userRepo.create({
+					id: parsed.userId,
+					authUserId: null,
+					displayName: "Guest",
+					role: 0,
+				});
+				resolvedUserId = created.id;
+			}
 		}
 
 		const usecase = new EvaluateTaskUseCase({

@@ -16,6 +16,7 @@ export interface User {
 }
 
 export interface NewUser {
+	id?: UserId;
 	authUserId: AuthUserId | null;
 	displayName: string;
 	role: UserRoleFlag;

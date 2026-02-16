@@ -23,6 +23,7 @@ export class DrizzleUserRepository implements UserRepository {
 	}
 	async create(input: NewUser): Promise<User> {
 		const values = {
+			id: input.id,
 			authUserId: input.authUserId,
 			displayName: input.displayName,
 			role: input.role,

@@ -44,7 +44,7 @@ const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(
-	_req: Request,
+	req: Request,
 	ctx: { params: Promise<{ resultId: string }> },
 ) {
 	try {
@@ -57,21 +57,50 @@ export async function GET(
 		}
 
 		const { userId: authUserId } = await auth();
-		if (!authUserId) {
-			return NextResponse.json(
-				{ ok: false, error: "Unauthorized" } satisfies ResultError,
-				{ status: 401 },
-			);
-		}
-
-		// Clerk userId → internal users.id に変換（evaluate と同じ方式）
 		const userRepo = new DrizzleUserRepository();
-		const appUser = await userRepo.findByAuthUserId(authUserId);
-		if (!appUser) {
-			return NextResponse.json(
-				{ ok: false, error: "Not found" } satisfies ResultError,
-				{ status: 404 },
-			);
+
+		let appUser = null as Awaited<ReturnType<typeof userRepo.findById>> | null;
+
+		if (authUserId) {
+			// Clerk userId → internal users.id に変換（evaluate と同じ方式）
+			appUser = await userRepo.findByAuthUserId(authUserId);
+			if (!appUser) {
+				return NextResponse.json(
+					{ ok: false, error: "Not found" } satisfies ResultError,
+					{ status: 404 },
+				);
+			}
+		} else {
+			const url = new URL(req.url);
+			const guestUserId = url.searchParams.get("userId");
+			if (guestUserId) {
+				if (!UUID_RE.test(guestUserId)) {
+					return NextResponse.json(
+						{ ok: false, error: "Invalid userId" } satisfies ResultError,
+						{ status: 400 },
+					);
+				}
+				const existing = await userRepo.findById(guestUserId);
+				if (existing) {
+					if (existing.authUserId) {
+						return NextResponse.json(
+							{ ok: false, error: "Not found" } satisfies ResultError,
+							{ status: 404 },
+						);
+					}
+					appUser = existing;
+				} else {
+					return NextResponse.json(
+						{ ok: false, error: "Not found" } satisfies ResultError,
+						{ status: 404 },
+					);
+				}
+			} else {
+				return NextResponse.json(
+					{ ok: false, error: "Unauthorized" } satisfies ResultError,
+					{ status: 401 },
+				);
+			}
 		}
 
 		const repository = new DrizzleResultRepository();

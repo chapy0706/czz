@@ -5,6 +5,7 @@ import Link from "next/link";
 import * as React from "react";
 import { useMascotVariantStore } from "@/components/beginner/mascotVariantStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getOrCreateGuestUserId } from "@/lib/terminal/guestUserId";
 import { useUiModeStore } from "@/lib/ui-mode/uiModeStore";
 
 type Props = {
@@ -69,10 +70,14 @@ export default function ResultsByIdClient({ resultId }: Props) {
 
 		(async () => {
 			try {
+				const guestUserId = getOrCreateGuestUserId();
+				const query = guestUserId
+					? `?userId=${encodeURIComponent(guestUserId)}`
+					: "";
 				// 想定API: /api/results/:resultId
 				// もし実装が別なら、ここを合わせるのが最小修正。
 				const res = await fetch(
-					`/api/results/${encodeURIComponent(resultId)}`,
+					`/api/results/${encodeURIComponent(resultId)}${query}`,
 					{
 						method: "GET",
 						cache: "no-store",

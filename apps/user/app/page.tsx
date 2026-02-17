@@ -7,16 +7,21 @@ import { TopIntro } from "@/components/top/top-intro";
 
 export default function Page() {
 	return (
-		<main className="mx-auto flex min-h-[calc(100vh-64px)] max-w-5xl flex-col justify-center px-6 py-10">
-			<div className="space-y-4" data-testid="top-page">
+		<main className="mx-auto flex min-h-[calc(100vh-64px)] max-w-5xl flex-col px-6 py-20">
+			<div
+				className="space-y-16 flex flex-col items-center text-center mt-12"
+				data-testid="top-page"
+			>
 				<TopIntro />
 
 				<TopCtasWithSfx />
 			</div>
 
-			<UiModeToggle className="mt-6" />
+			<div className="mt-6 flex justify-center">
+				<UiModeToggle />
+			</div>
 
-			<div className="mt-6">
+			<div className="mt-6 flex justify-center">
 				<BeginnerHud />
 			</div>
 		</main>

@@ -14,7 +14,7 @@ export function TopIntro() {
 			<TopTitle />
 
 			{!isBeginner && (
-				<p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+				<p className="max-w-2xl text-sm leading-relaxed text-muted-foreground mx-auto text-center">
 					UNIX 的な「流れ」を、UI
 					で組み立てて学ぶゲーム。コマンドを並べて実行し、テストで確かめる。
 				</p>

@@ -219,11 +219,10 @@ export default function ResultsByIdClient({ resultId }: Props) {
 				<div className="mt-6 space-y-6">
 					<Card>
 						<CardHeader>
-							<CardTitle>サマリ</CardTitle>
+							<CardTitle>リザルト</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
 							<div className="flex flex-wrap items-center gap-3 text-sm">
-								<span className="text-muted-foreground">判定</span>
 								<span
 									className={[
 										"rounded-full px-2 py-0.5 text-xs font-semibold",
@@ -263,7 +262,7 @@ export default function ResultsByIdClient({ resultId }: Props) {
 										className="rounded border px-3 py-1.5 text-sm hover:bg-muted"
 										href={`/tasks/${state.data.taskId}`}
 									>
-										タスクへ戻る
+										もう一度
 									</Link>
 								) : null}
 								<Link

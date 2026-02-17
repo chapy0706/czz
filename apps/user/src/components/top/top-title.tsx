@@ -10,7 +10,7 @@ export function TopTitle() {
 
 	if (mode === "beginner") {
 		return (
-			<div className="py-1" data-testid="top-title-beginner">
+			<div className="pt-4 py-1" data-testid="top-title-beginner">
 				<BeginnerPopTitle size="xl" />
 			</div>
 		);
@@ -18,7 +18,7 @@ export function TopTitle() {
 
 	return (
 		<h1
-			className="text-3xl font-bold tracking-tight"
+			className="mt-4 text-3xl font-bold tracking-wide"
 			data-testid="top-title-advanced"
 		>
 			Command Liner

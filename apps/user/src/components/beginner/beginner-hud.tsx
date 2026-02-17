@@ -42,7 +42,7 @@ export function BeginnerHud() {
 
 	return (
 		<section
-			className={cn("w-auto", "max-w-[180px]")}
+			className={cn("w-[33vw] max-w-[260px]")}
 			aria-label="初心者モード 操作パネル"
 		>
 			<div

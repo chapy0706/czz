@@ -35,7 +35,7 @@ export function TopCtasWithSfx({ className }: Props) {
 
 	return (
 		<div
-			className={["flex flex-wrap gap-2 pt-2", className]
+			className={["flex flex-wrap gap-2 pt-16 pb-6 justify-center", className]
 				.filter(Boolean)
 				.join(" ")}
 		>

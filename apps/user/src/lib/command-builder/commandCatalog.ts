@@ -14,8 +14,7 @@ export type CommandType =
 	| "OUTPUT_FIRST"
 	| "OUTPUT_LAST"
 	| "OUTPUT_SUM"
-	| "OUTPUT_COUNT"
-	| "OUTPUT_COLUMN_SUM";
+	| "OUTPUT_COUNT";
 
 export type ParamSpec = {
 	key: string;
@@ -286,29 +285,6 @@ export const COMMAND_CATALOG: CommandCatalogItem[] = [
 		ui: {
 			beginnerLabel: "数をかぞえる",
 			beginnerExample: "行の数を数える",
-		},
-	},
-	{
-		type: "OUTPUT_COLUMN_SUM",
-		label: "Output: column sum",
-		unixHint: "awk '{s+=$col} END{print s}'",
-		params: [
-			{
-				key: "column",
-				label: "column",
-				required: true,
-				schema: z.string().min(1),
-				ui: {
-					hideInEditor: true,
-					fixedValueInEditor: "input",
-				},
-				beginnerLabel: "どの列を足す？",
-				beginnerPlaceholder: "例: score",
-			},
-		],
-		ui: {
-			beginnerLabel: "列の合計を出す",
-			beginnerExample: "「COLUMN」の合計を出す",
 		},
 	},
 ];

@@ -88,6 +88,18 @@ describe("execute - 基本命令", () => {
 		expect(result).toEqual([3, 2, 1]);
 	});
 
+	it("OUTPUT_COUNT で件数を返す", () => {
+		const programJson = {
+			commands: [{ type: "OUTPUT_COUNT" }],
+		};
+
+		const program = dslProgramSchema.parse(programJson);
+
+		const result = execute(program, [1, 2, 3, 4]);
+
+		expect(result).toEqual([4]);
+	});
+
 	it("複数命令を組み合わせて実行できる", () => {
 		const programJson = {
 			commands: [

@@ -56,6 +56,9 @@ function applyCommand(command: DslCommand, input: DslInput): DslOutput {
 			return [sum];
 		}
 
+		case "OUTPUT_COUNT":
+			return [input.length];
+
 		default: {
 			// TypeScript 的には到達しないが、安全のため
 			const _exhaustiveCheck: never = command;

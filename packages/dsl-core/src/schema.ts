@@ -57,6 +57,10 @@ export const outputSumCommandSchema = z.object({
 	type: z.literal("OUTPUT_SUM"),
 });
 
+export const outputCountCommandSchema = z.object({
+	type: z.literal("OUTPUT_COUNT"),
+});
+
 export const dslCommandSchema = z.discriminatedUnion("type", [
 	filterEqualsCommandSchema,
 	filterNotEqualsCommandSchema,
@@ -70,6 +74,7 @@ export const dslCommandSchema = z.discriminatedUnion("type", [
 	outputFirstCommandSchema,
 	outputLastCommandSchema,
 	outputSumCommandSchema,
+	outputCountCommandSchema,
 ]);
 
 export const dslProgramSchema = z.object({

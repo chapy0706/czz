@@ -2,6 +2,7 @@
 
 import { BeginnerHud } from "@/components/beginner/beginner-hud";
 import { UiModeToggle } from "@/components/beginner/ui-mode-toggle";
+import { ManualLink } from "@/components/top/manual-link";
 import { TopCtasWithSfx } from "@/components/top/top-ctas-with-sfx";
 import { TopIntro } from "@/components/top/top-intro";
 
@@ -24,6 +25,8 @@ export default function Page() {
 			<div className="mt-6 flex justify-center">
 				<BeginnerHud />
 			</div>
+
+			<ManualLink />
 		</main>
 	);
 }

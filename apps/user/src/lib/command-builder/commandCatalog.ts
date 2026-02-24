@@ -256,8 +256,8 @@ export const COMMAND_CATALOG: CommandCatalogItem[] = [
 		label: "Output: first",
 		unixHint: "head -n 1",
 		ui: {
-			beginnerLabel: "一番上だけ出す",
-			beginnerExample: "一番最初の行だけ出力する",
+			beginnerLabel: "先頭だけ出す",
+			beginnerExample: "一番最初の値だけ出力する",
 		},
 	},
 	{
@@ -265,8 +265,8 @@ export const COMMAND_CATALOG: CommandCatalogItem[] = [
 		label: "Output: last",
 		unixHint: "tail -n 1",
 		ui: {
-			beginnerLabel: "一番下だけ出す",
-			beginnerExample: "一番最後の行だけ出力する",
+			beginnerLabel: "末尾だけ出す",
+			beginnerExample: "一番最後の値だけ出力する",
 		},
 	},
 	{

@@ -56,6 +56,7 @@ export function CommandEditorSheet(props: Props) {
 		{},
 	);
 	const [error, setError] = React.useState<string | null>(null);
+	const [confirmDelete, setConfirmDelete] = React.useState(false);
 	const typeRaw = selected ? extractType(selected.value) : "UNKNOWN";
 
 	React.useEffect(() => {
@@ -86,6 +87,7 @@ export function CommandEditorSheet(props: Props) {
 
 		setBasicValues(init);
 		setError(null);
+		setConfirmDelete(false);
 	}, [selected]);
 
 	if (!selected) return null;
@@ -329,36 +331,60 @@ export function CommandEditorSheet(props: Props) {
 								);
 							})}
 
-							<div className="flex justify-end gap-2 pt-2">
-								<button
-									type="button"
-									onClick={() => {
-										if (!window.confirm("このコマンドを削除しますか？")) return;
-										onRemove();
-									}}
-									className="rounded-lg border px-4 py-2 text-sm text-destructive hover:bg-muted"
-									data-testid="cmd-delete"
-								>
-									{isBeginner ? "コマンド削除" : "Delete"}
-								</button>
-								<button
-									type="button"
-									onClick={() => {
-										clearEditingDraft();
-										onClose();
-									}}
-									className="rounded-lg border px-4 py-2 text-sm hover:bg-muted"
-								>
-									{isBeginner ? "もどる" : "Cancel"}
-								</button>
-								<button
-									type="button"
-									onClick={onSubmitBasic}
-									className="rounded-lg border px-4 py-2 text-sm hover:bg-muted"
-								>
-									{isBeginner ? "OK" : "Save"}
-								</button>
-							</div>
+							{confirmDelete ? (
+								<div className="flex items-center justify-between gap-3 pt-2">
+									<div className="text-sm text-muted-foreground">
+										{isBeginner
+											? "本当に削除しますか？"
+											: "Delete this command?"}
+									</div>
+									<div className="flex justify-end gap-2">
+										<button
+											type="button"
+											onClick={() => onRemove()}
+											className="rounded-lg border px-4 py-2 text-sm text-destructive hover:bg-muted"
+											data-testid="cmd-delete-confirm"
+										>
+											{isBeginner ? "削除する" : "Delete"}
+										</button>
+										<button
+											type="button"
+											onClick={() => setConfirmDelete(false)}
+											className="rounded-lg border px-4 py-2 text-sm hover:bg-muted"
+										>
+											{isBeginner ? "やめる" : "Cancel"}
+										</button>
+									</div>
+								</div>
+							) : (
+								<div className="flex justify-end gap-2 pt-2">
+									<button
+										type="button"
+										onClick={() => setConfirmDelete(true)}
+										className="rounded-lg border px-4 py-2 text-sm text-destructive hover:bg-muted"
+										data-testid="cmd-delete"
+									>
+										{isBeginner ? "コマンド削除" : "Delete"}
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											clearEditingDraft();
+											onClose();
+										}}
+										className="rounded-lg border px-4 py-2 text-sm hover:bg-muted"
+									>
+										{isBeginner ? "もどる" : "Cancel"}
+									</button>
+									<button
+										type="button"
+										onClick={onSubmitBasic}
+										className="rounded-lg border px-4 py-2 text-sm hover:bg-muted"
+									>
+										{isBeginner ? "OK" : "Save"}
+									</button>
+								</div>
+							)}
 						</div>
 					)}
 				</div>

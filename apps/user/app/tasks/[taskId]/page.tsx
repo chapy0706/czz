@@ -1,9 +1,10 @@
 // apps/user/app/tasks/[taskId]/page.tsx
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CommandBuilder } from "@/lib/command-builder/CommandBuilder";
+import { useCommandBuilderStore } from "@/lib/command-builder/commandBuilderStore";
 import { getString, isRecord } from "@/lib/shared/unknown";
 import { getOrCreateGuestUserId } from "@/lib/terminal/guestUserId";
 
@@ -113,6 +114,8 @@ function TaskPageClient({ taskId }: { taskId: string }) {
 	const [meta, setMeta] = useState<TaskMeta | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
+	const router = useRouter();
+	const resetUiState = useCommandBuilderStore((s) => s.resetUiState);
 	const userId = useMemo(() => getOrCreateGuestUserId(), []);
 
 	useEffect(() => {
@@ -134,6 +137,19 @@ function TaskPageClient({ taskId }: { taskId: string }) {
 			alive = false;
 		};
 	}, [taskId]);
+
+	useEffect(() => {
+		const handlePageShow = (event: PageTransitionEvent) => {
+			if (!event.persisted) return;
+			resetUiState();
+			router.refresh();
+		};
+
+		window.addEventListener("pageshow", handlePageShow);
+		return () => {
+			window.removeEventListener("pageshow", handlePageShow);
+		};
+	}, [resetUiState, router]);
 
 	const taskForBuilder = useMemo(
 		() => ({

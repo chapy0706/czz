@@ -36,6 +36,7 @@ type State = {
 	initForTask: (taskId: string) => void;
 
 	select: (id: string | null) => void;
+	resetUiState: () => void;
 	openEditor: (id: string) => void;
 	closeEditor: () => void;
 	setEditingDraft: (id: string, value: unknown) => void;
@@ -75,6 +76,12 @@ export const useCommandBuilderStore = create<State>((set, get) => ({
 	},
 
 	select: (id) => set({ selectedId: id }),
+	resetUiState: () =>
+		set({
+			selectedId: null,
+			editingId: null,
+			editingDraft: null,
+		}),
 
 	openEditor: (id) =>
 		set((s) => {

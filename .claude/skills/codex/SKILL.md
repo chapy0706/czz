@@ -26,7 +26,7 @@
 
 入力（例）:
 
-- /codex spec=docs/specs/active/2026-02-09-issue-TBD-claude-code-skills-codex-orchestration.md
+- /codex spec=2026-02-09-issue-TBD-claude-code-skills-codex-orchestration.md
 
 出力は以下の順で書く:
 

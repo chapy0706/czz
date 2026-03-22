@@ -1,5 +1,30 @@
 {
 	"$schema": "https://json.schemastore.org/claude-code-settings.json",
+	"sandbox": {
+		"enabled": true,
+		"allowUnsandboxedCommands": false,
+		"filesystem": {
+			"denyRead": [
+				"~/.aws/credentials",
+				"~/.ssh",
+				"~/.gnupg",
+				"~/.npmrc",
+				"~/.git-credentials"
+			]
+		},
+		"network": {
+			"allowedDomains": [
+				"github.com",
+				"api.github.com",
+				"codeload.github.com",
+				"*.githubusercontent.com",
+				"*.npmjs.org",
+				"registry.yarnpkg.com",
+				"nodejs.org",
+				"downloads.nodejs.org"
+			]
+		}
+	},
 	"permissions": {
 		"allow": [
 			"Bash(pnpm *)",
@@ -26,7 +51,14 @@
 			"Bash(curl *)",
 			"Bash(wget *)",
 			"Read(**/.env*)",
-			"Read(**/secrets/**)"
+			"Read(**/secrets/**)",
+			"Bash(chmod 777 *)",
+			"Bash(sudo *)",
+			"Bash(dd *)",
+			"Read(**/*.pem)",
+			"Read(**/*.key)",
+			"Read(**/.npmrc)",
+			"Read(**/.git-credentials)"
 		],
 		"disableBypassPermissionsMode": "disable",
 		"defaultMode": "default"

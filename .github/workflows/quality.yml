@@ -7,8 +7,11 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 concurrency:
-  group: quality-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -16,6 +19,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install pnpm (from packageManager)
         uses: pnpm/action-setup@v4

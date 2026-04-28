@@ -1,5 +1,6 @@
 // apps/user/app/layout.tsx
 
+import type { Metadata } from "next";
 import type * as React from "react";
 import "./globals.css";
 
@@ -11,6 +12,28 @@ import { BeginnerMascotDock } from "@/components/beginner/beginner-mascot-dock";
 import { GlobalBreadcrumbs } from "@/components/nav/global-breadcrumbs";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UiModeProvider } from "@/components/providers/ui-mode-provider";
+
+export const metadata: Metadata = {
+	title: "czz",
+	description: "DSLでUNIX哲学を学ぶゲーム",
+	icons: {
+		icon: [
+			{ url: "/assets/characters/favicon.ico" },
+			{
+				url: "/assets/characters/favicon-32.png",
+				sizes: "32x32",
+				type: "image/png",
+			},
+		],
+		apple: [
+			{
+				url: "/assets/characters/czz-180.png",
+				sizes: "180x180",
+				type: "image/png",
+			},
+		],
+	},
+};
 
 const FEATURES = {
 	themeProvider: true,

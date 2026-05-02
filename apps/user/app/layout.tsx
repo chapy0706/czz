@@ -1,6 +1,7 @@
 // apps/user/app/layout.tsx
 
 import type { Metadata } from "next";
+import Script from "next/script";
 import type * as React from "react";
 import "./globals.css";
 
@@ -81,6 +82,14 @@ export default function RootLayout({
 
 	return (
 		<html lang="ja" suppressHydrationWarning>
+			<head>
+				{/* Cloudflare Web Analytics */}
+				<Script
+					src="https://static.cloudflareinsights.com/beacon.min.js"
+					strategy="afterInteractive"
+					data-cf-beacon='{"token": "3a5052f48b5c43b5bc3b3b45d4bcc599"}'
+				/>
+			</head>
 			<body>
 				<ClerkProvider
 					localization={jaJP}

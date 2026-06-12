@@ -9,49 +9,26 @@
 
 FROM node:20-alpine AS base
 
-# corepack で pnpm を有効化
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 # -------------------------------------------------------
-# Stage 1: 依存関係のインストール
-# -------------------------------------------------------
-FROM base AS deps
-
-WORKDIR /app
-
-# 依存関係解決に必要なファイルだけ先にコピー（キャッシュ効率化）
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-
-# 各アプリ・パッケージの package.json もコピー
-COPY apps/user/package.json ./apps/user/
-COPY apps/admin/package.json ./apps/admin/
-COPY packages/domain/package.json ./packages/domain/
-COPY packages/dsl-core/package.json ./packages/dsl-core/
-COPY packages/types/package.json ./packages/types/
-COPY packages/ui/package.json ./packages/ui/
-
-# 依存インストール（lock ファイルで固定）
-RUN pnpm install --frozen-lockfile
-
-# -------------------------------------------------------
-# Stage 2: ビルド
+# Stage 1: 依存関係のインストール＋ビルド
 # -------------------------------------------------------
 FROM base AS builder
 
 WORKDIR /app
 
-# deps ステージから node_modules をコピー
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/user/node_modules ./apps/user/node_modules 2>/dev/null || true
-
 # ソースコード全体をコピー
 COPY . .
+
+# 依存インストール（ワークスペース全体を解決するため全部コピー後に実行）
+RUN pnpm install --frozen-lockfile
 
 # apps/user をビルド
 RUN pnpm --filter user-app build
 
 # -------------------------------------------------------
-# Stage 3: 本番イメージ
+# Stage 2: 本番イメージ
 # -------------------------------------------------------
 FROM base AS runner
 
